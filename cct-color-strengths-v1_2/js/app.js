@@ -99,6 +99,28 @@
     return div.innerHTML;
   }
 
+  // Picks the correct Korean particle for a word, so generated sentences read
+  // naturally instead of falling back to the clumsy "은(는)" / "이(가)" form.
+  // A Hangul syllable has a final consonant (받침) when its code point offset
+  // from 가(U+AC00) is not an exact multiple of 28.
+  function josa(word, withBatchim, withoutBatchim) {
+    const s = String(word);
+    const code = s.charCodeAt(s.length - 1);
+    if (code < 0xac00 || code > 0xd7a3) return withoutBatchim; // non-Hangul tail
+    return (code - 0xac00) % 28 !== 0 ? withBatchim : withoutBatchim;
+  }
+
+  // "으로" vs "로" needs its own helper: unlike 은/는, the ㄹ final consonant
+  // (jongseong index 8) takes "로" just like a vowel ending does — 힘으로, but
+  // 열정로가 아니라 열정으로 / 물로. josa()'s binary batchim test can't express that.
+  function euro(word) {
+    const s = String(word);
+    const code = s.charCodeAt(s.length - 1);
+    if (code < 0xac00 || code > 0xd7a3) return "로";
+    const jong = (code - 0xac00) % 28;
+    return jong === 0 || jong === 8 ? "로" : "으로";
+  }
+
   function getContrastText(hex) {
     // returns readable ink color (white or dark) for a given background hex
     const num = parseInt(hex.replace("#", ""), 16);
@@ -366,7 +388,7 @@
       return `
         <div class="center-notice">
           <div class="center-notice-title">상세 결과 PDF는 센터 방문 시 제공됩니다</div>
-          <p>13개 컬러 전체 프로파일과 상세 해석이 담긴 리포트는 온라인으로 바로 받아보실 수 없고, 아래 센터를 방문하시면 안내받으실 수 있어요.</p>
+          <p>13개 컬러 전체 프로파일과 상세 해석이 담긴 리포트는 온라인으로 바로 받아보실 수 없고, 아래 센터에서 진단 예약을 하고 센터로 방문하시면 안내받으실 수 있어요.</p>
         </div>
         <div class="result-actions">
           ${centerButtons}
@@ -396,20 +418,20 @@
     // Drive in the background. Runs for BOTH variants, and never blocks or
     // breaks the result screen if it fails (see autoLogResult's own try/catch).
     autoLogResult(scores, ranked, comp);
-    const nameLabel = userName ? `${escapeHtml(userName)}님의` : "나의";
 
     const resultNote =
       APP_VARIANT === "v2"
-        ? `본 결과는 자기보고 기반 성격강점 프로파일이며, 정신건강·성격장애를 진단하는 임상 도구가 아닙니다.`
-        : `본 결과는 자기보고 기반 성격강점 프로파일이며, 정신건강·성격장애를 진단하는 임상 도구가 아닙니다.<br/>
+        ? `본 결과는 자기보고 기반 성격강점 프로파일이며<br/>정신건강·성격장애를 진단하는 임상 도구가 아닙니다.`
+        : `본 결과는 자기보고 기반 성격강점 프로파일이며<br/>정신건강·성격장애를 진단하는 임상 도구가 아닙니다.<br/>
         13개 컬러 전체 프로파일과 상세 해석은 아래 PDF 리포트에서 확인하실 수 있습니다.`;
 
     const ctaLabel = APP_VARIANT === "v2" ? "센터 방문 안내 보기" : "상세 결과 PDF 다운로드";
 
     const html = `
+      <div class="result-doc-title">CCT 컬러성격강점검사 분석 결과</div>
+
       <div class="result-hero">
-        <div class="eyebrow">CCT 컬러성격강점검사 · 결과</div>
-        <p class="lead">${nameLabel} 컬러는</p>
+        <p class="lead">${userName ? escapeHtml(userName) + "님의" : "나의"} 강점 컬러는</p>
         <h1 style="color:${top1.hex}">${top1.ko}</h1>
         <p class="strength-name">${top1.strength} · ${top1.en}</p>
       </div>
@@ -417,7 +439,7 @@
       <section class="rs-block">
         <h2 class="rs-title">한눈에 보는 내 결과</h2>
         <div class="quick-grid">${buildQuickCardsHTML(ranked, comp)}</div>
-        ${buildQuickFactsHTML(scores, "아래에서 13개 컬러 전체 프로파일과 상세 해석을 확인하실 수 있습니다.")}
+        ${buildQuickFactsHTML(ranked, comp, "아래에서 13개 컬러 전체 프로파일과 상세 해석을 확인하실 수 있습니다.")}
       </section>
 
       <section class="rs-block">
@@ -440,7 +462,7 @@
       <section class="rs-block" id="rsComplement">
         <h2 class="rs-title">보완 컬러</h2>
         <p class="rs-note">
-          13개 중 가장 낮은 점수가 아니라, ${escapeHtml(top1.ko)}와(과) 심리적으로 대비되는 이론적 짝 중
+          13개 중 가장 낮은 점수가 아니라, ${escapeHtml(top1.ko)}${josa(top1.ko, "과", "와")} 심리적으로 대비되는 이론적 짝 중
           상대적으로 덜 활용된 컬러예요.
         </p>
         ${buildColorSectionScreenHTML(comp.chosen, "앞으로 더 활용해볼 자원", "rsComp")}
@@ -555,16 +577,72 @@
     }).sort((a, b) => b.value - a.value);
   }
 
-  // Same left/right average-percentage math as renderAxis() below, but
-  // returning plain numbers (no HTML) for the one-line quick-summary blurb.
-  function axisLean(axis, scores) {
-    const leftAvg = axis.left.colors.reduce((s, k) => s + scores[k], 0) / axis.left.colors.length;
-    const rightAvg = axis.right.colors.reduce((s, k) => s + scores[k], 0) / axis.right.colors.length;
-    const total = leftAvg + rightAvg || 1;
-    const rightPct = Math.max(6, Math.min(94, (rightAvg / total) * 100));
-    const leftPct = 100 - rightPct;
-    const lean = rightPct >= leftPct ? axis.right : axis.left;
-    return { leftPct, rightPct, lean, leanPct: Math.max(leftPct, rightPct) };
+  // ---------- 강점 분포 균형도 ----------
+  // Replaces the old "보조 성향축" reference-axis cards. Unlike those, every
+  // number here is derived purely from the 13 scores the reader can already
+  // see in the appendix — nothing is norm-referenced against a sample that
+  // doesn't exist yet, and no new psychological claim is introduced. It answers
+  // one question nothing else in the report answers: is this profile a few
+  // sharp peaks, or a broad even spread, and what does that mean in practice?
+  function computeBalanceProfile(ranked) {
+    const n = ranked.length;
+    const avg = (arr) => arr.reduce((s, c) => s + c.score, 0) / arr.length;
+    const topAvg = avg(ranked.slice(0, 3));
+    const bottomAvg = avg(ranked.slice(n - 3));
+    // Round to the same 1 decimal place the report prints, THEN classify.
+    // Classifying on the raw float let a gap that displays as "1.5" fall into
+    // the < 1.5 bucket (4.05 - 2.55 === 1.4999999999999996), so the printed
+    // number and the printed type could visibly disagree at the boundary.
+    const gap = Math.round((topAvg - bottomAvg) * 10) / 10;
+
+    // How many colors sit within 0.3 of TOP1 — i.e. is the peak a single clear
+    // spike or a cluster of near-ties?
+    const nearTop = ranked.filter((c) => ranked[0].score - c.score <= 0.3).length;
+
+    let type, text;
+    if (gap >= 1.5) {
+      type = "집중형";
+      text = `강점이 소수의 컬러에 뚜렷하게 몰려 있는 프로파일입니다. 자신이 잘하는 영역이 분명해 방향을 정하기 쉽고, 그 강점이 통하는 자리에서 빠르게 힘을 발휘하는 편입니다. 다만 상위 컬러가 잘 맞지 않는 상황에서는 쓸 수 있는 카드가 적게 느껴질 수 있으니, 보완 컬러를 미리 연습해두면 유연성이 커집니다.`;
+    } else if (gap >= 0.8) {
+      type = "중간형";
+      text = `뚜렷한 상위 강점이 있으면서 나머지 컬러도 어느 정도 받쳐주는 프로파일입니다. 주력 강점으로 승부하면서도 상황에 따라 다른 자원을 꺼내 쓸 수 있어, 역할이 바뀌는 환경에 비교적 잘 적응합니다. 강점을 더 날카롭게 다듬을지, 폭을 더 넓힐지를 의식적으로 선택해보면 좋습니다.`;
+    } else {
+      type = "균형형";
+      text = `13개 컬러가 비교적 고르게 나타난 프로파일입니다. 어떤 상황에서도 크게 막히지 않고 두루 대응할 수 있다는 것이 강점입니다. 다만 '나를 대표하는 강점'이 스스로에게도 잘 안 보일 수 있으니, 상위 컬러 한두 개를 의식적으로 더 자주 사용하면서 자기만의 색을 만들어가면 도움이 됩니다.`;
+    }
+
+    return { topAvg, bottomAvg, gap, nearTop, type, text };
+  }
+
+  function buildBalanceProfileHTML(ranked) {
+    const b = computeBalanceProfile(ranked);
+    // Marker position: gap of 0 → fully even, gap of 2.0+ → fully concentrated.
+    const pos = Math.max(3, Math.min(97, (b.gap / 2.0) * 100));
+    const stat = (label, value) =>
+      `<div class="bal-stat"><div class="bs-label">${label}</div><div class="bs-value">${value}</div></div>`;
+
+    return `
+      <div class="bal-wrap">
+        <div class="bal-head">
+          <span class="bal-type">${escapeHtml(b.type)}</span>
+          <span class="bal-head-text">상위 3컬러와 하위 3컬러의 점수 격차 ${b.gap.toFixed(1)}점</span>
+        </div>
+        <div class="bal-track">
+          <div class="bal-marker" style="left:${pos}%"></div>
+        </div>
+        <div class="bal-ends">
+          <span>고르게 분포</span>
+          <span>소수에 집중</span>
+        </div>
+        <div class="bal-stats">
+          ${stat("상위 3컬러 평균", b.topAvg.toFixed(1))}
+          ${stat("하위 3컬러 평균", b.bottomAvg.toFixed(1))}
+          ${stat("최고점 근처 컬러", b.nearTop + "개")}
+        </div>
+        <p class="bal-text">${b.text}</p>
+        <p class="bal-note">※ 이 지표는 다른 사람과 비교한 순위가 아니라, 본인의 13개 컬러 점수가 서로 얼마나 벌어져 있는지를 보여주는 참고 값입니다. 문항에 답할 때 극단(1점·5점)을 자주 고르는 편인지, 중간값을 주로 고르는 편인지에 따라 격차가 달라질 수 있으므로 절대적인 기준으로 해석하지 않는 것이 좋습니다.</p>
+      </div>
+    `;
   }
 
   // Replaces the raw 13-color bar list that used to sit at the bottom of the
@@ -578,9 +656,11 @@
   // The four TOP1-3 + complement stat cards. Shared by the PDF's profile page
   // and the on-screen result, so both always show the same four colors.
   function buildQuickCardsHTML(ranked, comp) {
+    // Labels say "강점" / "보완 컬러" outright — plain "TOP1/TOP2/TOP3" left
+    // readers thinking these were just "my colors" rather than strength colors.
     const cards = [
-      ...ranked.slice(0, 3).map((c, i) => ({ rank: `TOP${i + 1}`, c })),
-      { rank: "보완", c: comp.chosen },
+      ...ranked.slice(0, 3).map((c, i) => ({ rank: `강점 TOP${i + 1}`, c })),
+      { rank: "보완 컬러", c: comp.chosen },
     ];
     return cards
       .map(
@@ -597,17 +677,34 @@
       .join("");
   }
 
-  // One-paragraph recap of the top domain + both axis leanings. `tailText` lets
-  // each surface close the paragraph with its own pointer (the PDF sends the
-  // reader to its appendix; the screen points at the chart just below it).
-  function buildQuickFactsHTML(scores, tailText) {
-    const topDomain = computeDomainScores(scores)[0];
-    const axis1 = axisLean(CCT_AXES.leadCollab, scores);
-    const axis2 = axisLean(CCT_AXES.empathyObjective, scores);
+  // One-paragraph recap that narrates EXACTLY the four cards shown directly
+  // above it (TOP1, TOP2, TOP3, complement) and nothing else. It used to talk
+  // about the 6대 강점영역 average and the two reference axes instead — numbers
+  // that appear nowhere in those cards — which made the paragraph read as if it
+  // belonged to a different section. Keep this paragraph tied to the cards:
+  // if it mentions a figure, that figure should be visible right above it.
+  function buildQuickFactsHTML(ranked, comp, tailText) {
+    const t1 = ranked[0];
+    const t2 = ranked[1];
+    const t3 = ranked[2];
+    const cp = comp.chosen;
+    const nm = (c) => `<b>${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</b>`;
+
+    // The complement is picked from TOP1's theoretical contrast pair, which is
+    // NOT guaranteed to sit outside the TOP3 — so the same color can legitimately
+    // appear as both a strength and the complement. Saying "아직 덜 활용되고
+    // 있다" about a color the reader just saw ranked in their TOP3 reads as a
+    // flat contradiction, so that case gets its own honest phrasing instead.
+    const compIsAlsoStrength = ranked.slice(0, 3).some((c) => c.key === cp.key);
+    const compLine = compIsAlsoStrength
+      ? `${nm(cp)}${josa(cp.strength, "은", "는")} 강점으로도 나타났지만 동시에 ${escapeHtml(t1.ko)}${josa(t1.ko, "과", "와")} 심리적으로 대비되는 짝이기도 해서 보완 컬러로도 함께 제시됩니다. 이미 갖고 있는 자원인 만큼, 상황에 따라 의식적으로 꺼내 쓰면 균형을 잡는 데 도움이 됩니다.`
+      : `${nm(cp)}${josa(cp.strength, "은", "는")} 이 강점들과 심리적으로 대비되는 자리에 있는 보완 컬러로, 아직 상대적으로 덜 활용되고 있어 의식적으로 꺼내 쓸수록 전체 균형이 좋아집니다.`;
+
     return `
       <div class="quick-facts">
-        6대 상위 강점영역 중에서는 <b>${escapeHtml(topDomain.name)}</b>(${topDomain.value.toFixed(1)})이 가장 높게 나타났습니다.
-        보조 성향축에서는 <b>${escapeHtml(axis1.lean.name)}</b> 쪽이 ${axis1.leanPct.toFixed(0)}%, <b>${escapeHtml(axis2.lean.name)}</b> 쪽이 ${axis2.leanPct.toFixed(0)}%로 조금 더 우세하게 나타났습니다.
+        가장 뚜렷하게 드러난 강점 컬러는 ${nm(t1)}입니다. ${escapeHtml(t1.core)}${josa(t1.core, "이", "가")} 지금의 나를 이끄는 중심축으로 나타났습니다.
+        여기에 ${nm(t2)}, ${nm(t3)}${josa(t3.strength, "이", "가")} 함께 작동하면서 ${escapeHtml(t1.ko)}의 강점을 한층 입체적으로 받쳐 줍니다.
+        ${compLine}
         ${tailText}
       </div>
     `;
@@ -618,7 +715,7 @@
       <div class="quick-summary">
         <div class="section-subtitle">한눈에 보는 요약</div>
         <div class="quick-grid">${buildQuickCardsHTML(ranked, comp)}</div>
-        ${buildQuickFactsHTML(scores, '13개 컬러 전체 점수는 리포트 맨 뒤 "컬러별 상세 점수"에서 확인하실 수 있습니다.')}
+        ${buildQuickFactsHTML(ranked, comp, '13개 컬러 전체 점수는 리포트 맨 뒤 "컬러별 상세 점수"에서 확인하실 수 있습니다.')}
       </div>
     `;
   }
@@ -639,50 +736,8 @@
     `;
   }
 
-  // Infographic-style axis card: each side now shows its % share AND small
-  // color-swatch dots for the actual colors that make up that side, plus tick
-  // marks on the track — so the abstract axis stays visibly tied back to the
-  // concrete 13 colors instead of being just a plain unlabeled bar.
-  function renderAxis(axis, scores) {
-    const leftAvg = axis.left.colors.reduce((s, k) => s + scores[k], 0) / axis.left.colors.length;
-    const rightAvg = axis.right.colors.reduce((s, k) => s + scores[k], 0) / axis.right.colors.length;
-    const total = leftAvg + rightAvg || 1;
-    const rightPct = Math.max(6, Math.min(94, (rightAvg / total) * 100));
-    const leftPct = 100 - rightPct;
-
-    const dotsHTML = (colors) =>
-      colors
-        .map((k) => {
-          const c = cctColorByKey(k);
-          return `<span class="axis-dot" style="background:${c.hex}"></span>`;
-        })
-        .join("");
-
-    return `
-      <div class="axis-card">
-        <div class="axis-sides">
-          <div class="axis-side">
-            <div class="axis-side-name">${escapeHtml(axis.left.name)} <span class="axis-side-pct">${leftPct.toFixed(0)}%</span></div>
-            <div class="axis-dots">${dotsHTML(axis.left.colors)}</div>
-          </div>
-          <div class="axis-side axis-side-right">
-            <div class="axis-side-name">${escapeHtml(axis.right.name)} <span class="axis-side-pct">${rightPct.toFixed(0)}%</span></div>
-            <div class="axis-dots">${dotsHTML(axis.right.colors)}</div>
-          </div>
-        </div>
-        <div class="axis-track">
-          <div class="axis-tick" style="left:25%"></div>
-          <div class="axis-tick" style="left:50%"></div>
-          <div class="axis-tick" style="left:75%"></div>
-          <div class="axis-thumb" style="left:${rightPct}%"></div>
-        </div>
-        <div class="axis-desc">${axis.desc}</div>
-      </div>
-    `;
-  }
-
   function renderCombo(top1, top2) {
-    const text = `이 조합을 가진 사람은 “${top1.question}”과(와) “${top2.question}”라는 두 질문 모두에서 강점을 보일 수 있습니다. 실제 상황에서는 ${top1.ko}의 ‘${top1.core}’으로 상황을 시작하고, ${top2.ko}의 ‘${top2.core}’으로 흐름을 이어가는 방식이 자연스럽게 나타날 수 있습니다. 두 강점이 함께 발휘될 때는 ${top1.strength}과 ${top2.strength}이 서로를 보완하며 시너지를 만들 수 있지만, 두 강점 모두 과도하게 사용되는 상황이라면 각각의 "과도하게 사용될 때" 항목을 함께 점검해보는 것이 좋습니다.`;
+    const text = `이 조합을 가진 사람은 “${top1.question}”${josa(top1.question, "과", "와")} “${top2.question}”라는 두 질문 모두에서 강점을 보일 수 있습니다. 실제 상황에서는 ${top1.ko}의 ‘${top1.core}’${euro(top1.core)} 상황을 시작하고, ${top2.ko}의 ‘${top2.core}’${euro(top2.core)} 흐름을 이어가는 방식이 자연스럽게 나타날 수 있습니다. 두 강점이 함께 발휘될 때는 ${top1.strength}${josa(top1.strength, "과", "와")} ${top2.strength}${josa(top2.strength, "이", "가")} 서로를 보완하며 시너지를 만들 수 있지만, 두 강점 모두 과도하게 사용되는 상황이라면 각각의 "과도하게 사용될 때" 항목을 함께 점검해보는 것이 좋습니다.`;
     return `
       <div class="combo-card">
         <div class="combo-chips">
@@ -731,12 +786,12 @@
         <div class="fit-col fit-good">
           <div class="fit-label">잘 맞을 수 있는 컬러</div>
           <div class="fit-chips">${chipRow(goodColors)}</div>
-          <p class="fit-text">${escapeHtml(top1.ko)}·${escapeHtml(top2.ko)}와(과) 같은 '${escapeHtml(domainNames)}' 영역에 속한 컬러들입니다. 가치관과 접근 방식의 결이 비슷해 대화가 자연스럽게 통하고, 서로를 이해하는 데 큰 노력이 들지 않는 편입니다. 다만 비슷한 성향끼리는 놓치는 부분도 비슷할 수 있어, 가끔은 다른 관점을 가진 사람을 의도적으로 곁에 두는 것도 도움이 됩니다.</p>
+          <p class="fit-text">${escapeHtml(top1.ko)}·${escapeHtml(top2.ko)}${josa(top2.ko, "과", "와")} 같은 '${escapeHtml(domainNames)}' 영역에 속한 컬러들입니다. 가치관과 접근 방식의 결이 비슷해 대화가 자연스럽게 통하고, 서로를 이해하는 데 큰 노력이 들지 않는 편입니다. 다만 비슷한 성향끼리는 놓치는 부분도 비슷할 수 있어, 가끔은 다른 관점을 가진 사람을 의도적으로 곁에 두는 것도 도움이 됩니다.</p>
         </div>
         <div class="fit-col fit-friction">
           <div class="fit-label">다소 불편하게 느껴질 수 있는 컬러</div>
           <div class="fit-chips">${chipRow(frictionColors)}</div>
-          <p class="fit-text">${escapeHtml(top1.ko)}과(와) 심리적으로 대비되는 지향을 가진 컬러들입니다. 일하는 속도나 우선순위를 정하는 기준이 달라 처음에는 다소 부딪히거나 답답하게 느껴질 수 있습니다. 다만 이 차이 덕분에 ${escapeHtml(top1.ko)} 혼자서는 놓치기 쉬운 지점을 채워줄 수 있으니, 불편함 자체보다 "무엇을 다르게 보고 있는지"를 먼저 확인하는 태도가 도움이 됩니다.</p>
+          <p class="fit-text">${escapeHtml(top1.ko)}${josa(top1.ko, "과", "와")} 심리적으로 대비되는 지향을 가진 컬러들입니다. 일하는 속도나 우선순위를 정하는 기준이 달라 처음에는 다소 부딪히거나 답답하게 느껴질 수 있습니다. 다만 이 차이 덕분에 ${escapeHtml(top1.ko)} 혼자서는 놓치기 쉬운 지점을 채워줄 수 있으니, 불편함 자체보다 "무엇을 다르게 보고 있는지"를 먼저 확인하는 태도가 도움이 됩니다.</p>
         </div>
       </div>
     `;
@@ -820,12 +875,12 @@
   function buildProfileSummaryHTML(ranked, top1, comp) {
     const top = ranked.slice(0, 2);
     const topNames = top.map((c) => `${c.ko} · ${c.strength}`).join(", ");
-    const topText = `현재 13개 컬러 중 ${top.map((c) => c.ko).join("과 ")}이(가) 상대적으로 높게 나타났습니다. ${top
+    const topText = `현재 13개 컬러 중 ${top.map((c) => c.ko).join("·")}${josa(top[top.length - 1].ko, "이", "가")} 상대적으로 높게 나타났습니다. ${top
       .map((c) => c.core)
       .join(", ")} 등을 일상에서 비교적 자연스럽게 활용하고 있는 것으로 보입니다.`;
 
     const compColor = comp.chosen;
-    const compText = `${top1.ko}(${top1.strength})의 핵심 강점인 '${top1.core}'과(와) 심리적으로 대비되는 지향을 가진 컬러입니다. 점수가 낮다고 부족하거나 잘못된 것이 아니라, 아직 충분히 활용되지 않은 성장 자원에 가깝습니다. ${compColor.ko}의 '${compColor.core}'을(를) 의도적으로 시도해보면 ${top1.ko} 하나에만 치우치지 않는 균형 잡힌 강점 조합을 만들 수 있습니다.`;
+    const compText = `${top1.ko}(${top1.strength})의 핵심 강점인 '${top1.core}'${josa(top1.core, "과", "와")} 심리적으로 대비되는 지향을 가진 컬러입니다. 점수가 낮다고 부족하거나 잘못된 것이 아니라, 아직 충분히 활용되지 않은 성장 자원에 가깝습니다. ${compColor.ko}의 '${compColor.core}'${josa(compColor.core, "을", "를")} 의도적으로 시도해보면 ${top1.ko} 하나에만 치우치지 않는 균형 잡힌 강점 조합을 만들 수 있습니다.`;
 
     return `
       <div class="rp-summary-card">
@@ -860,7 +915,7 @@
         <p>
           보완 컬러는 13개 컬러 중 점수가 가장 낮은 컬러를 그대로 가리키는 것이 아닙니다. CCT 해석 가이드에서
           컬러마다 미리 설계해 둔 "이론적 짝" 후보들 중, 지금 상대적으로 덜 활용되고 있는 컬러를 의미합니다.
-          ${top1.ko}이(가) '${top1.core}'을(를) 통해 발휘되는 힘이라면, ${compColor.ko}은(는) '${compColor.core}'을(를)
+          ${top1.ko}${josa(top1.ko, "이", "가")} '${top1.core}'${josa(top1.core, "을", "를")} 통해 발휘되는 힘이라면, ${compColor.ko}${josa(compColor.ko, "은", "는")} '${compColor.core}'${josa(compColor.core, "을", "를")}
           통해 발휘되는 힘입니다. 서로 다른 지향의 두 강점이 함께 성장할 때, 한 가지 강점에만 의존하지 않는
           균형 잡힌 대응이 가능해집니다.
         </p>
@@ -972,7 +1027,7 @@
 
   // Extra, personalized context for the TOP3 comparison page: where the trio
   // collectively leans on the two reference axes (using the SAME CCT_AXES data
-  // as the "보조 성향축" cards further down), plus a few concrete scenarios
+  // as the retired "보조 성향축" cards did), plus a few concrete scenarios
   // where the combination tends to shine. Purely descriptive/informational —
   // never prescriptive or diagnostic.
   function buildTop3SynergyHTML(ranked) {
@@ -1066,7 +1121,7 @@
   // naturally as "...하는 사람" once the trailing "힘" is swapped for "사람".
   function buildTop3PersonaHTML(ranked) {
     const top3 = ranked.slice(0, 3);
-    const toIdentity = (core) => (core.endsWith("힘") ? core.slice(0, -1) + "사람" : `${core}을(를) 가진 사람`);
+    const toIdentity = (core) => (core.endsWith("힘") ? core.slice(0, -1) + "사람" : `${core}${josa(core, "을", "를")} 가진 사람`);
 
     const items = top3
       .map((c, i) => {
@@ -1190,12 +1245,9 @@
     flexible(domainBlock);
 
     flexible(`
-      <div class="section-subtitle">보조 성향축 (참고 지표) · 주도 ↔ 협력</div>
-      ${renderAxis(CCT_AXES.leadCollab, scores)}
-    `);
-    flexible(`
-      <div class="section-subtitle">보조 성향축 (참고 지표) · 공감 ↔ 객관</div>
-      ${renderAxis(CCT_AXES.empathyObjective, scores)}
+      <div class="section-subtitle">강점 분포 균형도</div>
+      <p class="section-desc">13개 컬러 점수가 소수에 집중되어 있는지, 고르게 퍼져 있는지를 보여주는 참고 지표입니다.</p>
+      ${buildBalanceProfileHTML(ranked)}
     `);
 
     if (ranked.length >= 2) {
@@ -1232,7 +1284,6 @@
         CCT 결과는 개인의 현재 자기보고를 기반으로 한 성격강점 프로파일입니다. 상황·환경·역할 및 시기에 따라 결과는 달라질 수 있습니다.
         본 결과는 정신건강 문제나 성격장애를 진단하기 위한 자료가 아니며, 자기이해·교육·코칭을 위한 참고자료로 활용하는 것을 권장합니다.
       </div>
-      <div class="rp-footer">CCT Color Character Strengths Test · Result Interpretation Guide v1.0 기반</div>
     `);
 
     return blocks;
