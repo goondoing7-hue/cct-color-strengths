@@ -156,14 +156,24 @@
     `;
   }
 
-  // On-screen version: one seamless card (hero + full body together).
-  function buildColorSectionHTML(color, tagLabel) {
+  // On-screen version: hero + summary are always visible, and the long detail
+  // half (건강할 때 / 과도할 때 / 예시 / 질문 — roughly 13 bullets per color)
+  // sits behind a disclosure toggle. Expanded-by-default made the result page
+  // ~2,800px of near-identical prose; collapsing the details cuts the initial
+  // scroll roughly in half while keeping everything one tap away.
+  function buildColorSectionScreenHTML(color, tagLabel, panelId) {
     return `
       <div class="color-section">
         ${colorSectionHeroHTML(color, tagLabel)}
         <div class="cs-body">
-          ${colorSectionIntroBodyHTML(color)}
-          ${colorSectionDetailBodyHTML(color)}
+          <p class="cs-summary">${escapeHtml(color.summary)}</p>
+          <button type="button" class="cs-toggle js-toggle" aria-expanded="false" aria-controls="${panelId}" data-target="${panelId}">
+            <span class="cs-toggle-label">이 강점이 드러나는 모습 보기</span>
+            <span class="cs-toggle-icon" aria-hidden="true">▾</span>
+          </button>
+          <div class="cs-details" id="${panelId}">
+            ${colorSectionDetailBodyHTML(color)}
+          </div>
         </div>
       </div>
     `;
@@ -394,6 +404,8 @@
         : `본 결과는 자기보고 기반 성격강점 프로파일이며, 정신건강·성격장애를 진단하는 임상 도구가 아닙니다.<br/>
         13개 컬러 전체 프로파일과 상세 해석은 아래 PDF 리포트에서 확인하실 수 있습니다.`;
 
+    const ctaLabel = APP_VARIANT === "v2" ? "센터 방문 안내 보기" : "상세 결과 PDF 다운로드";
+
     const html = `
       <div class="result-hero">
         <div class="eyebrow">CCT 컬러성격강점검사 · 결과</div>
@@ -402,21 +414,47 @@
         <p class="strength-name">${top1.strength} · ${top1.en}</p>
       </div>
 
-      ${buildColorSectionHTML(top1, "핵심 강점 컬러")}
+      <section class="rs-block">
+        <h2 class="rs-title">한눈에 보는 내 결과</h2>
+        <div class="quick-grid">${buildQuickCardsHTML(ranked, comp)}</div>
+        ${buildQuickFactsHTML(scores, "아래에서 13개 컬러 전체 프로파일과 상세 해석을 확인하실 수 있습니다.")}
+      </section>
 
-      <div class="pair-divider">보완 컬러</div>
-      <p class="pair-divider-note">
-        13개 중 가장 낮은 점수가 아니라, ${escapeHtml(top1.ko)}와(과) 심리적으로 대비되는 이론적 짝 중
-        상대적으로 덜 활용된 컬러예요.
-      </p>
+      <section class="rs-block">
+        <h2 class="rs-title">13개 컬러 프로파일</h2>
+        <div class="rs-radar-card">${buildRadarChartHTML(scores)}</div>
+        <button type="button" class="rs-toggle js-toggle" aria-expanded="false" aria-controls="rsScores" data-target="rsScores">
+          <span class="cs-toggle-label">컬러별 상세 점수 보기</span>
+          <span class="cs-toggle-icon" aria-hidden="true">▾</span>
+        </button>
+        <div class="rs-panel" id="rsScores">
+          <div class="bar-chart">${ranked.map((c, i) => buildScoreBarRowHTML(c, i)).join("")}</div>
+        </div>
+      </section>
 
-      ${buildColorSectionHTML(comp.chosen, "앞으로 더 활용해볼 자원")}
+      <section class="rs-block">
+        <h2 class="rs-title">핵심 강점 컬러</h2>
+        ${buildColorSectionScreenHTML(top1, "핵심 강점 컬러", "rsTop1")}
+      </section>
+
+      <section class="rs-block" id="rsComplement">
+        <h2 class="rs-title">보완 컬러</h2>
+        <p class="rs-note">
+          13개 중 가장 낮은 점수가 아니라, ${escapeHtml(top1.ko)}와(과) 심리적으로 대비되는 이론적 짝 중
+          상대적으로 덜 활용된 컬러예요.
+        </p>
+        ${buildColorSectionScreenHTML(comp.chosen, "앞으로 더 활용해볼 자원", "rsComp")}
+      </section>
 
       <p class="result-note">
         ${resultNote}
       </p>
 
       ${buildResultActionsHTML()}
+
+      <div class="rs-cta-bar" id="rsCtaBar">
+        <button type="button" class="btn btn-primary" id="btnCta">${ctaLabel}</button>
+      </div>
     `;
 
     resultWrap.innerHTML = html;
@@ -424,9 +462,183 @@
     document.getElementById("btnRetry").addEventListener("click", resetApp);
     const btnPdf = document.getElementById("btnPdf");
     if (btnPdf) btnPdf.addEventListener("click", (e) => downloadPdf(scores, ranked, e.currentTarget));
+
+    bindDisclosureToggles(resultWrap);
+    fitRadarToWidth(resultWrap);
+    bindResultCta(scores, ranked);
+
+    if (!renderResult._resizeBound) {
+      renderResult._resizeBound = true;
+      window.addEventListener("resize", () => fitRadarToWidth(resultWrap));
+    }
+  }
+
+  // Expand/collapse handlers for every .js-toggle in the result screen.
+  function bindDisclosureToggles(root) {
+    root.querySelectorAll(".js-toggle").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const panel = document.getElementById(btn.dataset.target);
+        if (!panel) return;
+        const open = panel.classList.toggle("is-open");
+        btn.classList.toggle("is-open", open);
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        const label = btn.querySelector(".cs-toggle-label");
+        if (label) label.textContent = label.textContent.replace(open ? "보기" : "접기", open ? "접기" : "보기");
+      });
+    });
+  }
+
+  // The radar chart is authored at a fixed 356px square (it has to be, because
+  // its labels are absolutely positioned at computed coordinates). On narrow
+  // phones that overflows the 24px-padded column, so scale the whole thing down
+  // to fit and shrink its container to match the scaled height.
+  //
+  // NOTE renderResult() runs while #screen-result is still display:none (see
+  // finishQuiz: render first, then showScreen), so on the first call every
+  // measurement is 0. Retry on subsequent frames until the element actually has
+  // a width, and re-fit on resize/orientation change.
+  function fitRadarToWidth(root, attempt) {
+    const card = root.querySelector(".rs-radar-card");
+    const wrap = card && card.querySelector(".radar-wrap");
+    if (!card || !wrap) return;
+
+    const natural = wrap.offsetWidth || 356;
+    const available = card.clientWidth - 16; // card's own horizontal padding
+    if (available <= 0) {
+      // not laid out yet — try again next frame (bounded, so a permanently
+      // hidden screen can never spin forever)
+      const next = (attempt || 0) + 1;
+      if (next < 30) requestAnimationFrame(() => fitRadarToWidth(root, next));
+      return;
+    }
+
+    const scale = Math.min(1, available / natural);
+    wrap.style.transformOrigin = "top center";
+    wrap.style.transform = scale < 1 ? `scale(${scale})` : "";
+    card.style.height = Math.round(natural * scale) + 16 + "px";
+  }
+
+  // Floating bottom CTA: gives the primary action a permanent home on a page
+  // that is otherwise several screens tall. It hides itself once the real
+  // action buttons at the bottom scroll into view, so the two never stack up.
+  function bindResultCta(scores, ranked) {
+    const bar = document.getElementById("rsCtaBar");
+    const cta = document.getElementById("btnCta");
+    const actions = resultWrap.querySelector(".result-actions");
+    if (!bar || !cta) return;
+
+    cta.addEventListener("click", (e) => {
+      if (APP_VARIANT === "v2") {
+        const target = resultWrap.querySelector(".center-notice") || actions;
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        downloadPdf(scores, ranked, e.currentTarget);
+      }
+    });
+
+    if (actions && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver(
+        (entries) => entries.forEach((en) => bar.classList.toggle("is-hidden", en.isIntersecting)),
+        { threshold: 0.1 }
+      );
+      io.observe(actions);
+    }
   }
 
   // ---------- Detailed PDF report ----------
+  // Shared by the profile page's quick summary AND the later "6대 상위
+  // 강점영역" flexible block, so both always agree on the same ranking.
+  function computeDomainScores(scores) {
+    return CCT_DOMAINS.map((d) => {
+      const vals = d.colors.map((k) => scores[k]);
+      return { ...d, value: vals.reduce((a, b) => a + b, 0) / vals.length };
+    }).sort((a, b) => b.value - a.value);
+  }
+
+  // Same left/right average-percentage math as renderAxis() below, but
+  // returning plain numbers (no HTML) for the one-line quick-summary blurb.
+  function axisLean(axis, scores) {
+    const leftAvg = axis.left.colors.reduce((s, k) => s + scores[k], 0) / axis.left.colors.length;
+    const rightAvg = axis.right.colors.reduce((s, k) => s + scores[k], 0) / axis.right.colors.length;
+    const total = leftAvg + rightAvg || 1;
+    const rightPct = Math.max(6, Math.min(94, (rightAvg / total) * 100));
+    const leftPct = 100 - rightPct;
+    const lean = rightPct >= leftPct ? axis.right : axis.left;
+    return { leftPct, rightPct, lean, leanPct: Math.max(leftPct, rightPct) };
+  }
+
+  // Replaces the raw 13-color bar list that used to sit at the bottom of the
+  // profile/overview page — that page is meant to be a skimmable "profile",
+  // and a wall of 13 bars didn't read that way. This condenses the same
+  // profile down to what actually matters at a glance (TOP3 + complement,
+  // the single highest domain, and the two axis leanings); the full
+  // color-by-color bar list still exists, just moved to a dedicated section
+  // at the very end of the report (see buildReportBlocks) instead of living
+  // here.
+  // The four TOP1-3 + complement stat cards. Shared by the PDF's profile page
+  // and the on-screen result, so both always show the same four colors.
+  function buildQuickCardsHTML(ranked, comp) {
+    const cards = [
+      ...ranked.slice(0, 3).map((c, i) => ({ rank: `TOP${i + 1}`, c })),
+      { rank: "보완", c: comp.chosen },
+    ];
+    return cards
+      .map(
+        ({ rank, c }) => `
+        <div class="quick-card">
+          <div class="qc-rank">${rank}</div>
+          <div class="qc-dot" style="background:${c.hex}"></div>
+          <div class="qc-name">${escapeHtml(c.ko)}</div>
+          <div class="qc-strength">${escapeHtml(c.strength)}</div>
+          <div class="qc-score">${c.score.toFixed(1)} / 5.0</div>
+        </div>
+      `
+      )
+      .join("");
+  }
+
+  // One-paragraph recap of the top domain + both axis leanings. `tailText` lets
+  // each surface close the paragraph with its own pointer (the PDF sends the
+  // reader to its appendix; the screen points at the chart just below it).
+  function buildQuickFactsHTML(scores, tailText) {
+    const topDomain = computeDomainScores(scores)[0];
+    const axis1 = axisLean(CCT_AXES.leadCollab, scores);
+    const axis2 = axisLean(CCT_AXES.empathyObjective, scores);
+    return `
+      <div class="quick-facts">
+        6대 상위 강점영역 중에서는 <b>${escapeHtml(topDomain.name)}</b>(${topDomain.value.toFixed(1)})이 가장 높게 나타났습니다.
+        보조 성향축에서는 <b>${escapeHtml(axis1.lean.name)}</b> 쪽이 ${axis1.leanPct.toFixed(0)}%, <b>${escapeHtml(axis2.lean.name)}</b> 쪽이 ${axis2.leanPct.toFixed(0)}%로 조금 더 우세하게 나타났습니다.
+        ${tailText}
+      </div>
+    `;
+  }
+
+  function buildProfileQuickSummaryHTML(ranked, comp, scores) {
+    return `
+      <div class="quick-summary">
+        <div class="section-subtitle">한눈에 보는 요약</div>
+        <div class="quick-grid">${buildQuickCardsHTML(ranked, comp)}</div>
+        ${buildQuickFactsHTML(scores, '13개 컬러 전체 점수는 리포트 맨 뒤 "컬러별 상세 점수"에서 확인하실 수 있습니다.')}
+      </div>
+    `;
+  }
+
+  // One 13-color score bar. Single source of truth for the row markup: the PDF
+  // appendix maps it into an array (so it can chunk 5-per-block across pages),
+  // the on-screen panel just joins them all together.
+  function buildScoreBarRowHTML(c, i) {
+    const pct = Math.max(4, ((c.score - 1) / 4) * 100);
+    return `
+      <div class="bar-row ${i < 3 ? "is-top" : ""}">
+        <div class="label-line">
+          <div class="name"><span class="swatch" style="background:${c.hex}"></span>${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</div>
+          <div class="score">${c.score.toFixed(1)} / 5.0</div>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${c.hex}"></div></div>
+      </div>
+    `;
+  }
+
   // Infographic-style axis card: each side now shows its % share AND small
   // color-swatch dots for the actual colors that make up that side, plus tick
   // marks on the track — so the abstract axis stays visibly tied back to the
@@ -479,6 +691,53 @@
           <span class="combo-chip" style="background:${top2.hex}">${top2.ko} · ${top2.strength}</span>
         </div>
         <p>${text}</p>
+      </div>
+    `;
+  }
+
+  // Relationship-fit read for the TOP1+TOP2 combo: which colors tend to click
+  // easily vs. which tend to feel a little friction-prone, plus what synergy
+  // and what to watch for in each case. Grounded in data already established
+  // elsewhere in the report rather than inventing new relationships:
+  // "잘 맞는 컬러" = other colors sharing TOP1/TOP2's 6대 영역 (CCT_DOMAINS) —
+  // a similar value orientation reads as easy rapport. "불편할 수 있는 컬러" =
+  // TOP1's CCT_COMPLEMENT_MAP candidates — the same "psychologically
+  // contrasting orientation" pairing already used for the complement deep-dive,
+  // reframed here for how it can feel in a relationship rather than personal growth.
+  function buildRelationshipFitHTML(top1, top2) {
+    const domainOf = (key) => CCT_DOMAINS.find((d) => d.colors.includes(key));
+    const top1Domain = domainOf(top1.key);
+    const top2Domain = domainOf(top2.key);
+
+    const goodKeys = Array.from(
+      new Set([...(top1Domain ? top1Domain.colors : []), ...(top2Domain ? top2Domain.colors : [])])
+    ).filter((k) => k !== top1.key && k !== top2.key);
+    const goodColors = goodKeys.map((k) => cctColorByKey(k));
+
+    const frictionKeys = CCT_COMPLEMENT_MAP[top1.key] || [];
+    const frictionColors = frictionKeys.map((k) => cctColorByKey(k));
+
+    const domainNames = Array.from(new Set([top1Domain && top1Domain.name, top2Domain && top2Domain.name].filter(Boolean))).join(
+      ", "
+    );
+
+    const chipRow = (colors) =>
+      colors
+        .map((c) => `<span class="fit-chip" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)}</span>`)
+        .join("");
+
+    return `
+      <div class="fit-block">
+        <div class="fit-col fit-good">
+          <div class="fit-label">잘 맞을 수 있는 컬러</div>
+          <div class="fit-chips">${chipRow(goodColors)}</div>
+          <p class="fit-text">${escapeHtml(top1.ko)}·${escapeHtml(top2.ko)}와(과) 같은 '${escapeHtml(domainNames)}' 영역에 속한 컬러들입니다. 가치관과 접근 방식의 결이 비슷해 대화가 자연스럽게 통하고, 서로를 이해하는 데 큰 노력이 들지 않는 편입니다. 다만 비슷한 성향끼리는 놓치는 부분도 비슷할 수 있어, 가끔은 다른 관점을 가진 사람을 의도적으로 곁에 두는 것도 도움이 됩니다.</p>
+        </div>
+        <div class="fit-col fit-friction">
+          <div class="fit-label">다소 불편하게 느껴질 수 있는 컬러</div>
+          <div class="fit-chips">${chipRow(frictionColors)}</div>
+          <p class="fit-text">${escapeHtml(top1.ko)}과(와) 심리적으로 대비되는 지향을 가진 컬러들입니다. 일하는 속도나 우선순위를 정하는 기준이 달라 처음에는 다소 부딪히거나 답답하게 느껴질 수 있습니다. 다만 이 차이 덕분에 ${escapeHtml(top1.ko)} 혼자서는 놓치기 쉬운 지점을 채워줄 수 있으니, 불편함 자체보다 "무엇을 다르게 보고 있는지"를 먼저 확인하는 태도가 도움이 됩니다.</p>
+        </div>
       </div>
     `;
   }
@@ -876,6 +1135,11 @@
     overviewBlock += `<div class="rp-radar-card">${buildRadarChartHTML(scores)}</div>`;
     overviewBlock += buildProfileSummaryHTML(ranked, top1, comp);
     overviewBlock += `</div>`;
+    // A skimmable "at a glance" recap (TOP3 + complement cards, top domain,
+    // axis leanings) fills the spot the raw 13-color bar list used to sit in —
+    // that list now lives in its own section at the very end of the report
+    // (see the "컬러별 상세 점수" rigid block below, near the disclaimer).
+    overviewBlock += buildProfileQuickSummaryHTML(ranked, comp, scores);
     rigid(overviewBlock);
 
     // TOP3 comparison (Enneagram-style comparative summary): compares the top 3
@@ -900,33 +1164,15 @@
     // of overuse, and a short weekly practice checklist.
     rigid(`<div class="section-title">실전 지침</div>${buildActionGuideHTML(ranked, comp)}`);
 
-    // ---- Flexible supplementary section (chart / domains / axes) ----
+    // ---- Flexible supplementary section (domains / axes) ----
     // Split into small chunks so generatePdf() can slot them into whatever
-    // leftover page space the rigid color cards above leave behind.
-    const barRowsHtml = ranked.map((c, i) => {
-      const pct = Math.max(4, ((c.score - 1) / 4) * 100);
-      return `
-        <div class="bar-row ${i < 3 ? "is-top" : ""}">
-          <div class="label-line">
-            <div class="name"><span class="swatch" style="background:${c.hex}"></span>${c.ko} · ${c.strength}</div>
-            <div class="score">${c.score.toFixed(1)} / 5.0</div>
-          </div>
-          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${c.hex}"></div></div>
-        </div>
-      `;
-    });
-    const CHUNK = 5;
-    for (let i = 0; i < barRowsHtml.length; i += CHUNK) {
-      const chunk = barRowsHtml.slice(i, i + CHUNK).join("");
-      let html = i === 0 ? `<div class="section-subtitle">컬러별 상세 점수 (13개 전체)</div>` : "";
-      html += `<div class="bar-chart">${chunk}</div>`;
-      flexible(html);
-    }
-
-    const domainScores = CCT_DOMAINS.map((d) => {
-      const vals = d.colors.map((k) => scores[k]);
-      return { ...d, value: vals.reduce((a, b) => a + b, 0) / vals.length };
-    }).sort((a, b) => b.value - a.value);
+    // leftover page space the rigid sections above leave behind. The raw
+    // 13-color score bars used to be flexible chunks defined alongside these,
+    // which meant they could get pulled into the gap between the complement
+    // intro and its own detail half (or after the action guide), interrupting
+    // an unrelated section mid-flow — see the dedicated rigid appendix near
+    // the end of this function for where that list lives now.
+    const domainScores = computeDomainScores(scores);
     let domainBlock = `<div class="section-subtitle">6대 상위 강점영역</div>`;
     domainBlock += `<div class="section-desc">13개 컬러를 이론적으로 묶은 상위 구조입니다. 표본 데이터 검증 이전의 초기 분류로 참고용입니다.</div>`;
     domainBlock += `<div class="domain-grid">`;
@@ -956,7 +1202,28 @@
       rigid(`
         <div class="section-title">TOP 컬러 조합 해석</div>
         ${renderCombo(ranked[0], ranked[1])}
+        ${buildRelationshipFitHTML(ranked[0], ranked[1])}
       `);
+    }
+
+    // Full color-by-color score list, as its own dedicated appendix at the very
+    // end of the report (rigid, not flexible — so unlike before, it can never
+    // get pulled forward to patch a gap in an earlier section). The profile
+    // page up front now shows the condensed "한눈에 보는 요약" instead; this is
+    // for anyone who wants every raw number. rigidBreak() on the first chunk
+    // forces this appendix to always start on its own fresh page rather than
+    // tacking onto whatever room "TOP 컬러 조합 해석" happened to leave behind.
+    const barRowsHtml = ranked.map((c, i) => buildScoreBarRowHTML(c, i));
+    const CHUNK = 5;
+    for (let i = 0; i < barRowsHtml.length; i += CHUNK) {
+      const chunk = barRowsHtml.slice(i, i + CHUNK).join("");
+      let html = i === 0 ? `<div class="section-title">컬러별 상세 점수 (13개 전체)</div>` : "";
+      html += `<div class="bar-chart">${chunk}</div>`;
+      if (i === 0) {
+        rigidBreak(html);
+      } else {
+        rigid(html);
+      }
     }
 
     rigid(`

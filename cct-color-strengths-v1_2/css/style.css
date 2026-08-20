@@ -378,7 +378,8 @@ img, svg { display: block; }
 .quiz-card.leaving { opacity: 0; transform: translateY(-8px); }
 
 /* ================= RESULT (simple, on-screen) ================= */
-.screen--result { background: var(--surface-0); padding: 0 0 60px; }
+/* extra bottom room so the floating CTA bar never covers the last content */
+.screen--result { background: var(--surface-0); padding: 0 0 110px; }
 .result-wrap { max-width: 480px; margin: 0 auto; padding: 0 24px; }
 
 .result-hero {
@@ -410,9 +411,68 @@ img, svg { display: block; }
 }
 
 .result-note {
-  font-size: 11.5px; color: var(--ink-300); line-height: 1.7;
-  text-align: center; margin: 30px 0 8px;
+  /* left-aligned and one contrast step darker than before — centred 3-line
+     grey body text was the hardest thing on the page to read */
+  font-size: 12px; color: var(--ink-500); line-height: 1.75;
+  text-align: left; margin: 30px 0 8px;
 }
+
+/* ---------- Result screen: section blocks & disclosure ---------- */
+.rs-block { margin-top: 34px; }
+.rs-title {
+  font-size: 18px; font-weight: 800; letter-spacing: -0.015em;
+  color: var(--ink-900); margin-bottom: 14px;
+  border-left: 4px solid var(--accent); padding-left: 12px;
+}
+.rs-note {
+  font-size: 12.5px; line-height: 1.7; color: var(--ink-500);
+  margin: -6px 0 16px; padding-left: 16px;
+}
+
+.result-wrap .quick-grid { gap: 8px; margin-bottom: 14px; }
+.result-wrap .quick-card { background: var(--surface-1); border: 1px solid var(--line); padding: 14px 6px; }
+.result-wrap .quick-facts { background: var(--surface-1); border: 1px solid var(--line); font-size: 12.5px; }
+
+.rs-radar-card {
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface-1);
+  padding: 8px; margin-bottom: 12px;
+  display: flex; justify-content: center;
+  overflow: hidden;
+}
+
+/* Disclosure buttons (score panel + each color card's detail half) */
+.cs-toggle, .rs-toggle {
+  appearance: none; cursor: pointer; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 12px 16px;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  color: var(--ink-700);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+.cs-toggle:hover, .rs-toggle:hover { border-color: var(--ink-300); }
+.cs-toggle-icon { font-size: 11px; transition: transform .2s ease; }
+.cs-toggle.is-open .cs-toggle-icon, .rs-toggle.is-open .cs-toggle-icon { transform: rotate(180deg); }
+
+.cs-details, .rs-panel { display: none; }
+.cs-details.is-open, .rs-panel.is-open { display: block; }
+.cs-details.is-open { margin-top: 22px; }
+.rs-panel.is-open { margin-top: 14px; }
+
+/* Floating primary action */
+.rs-cta-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: rgba(250,249,247,0.94);
+  border-top: 1px solid var(--line);
+  display: flex; justify-content: center;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 40;
+}
+.rs-cta-bar .btn-primary { width: 100%; max-width: 432px; padding: 15px 18px; font-size: 15px; }
+.rs-cta-bar.is-hidden { opacity: 0; transform: translateY(100%); pointer-events: none; }
 
 /* ---------- Color section (hero + structured detail, used on-screen and in PDF) ---------- */
 .color-section {
@@ -426,16 +486,15 @@ img, svg { display: block; }
 .cs-hero { padding: 26px 24px 22px; position: relative; text-align: center; }
 .cs-hero .cs-tag {
   /* plain inline-block (not inline-flex) — html2canvas doesn't vertically
-     center inline-flex content reliably. line-height:1 + slightly taller
-     bottom padding is a measured fix (pixel-checked against actual
-     html2canvas output): with this font, a line-height-based box renders
-     the glyphs a hair low, so top/bottom padding is intentionally
-     asymmetric (5/7) to make the visible ink perfectly centered rather
-     than the CSS box. Do not "simplify" this back to equal padding. */
+     center inline-flex content reliably. The top/bottom padding is
+     intentionally asymmetric and was measured against real html2canvas
+     output: the renderer seats the baseline ~4px lower than the browser
+     does, so equal padding puts the glyphs visibly low in the pill.
+     Do not "simplify" this back to equal padding. */
   display: inline-block;
   font-size: 11px; font-weight: 800; letter-spacing: .04em;
   line-height: 1;
-  padding: 5px 12px 7px; border-radius: var(--radius-pill);
+  padding: 2px 12px 10px; border-radius: var(--radius-pill);
   margin-bottom: 16px;
 }
 .cs-hero h3 { font-size: 23px; font-weight: 800; letter-spacing: -0.015em; margin-bottom: 3px; }
@@ -564,10 +623,20 @@ img, svg { display: block; }
 .pdf-report .dual-content li, .pdf-report .cs-example li { font-size: 12px; }
 .pdf-report .cs-growth { font-size: 12.5px; }
 
-.pdf-report .section-title { font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-300); margin: 40px 0 14px; }
+/* Section headings carry a short accent rule on the left — border-left rather
+   than a ::before pseudo-element, because html2canvas renders real borders
+   far more predictably than generated content. */
+.pdf-report .section-title {
+  font-size: 20px; font-weight: 800; letter-spacing: -0.015em;
+  color: var(--ink-900); margin: 40px 0 16px;
+  border-left: 4px solid var(--accent); padding-left: 13px;
+}
 .pdf-report .section-title:first-of-type { margin-top: 0; }
-.pdf-report .section-desc { font-size: 12.5px; color: var(--ink-500); margin: -8px 0 16px; line-height: 1.6; }
-.pdf-report .section-subtitle { font-size: 12.5px; font-weight: 800; color: var(--ink-700); margin: 20px 0 12px; }
+.pdf-report .section-desc { font-size: 12.5px; color: var(--ink-500); margin: -6px 0 16px; line-height: 1.6; padding-left: 17px; }
+.pdf-report .section-subtitle {
+  font-size: 13px; font-weight: 800; color: var(--ink-900); margin: 22px 0 12px;
+  border-left: 3px solid var(--ink-300); padding-left: 10px;
+}
 .pdf-report .section-subtitle:first-of-type { margin-top: 0; }
 
 /* ---------- 13-color overview: radar chart + strength/complement summary ---------- */
@@ -579,14 +648,14 @@ img, svg { display: block; }
   background: var(--surface-1);
   padding: 10px;
 }
-.pdf-report .radar-wrap { position: relative; }
-.pdf-report .radar-label {
+.radar-wrap { position: relative; }
+.radar-label {
   position: absolute;
   display: flex; align-items: center; gap: 3px;
   font-size: 9.5px; font-weight: 700; color: var(--ink-700);
   white-space: nowrap;
 }
-.pdf-report .radar-label-score { color: var(--ink-300); font-weight: 700; }
+.radar-label-score { color: var(--ink-300); font-weight: 700; }
 
 .pdf-report .rp-summary-card {
   flex: 1; min-width: 0;
@@ -610,6 +679,31 @@ img, svg { display: block; }
 .pdf-report .rp-summary-body .rp-summary-note {
   font-size: 10.5px; line-height: 1.6; color: var(--ink-300); margin-top: 8px;
 }
+
+/* ---------- Profile page "at a glance" quick summary ---------- */
+/* Replaces the old raw 13-bar list on the profile page — TOP3 + complement
+   as small stat cards, plus a one-line recap of the top domain and the two
+   axis leanings. The full color-by-color list still exists; it just lives in
+   its own appendix section at the end of the report now. */
+.quick-summary { margin-top: 18px; }
+.quick-grid { display: flex; gap: 10px; margin-bottom: 12px; }
+.quick-card {
+  flex: 1; min-width: 0; background: var(--surface-2); border-radius: var(--radius-md);
+  padding: 12px 8px; text-align: center;
+}
+.qc-rank {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-300); margin-bottom: 6px;
+}
+.qc-dot { width: 14px; height: 14px; border-radius: 50%; margin: 0 auto 6px; }
+.qc-name { font-size: 13px; font-weight: 800; color: var(--ink-900); line-height: 1.3; }
+.qc-strength { font-size: 10px; color: var(--ink-500); margin-top: 2px; line-height: 1.3; }
+.qc-score { font-size: 9.5px; color: var(--ink-300); margin-top: 4px; }
+.quick-facts {
+  background: var(--surface-2); border-radius: var(--radius-md);
+  padding: 12px 16px; font-size: 12px; line-height: 1.75; color: var(--ink-700);
+}
+.quick-facts b { color: var(--ink-900); }
 
 /* ---------- Complement rationale callout (why THIS color is the complement) ---------- */
 .pdf-report .comp-rationale {
@@ -647,8 +741,12 @@ img, svg { display: block; }
 .pdf-report .compare-table th:nth-child(2), .pdf-report .compare-table td:nth-child(2) { width: 82px; }
 .pdf-report .compare-table td.ct-color { font-weight: 800; color: var(--ink-900); }
 .pdf-report .ct-swatch {
+  /* vertical-align:middle alone leaves the square sitting 4px ABOVE the visual
+     centre of the Hangul next to it once html2canvas rasterises the row; the
+     measured +4px nudge puts the two centres exactly level. */
   display: inline-block; width: 10px; height: 10px; border-radius: 3px;
   margin-right: 6px; vertical-align: middle;
+  position: relative; top: 4px;
 }
 .pdf-report .compare-table ul { margin: 0; padding-left: 14px; }
 .pdf-report .compare-table li { margin-bottom: 4px; }
@@ -677,15 +775,15 @@ img, svg { display: block; }
 .pdf-report .ag-warn li b { color: #B4791F; }
 .pdf-report .ag-mission { background: #EAF6EF; border-radius: var(--radius-md); padding: 12px 16px; }
 
-.pdf-report .bar-chart { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
-.pdf-report .bar-row { display: flex; flex-direction: column; gap: 5px; }
-.pdf-report .bar-row .label-line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.pdf-report .bar-row .name { font-size: 12.5px; line-height: 1.5; font-weight: 700; color: var(--ink-700); display: flex; align-items: center; gap: 7px; }
-.pdf-report .bar-row .swatch { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.12); }
-.pdf-report .bar-track { height: 11px; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
-.pdf-report .bar-fill { height: 100%; border-radius: var(--radius-pill); }
-.pdf-report .bar-row .score { font-size: 11.5px; line-height: 1.5; font-weight: 700; color: var(--ink-500); }
-.pdf-report .bar-row.is-top .name { color: var(--ink-900); font-weight: 800; }
+.bar-chart { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
+.bar-row { display: flex; flex-direction: column; gap: 5px; }
+.bar-row .label-line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.bar-row .name { font-size: 12.5px; line-height: 1.5; font-weight: 700; color: var(--ink-700); display: flex; align-items: center; gap: 7px; }
+.bar-row .swatch { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.12); }
+.bar-track { height: 11px; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: var(--radius-pill); }
+.bar-row .score { font-size: 11.5px; line-height: 1.5; font-weight: 700; color: var(--ink-500); }
+.bar-row.is-top .name { color: var(--ink-900); font-weight: 800; }
 
 .pdf-report .domain-grid { display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; }
 .pdf-report .domain-row { display: flex; align-items: center; gap: 12px; min-height: 20px; }
@@ -728,9 +826,14 @@ img, svg { display: block; }
 .pdf-report .persona-grid { display: flex; flex-direction: column; gap: 14px; }
 .pdf-report .persona-item { display: flex; align-items: flex-start; gap: 12px; }
 .pdf-report .persona-num {
+  /* block + text-align + a measured line-height, NOT flex centering:
+     html2canvas ignores align-items on a flex box whose only child is a bare
+     text node, dropping the digit ~4.5px too low inside the circle. A line-height of
+     16px on a 26px box lands the digit's ink dead-centre (measured against
+     real html2canvas output — do not "restore" flex here). */
   flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12.5px; font-weight: 800; line-height: 1;
+  display: block; text-align: center; line-height: 16px;
+  font-size: 12.5px; font-weight: 800;
   margin-top: 1px;
 }
 .pdf-report .persona-body { flex: 1; }
@@ -785,13 +888,37 @@ img, svg { display: block; }
 .pdf-report .synergy-mid-text {
   font-size: 11px; font-weight: 800; line-height: 1.3; letter-spacing: .02em;
   color: var(--ink-900);
+  /* same html2canvas baseline drift as the pills above — the flex centring on
+     .synergy-mid-badge lands this two-line label ~4px low, so nudge it back. */
+  position: relative; top: -4px;
 }
 
 .pdf-report .combo-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 22px 22px; }
 .pdf-report .combo-chips { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-.pdf-report .combo-chip { display: inline-block; line-height: 1.5; font-size: 12.5px; font-weight: 800; color: #fff; padding: 6px 12px; border-radius: var(--radius-pill); }
+/* Asymmetric top/bottom padding is deliberate and measured: html2canvas seats
+   the text baseline ~4px lower than the browser does, so equal padding renders
+   visibly low inside the pill. 2/10 lands the ink centred in the capture. */
+.pdf-report .combo-chip { display: inline-block; line-height: 1.5; font-size: 12.5px; font-weight: 800; color: #fff; padding: 2px 12px 10px; border-radius: var(--radius-pill); }
 .pdf-report .combo-plus { font-size: 14px; font-weight: 800; color: var(--ink-300); }
 .pdf-report .combo-card p { font-size: 13px; line-height: 1.7; color: var(--ink-700); }
+
+/* ---------- Relationship fit: colors that click vs. colors that friction ---------- */
+.pdf-report .fit-block { display: flex; gap: 14px; margin-top: 16px; }
+.pdf-report .fit-col {
+  flex: 1; min-width: 0; border-radius: var(--radius-lg); padding: 16px 18px;
+}
+.pdf-report .fit-good { background: #EAF6EF; }
+.pdf-report .fit-friction { background: #FDF3E4; }
+.pdf-report .fit-label { font-size: 11.5px; font-weight: 800; margin-bottom: 10px; }
+.pdf-report .fit-good .fit-label { color: #1F8A56; }
+.pdf-report .fit-friction .fit-label { color: #B4791F; }
+.pdf-report .fit-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pdf-report .fit-chip {
+  /* measured asymmetric padding — see the note on .combo-chip */
+  display: inline-block; line-height: 1; font-size: 11px; font-weight: 800;
+  padding: 2px 10px 11px; border-radius: var(--radius-pill);
+}
+.pdf-report .fit-text { font-size: 11.5px; line-height: 1.7; color: var(--ink-700); }
 
 .pdf-report .disclaimer { margin-top: 40px; background: var(--surface-2); border-radius: var(--radius-md); padding: 16px 18px; font-size: 11px; line-height: 1.75; color: var(--ink-500); }
 .pdf-report .disclaimer b { color: var(--ink-700); }
