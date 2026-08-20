@@ -382,13 +382,25 @@ img, svg { display: block; }
 .screen--result { background: var(--surface-0); padding: 0 0 110px; }
 .result-wrap { max-width: 480px; margin: 0 auto; padding: 0 24px; }
 
-.result-hero {
-  padding: 64px 0 8px;
+/* Document-level title: the first thing on the result screen, so the reader
+   immediately knows what they're looking at. Sized below the 34px color-name
+   h1 on purpose — it labels the document, the h1 is still the headline. */
+.result-doc-title {
+  padding: 56px 0 0;
   text-align: center;
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  line-height: 1.35; color: var(--ink-900);
 }
-.result-hero .eyebrow {
-  font-size: 11px; font-weight: 700; color: var(--ink-300);
-  letter-spacing: .1em; margin-bottom: 18px;
+.result-doc-title::after {
+  content: ""; display: block;
+  width: 34px; height: 3px; border-radius: 2px;
+  background: var(--accent);
+  margin: 14px auto 0;
+}
+
+.result-hero {
+  padding: 26px 0 8px;
+  text-align: center;
 }
 .result-hero .lead { font-size: 15px; color: var(--ink-500); margin-bottom: 6px; }
 .result-hero h1 {
@@ -485,16 +497,16 @@ img, svg { display: block; }
 }
 .cs-hero { padding: 26px 24px 22px; position: relative; text-align: center; }
 .cs-hero .cs-tag {
-  /* plain inline-block (not inline-flex) — html2canvas doesn't vertically
-     center inline-flex content reliably. The top/bottom padding is
-     intentionally asymmetric and was measured against real html2canvas
-     output: the renderer seats the baseline ~4px lower than the browser
-     does, so equal padding puts the glyphs visibly low in the pill.
-     Do not "simplify" this back to equal padding. */
+  /* On SCREEN this pill must be optically centered by a real browser, so the
+     padding here is symmetric. The html2canvas baseline-drift compensation
+     (asymmetric padding) lives in the .pdf-report override further down —
+     applying that compensation here made the label sit visibly high in the
+     pill on screen, which is the exact bug this split fixes. Keep the two
+     contexts separate; do not merge them back into one rule. */
   display: inline-block;
   font-size: 11px; font-weight: 800; letter-spacing: .04em;
   line-height: 1;
-  padding: 2px 12px 10px; border-radius: var(--radius-pill);
+  padding: 6px 12px; border-radius: var(--radius-pill);
   margin-bottom: 16px;
 }
 .cs-hero h3 { font-size: 23px; font-weight: 800; letter-spacing: -0.015em; margin-bottom: 3px; }
@@ -613,6 +625,14 @@ img, svg { display: block; }
 
 .pdf-report .color-section { margin-bottom: 0; }
 .pdf-report .cs-hero { padding: 24px 26px 20px; }
+.pdf-report .cs-hero .cs-tag {
+  /* html2canvas baseline-drift compensation — measured against real rendered
+     PDF output, NOT eyeballed. html2canvas seats the glyph baseline ~4px lower
+     than a browser does at this size, so equal padding renders the label low
+     in the pill. This asymmetry cancels that out and is PDF-only on purpose:
+     the on-screen rule above stays symmetric. Do not equalize these values. */
+  padding: 2px 12px 10px;
+}
 .pdf-report .cs-hero h3 { font-size: 21px; }
 .pdf-report .cs-hero .cs-tagline { font-size: 12.5px; }
 .pdf-report .cs-body { padding: 20px 26px 24px; }
@@ -792,18 +812,25 @@ img, svg { display: block; }
 .pdf-report .domain-row .dfill { height: 100%; border-radius: var(--radius-pill); background: var(--accent-soft); }
 .pdf-report .domain-row .dscore { width: 34px; text-align: right; font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--ink-500); }
 
-.pdf-report .axis-card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 12px; }
-.pdf-report .axis-sides { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-.pdf-report .axis-side-right { text-align: right; }
-.pdf-report .axis-side-name { font-size: 12.5px; font-weight: 800; color: var(--ink-900); margin-bottom: 6px; }
-.pdf-report .axis-side-pct { font-size: 11px; font-weight: 700; color: var(--ink-300); }
-.pdf-report .axis-dots { display: flex; gap: 4px; }
-.pdf-report .axis-side-right .axis-dots { justify-content: flex-end; }
-.pdf-report .axis-dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; border: 1px solid rgba(0,0,0,0.1); }
-.pdf-report .axis-track { position: relative; height: 8px; border-radius: var(--radius-pill); background: linear-gradient(90deg, var(--surface-2), var(--accent-soft)); margin-bottom: 10px; }
-.pdf-report .axis-tick { position: absolute; top: -3px; width: 1px; height: 14px; background: rgba(23,22,29,0.12); }
-.pdf-report .axis-thumb { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-900); border: 2px solid #fff; transform: translate(-50%,-50%); }
-.pdf-report .axis-desc { font-size: 11.5px; color: var(--ink-500); line-height: 1.6; }
+/* ---------- 강점 분포 균형도 (replaces the retired 보조 성향축 cards) ---------- */
+.pdf-report .bal-wrap { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 12px; }
+.pdf-report .bal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.pdf-report .bal-type {
+  /* asymmetric padding = html2canvas baseline compensation, same measured
+     pattern as .pdf-report .cs-hero .cs-tag. Do not equalize. */
+  display: inline-block; line-height: 1; font-size: 12px; font-weight: 800; color: #fff;
+  background: var(--ink-900); padding: 3px 12px 11px; border-radius: var(--radius-pill);
+}
+.pdf-report .bal-head-text { font-size: 11.5px; font-weight: 700; color: var(--ink-500); }
+.pdf-report .bal-track { position: relative; height: 8px; border-radius: var(--radius-pill); background: linear-gradient(90deg, var(--surface-2), var(--accent-soft)); margin-bottom: 7px; }
+.pdf-report .bal-marker { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-900); border: 2px solid #fff; transform: translate(-50%,-50%); }
+.pdf-report .bal-ends { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: var(--ink-300); margin-bottom: 14px; }
+.pdf-report .bal-stats { display: flex; gap: 8px; margin-bottom: 13px; }
+.pdf-report .bal-stat { flex: 1; background: var(--surface-2); border-radius: var(--radius-md); padding: 10px 6px; text-align: center; }
+.pdf-report .bs-label { font-size: 10px; font-weight: 700; color: var(--ink-300); margin-bottom: 4px; line-height: 1.3; }
+.pdf-report .bs-value { font-size: 15px; font-weight: 800; color: var(--ink-900); line-height: 1.2; }
+.pdf-report .bal-text { font-size: 11.5px; color: var(--ink-700); line-height: 1.75; margin-bottom: 10px; }
+.pdf-report .bal-note { font-size: 10.5px; color: var(--ink-300); line-height: 1.65; }
 
 /* ---------- TOP3 synergy: axis-tilt notes + "moments this combo shines" ---------- */
 .pdf-report .t3-synergy-block { margin-top: 18px; }
@@ -931,4 +958,5 @@ img, svg { display: block; }
   .quiz-question { font-size: 18px; }
   .brOnly { display: none; }
   .result-hero h1 { font-size: 29px; }
+  .result-doc-title { font-size: 19.5px; padding-top: 48px; }
 }
