@@ -436,9 +436,18 @@ img, svg { display: block; }
 /* ---------- Result screen: section blocks & disclosure ---------- */
 .rs-block { margin-top: 34px; }
 .rs-title {
+  /* Accent rule as a ::before pinned to the glyphs, matching the PDF titles.
+     This one renders in a real browser, so plain 50%/translateY centring is
+     correct here — the measured `top` offset used in the .pdf-report rules is
+     an html2canvas compensation and must NOT be copied onto this selector. */
   font-size: 18px; font-weight: 800; letter-spacing: -0.015em;
   color: var(--ink-900); margin-bottom: 14px;
-  border-left: 4px solid var(--accent); padding-left: 12px;
+  position: relative; line-height: 1.3; padding-left: 16px;
+}
+.rs-title::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 4px; height: 17px; background: var(--accent); border-radius: 1px;
 }
 .rs-note {
   font-size: 12.5px; line-height: 1.7; color: var(--ink-500);
@@ -647,19 +656,35 @@ img, svg { display: block; }
 .pdf-report .dual-content li, .pdf-report .cs-example li { font-size: 12px; }
 .pdf-report .cs-growth { font-size: 12.5px; }
 
-/* Section headings carry a short accent rule on the left — border-left rather
-   than a ::before pseudo-element, because html2canvas renders real borders
-   far more predictably than generated content. */
+/* Section headings carry a short accent rule on the left.
+   This is a ::before bar, NOT border-left. border-left is stretched to the
+   full line box, so the rule ran taller than the text and — because
+   html2canvas seats glyphs lower than the browser does — sat visibly high
+   against them (measured 6px high on titles, 5px on subtitles). A ::before
+   with an explicit height and an explicit `top` pins the rule to the glyphs
+   instead of to the line box. Both offsets below were measured through the
+   real html2canvas pipeline to land at 0.0px, so DO NOT swap `top` for
+   `top:50%; transform:translateY(-50%)` — the transform path re-introduces
+   the same 6px error. Screen titles (.rs-title) centre normally; only this
+   PDF path needs the compensation. */
 .pdf-report .section-title {
   font-size: 20px; font-weight: 800; letter-spacing: -0.015em;
   color: var(--ink-900); margin: 40px 0 16px;
-  border-left: 4px solid var(--accent); padding-left: 13px;
+  position: relative; line-height: 1.2; padding-left: 17px;
+}
+.pdf-report .section-title::before {
+  content: ""; position: absolute; left: 0; top: 9.7px;
+  width: 4px; height: 18px; background: var(--accent); border-radius: 1px;
 }
 .pdf-report .section-title:first-of-type { margin-top: 0; }
 .pdf-report .section-desc { font-size: 12.5px; color: var(--ink-500); margin: -6px 0 16px; line-height: 1.6; padding-left: 17px; }
 .pdf-report .section-subtitle {
   font-size: 13px; font-weight: 800; color: var(--ink-900); margin: 22px 0 12px;
-  border-left: 3px solid var(--ink-300); padding-left: 10px;
+  position: relative; line-height: 1.2; padding-left: 13px;
+}
+.pdf-report .section-subtitle::before {
+  content: ""; position: absolute; left: 0; top: 6.5px;
+  width: 3px; height: 12px; background: var(--ink-300); border-radius: 1px;
 }
 .pdf-report .section-subtitle:first-of-type { margin-top: 0; }
 
@@ -816,25 +841,6 @@ img, svg { display: block; }
 .pdf-report .domain-row .dfill { height: 100%; border-radius: var(--radius-pill); background: var(--accent-soft); }
 .pdf-report .domain-row .dscore { width: 34px; text-align: right; font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--ink-500); }
 
-/* ---------- 강점 분포 균형도 (replaces the retired 보조 성향축 cards) ---------- */
-.pdf-report .bal-wrap { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 12px; }
-.pdf-report .bal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.pdf-report .bal-type {
-  /* asymmetric padding = html2canvas baseline compensation, same measured
-     pattern as .pdf-report .cs-hero .cs-tag. Do not equalize. */
-  display: inline-block; line-height: 1; font-size: 12px; font-weight: 800; color: #fff;
-  background: var(--ink-900); padding: 3px 12px 11px; border-radius: var(--radius-pill);
-}
-.pdf-report .bal-head-text { font-size: 11.5px; font-weight: 700; color: var(--ink-500); }
-.pdf-report .bal-track { position: relative; height: 8px; border-radius: var(--radius-pill); background: linear-gradient(90deg, var(--surface-2), var(--accent-soft)); margin-bottom: 7px; }
-.pdf-report .bal-marker { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-900); border: 2px solid #fff; transform: translate(-50%,-50%); }
-.pdf-report .bal-ends { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: var(--ink-300); margin-bottom: 14px; }
-.pdf-report .bal-stats { display: flex; gap: 8px; margin-bottom: 13px; }
-.pdf-report .bal-stat { flex: 1; background: var(--surface-2); border-radius: var(--radius-md); padding: 10px 6px; text-align: center; }
-.pdf-report .bs-label { font-size: 10px; font-weight: 700; color: var(--ink-300); margin-bottom: 4px; line-height: 1.3; }
-.pdf-report .bs-value { font-size: 15px; font-weight: 800; color: var(--ink-900); line-height: 1.2; }
-.pdf-report .bal-text { font-size: 11.5px; color: var(--ink-700); line-height: 1.75; margin-bottom: 10px; }
-.pdf-report .bal-note { font-size: 10.5px; color: var(--ink-300); line-height: 1.65; }
 
 /* ---------- TOP3 synergy: axis-tilt notes + "moments this combo shines" ---------- */
 .pdf-report .t3-synergy-block { margin-top: 18px; }
@@ -950,6 +956,69 @@ img, svg { display: block; }
   padding: 2px 10px 11px; border-radius: var(--radius-pill);
 }
 .pdf-report .fit-text { font-size: 11.5px; line-height: 1.7; color: var(--ink-700); }
+
+/* ---------- 강점 컬러 × 보완 컬러의 균형 ---------- */
+.pdf-report .syn-wrap { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px 20px; }
+.pdf-report .syn-pair { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.pdf-report .syn-chip {
+  /* asymmetric padding = html2canvas baseline compensation, same measured
+     pattern as .pdf-report .cs-hero .cs-tag. Do not equalize. */
+  display: inline-block; line-height: 1; font-size: 12px; font-weight: 800;
+  padding: 3px 13px 11px; border-radius: var(--radius-pill);
+}
+.pdf-report .syn-plus { font-size: 13px; font-weight: 800; color: var(--ink-300); position: relative; top: -3px; }
+.pdf-report .syn-row { padding-top: 12px; border-top: 1px solid var(--line); margin-top: 12px; }
+.pdf-report .syn-row:first-of-type { padding-top: 0; border-top: none; margin-top: 0; }
+.pdf-report .syn-label { font-size: 11.5px; font-weight: 800; color: var(--ink-900); margin-bottom: 6px; }
+.pdf-report .syn-text { font-size: 11.5px; line-height: 1.75; color: var(--ink-700); }
+.pdf-report .syn-list { list-style: none; margin: 0; padding: 0; }
+.pdf-report .syn-list li {
+  font-size: 11.5px; line-height: 1.7; color: var(--ink-700);
+  padding-left: 12px; position: relative; margin-bottom: 5px;
+}
+.pdf-report .syn-list li::before { content: "·"; position: absolute; left: 3px; top: -1px; color: var(--ink-300); font-weight: 800; }
+.pdf-report .syn-list li:last-child { margin-bottom: 0; }
+
+/* At-a-glance comparison table: strength color vs complement color. Plain
+   flex rows rather than a real <table> — html2canvas lays flex out far more
+   predictably than table-layout, and every row here is a fixed 3-cell grid. */
+.pdf-report .cmp-table { border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 16px; }
+.pdf-report .cmp-row { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+.pdf-report .cmp-row:first-child { border-top: none; }
+.pdf-report .cmp-row:nth-child(even) { background: var(--surface-1); }
+.pdf-report .cmp-row:nth-child(odd) { background: var(--surface-2); }
+.pdf-report .cmp-header { background: var(--surface-1); }
+.pdf-report .cmp-label {
+  width: 108px; flex-shrink: 0; padding: 10px 12px;
+  font-size: 11px; font-weight: 800; color: var(--ink-500);
+  line-height: 1.55; border-right: 1px solid var(--line);
+}
+.pdf-report .cmp-val {
+  flex: 1; min-width: 0; padding: 10px 13px;
+  font-size: 11.5px; line-height: 1.65; color: var(--ink-700);
+  border-right: 1px solid var(--line);
+}
+.pdf-report .cmp-val:last-child { border-right: none; }
+.pdf-report .cmp-col-head { padding: 2px 0 4px; }
+.pdf-report .cmp-role { font-size: 10px; font-weight: 800; color: var(--ink-300); margin-bottom: 5px; }
+.pdf-report .cmp-name { font-size: 12.5px; font-weight: 800; color: var(--ink-900); line-height: 1.4; }
+.pdf-report .cmp-dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 3px;
+  margin-right: 6px; border: 1px solid rgba(0,0,0,0.12);
+  /* html2canvas seats inline boxes low next to text — measured nudge, matches
+     the .ct-swatch pattern. Do not reset to vertical-align:middle. */
+  position: relative; top: 4px;
+}
+
+/* 6대 강점영역 is a full section of its own at the back of the report now, so
+   its rows match the weight of the 컬러별 상세 점수 rows sitting under it. */
+.pdf-report .domain-grid { gap: 12px; }
+.pdf-report .domain-row .dtrack { height: 11px; }
+
+/* The score appendix title now sits under the 6대 강점영역 table on the same
+   forced page, so it needs its own top margin instead of the :first-of-type
+   zeroing that applied when it opened the page. */
+.pdf-report .section-title.score-appendix-title { margin-top: 34px; }
 
 .pdf-report .disclaimer { margin-top: 40px; background: var(--surface-2); border-radius: var(--radius-md); padding: 16px 18px; font-size: 11px; line-height: 1.75; color: var(--ink-500); }
 .pdf-report .disclaimer b { color: var(--ink-700); }

@@ -219,6 +219,22 @@
     return [intro, detail];
   }
 
+  // One continuous card — hero + summary + healthy/overuse/example in a single
+  // .color-section. Used where the whole profile is placed as one unit (the
+  // complement deep dive), so it doesn't show the seam between two stacked
+  // cards that the intro/detail split produces.
+  function buildColorSectionWholeHTML(color, tagLabel) {
+    return `
+      <div class="color-section">
+        ${colorSectionHeroHTML(color, tagLabel)}
+        <div class="cs-body">
+          ${colorSectionIntroBodyHTML(color)}
+          ${colorSectionDetailBodyHTML(color)}
+        </div>
+      </div>
+    `;
+  }
+
   // ---------- Quiz flow ----------
   function startQuiz() {
     userName = (userNameInput.value || "").trim().slice(0, 12);
@@ -577,74 +593,6 @@
     }).sort((a, b) => b.value - a.value);
   }
 
-  // ---------- 강점 분포 균형도 ----------
-  // Replaces the old "보조 성향축" reference-axis cards. Unlike those, every
-  // number here is derived purely from the 13 scores the reader can already
-  // see in the appendix — nothing is norm-referenced against a sample that
-  // doesn't exist yet, and no new psychological claim is introduced. It answers
-  // one question nothing else in the report answers: is this profile a few
-  // sharp peaks, or a broad even spread, and what does that mean in practice?
-  function computeBalanceProfile(ranked) {
-    const n = ranked.length;
-    const avg = (arr) => arr.reduce((s, c) => s + c.score, 0) / arr.length;
-    const topAvg = avg(ranked.slice(0, 3));
-    const bottomAvg = avg(ranked.slice(n - 3));
-    // Round to the same 1 decimal place the report prints, THEN classify.
-    // Classifying on the raw float let a gap that displays as "1.5" fall into
-    // the < 1.5 bucket (4.05 - 2.55 === 1.4999999999999996), so the printed
-    // number and the printed type could visibly disagree at the boundary.
-    const gap = Math.round((topAvg - bottomAvg) * 10) / 10;
-
-    // How many colors sit within 0.3 of TOP1 — i.e. is the peak a single clear
-    // spike or a cluster of near-ties?
-    const nearTop = ranked.filter((c) => ranked[0].score - c.score <= 0.3).length;
-
-    let type, text;
-    if (gap >= 1.5) {
-      type = "집중형";
-      text = `강점이 소수의 컬러에 뚜렷하게 몰려 있는 프로파일입니다. 자신이 잘하는 영역이 분명해 방향을 정하기 쉽고, 그 강점이 통하는 자리에서 빠르게 힘을 발휘하는 편입니다. 다만 상위 컬러가 잘 맞지 않는 상황에서는 쓸 수 있는 카드가 적게 느껴질 수 있으니, 보완 컬러를 미리 연습해두면 유연성이 커집니다.`;
-    } else if (gap >= 0.8) {
-      type = "중간형";
-      text = `뚜렷한 상위 강점이 있으면서 나머지 컬러도 어느 정도 받쳐주는 프로파일입니다. 주력 강점으로 승부하면서도 상황에 따라 다른 자원을 꺼내 쓸 수 있어, 역할이 바뀌는 환경에 비교적 잘 적응합니다. 강점을 더 날카롭게 다듬을지, 폭을 더 넓힐지를 의식적으로 선택해보면 좋습니다.`;
-    } else {
-      type = "균형형";
-      text = `13개 컬러가 비교적 고르게 나타난 프로파일입니다. 어떤 상황에서도 크게 막히지 않고 두루 대응할 수 있다는 것이 강점입니다. 다만 '나를 대표하는 강점'이 스스로에게도 잘 안 보일 수 있으니, 상위 컬러 한두 개를 의식적으로 더 자주 사용하면서 자기만의 색을 만들어가면 도움이 됩니다.`;
-    }
-
-    return { topAvg, bottomAvg, gap, nearTop, type, text };
-  }
-
-  function buildBalanceProfileHTML(ranked) {
-    const b = computeBalanceProfile(ranked);
-    // Marker position: gap of 0 → fully even, gap of 2.0+ → fully concentrated.
-    const pos = Math.max(3, Math.min(97, (b.gap / 2.0) * 100));
-    const stat = (label, value) =>
-      `<div class="bal-stat"><div class="bs-label">${label}</div><div class="bs-value">${value}</div></div>`;
-
-    return `
-      <div class="bal-wrap">
-        <div class="bal-head">
-          <span class="bal-type">${escapeHtml(b.type)}</span>
-          <span class="bal-head-text">상위 3컬러와 하위 3컬러의 점수 격차 ${b.gap.toFixed(1)}점</span>
-        </div>
-        <div class="bal-track">
-          <div class="bal-marker" style="left:${pos}%"></div>
-        </div>
-        <div class="bal-ends">
-          <span>고르게 분포</span>
-          <span>소수에 집중</span>
-        </div>
-        <div class="bal-stats">
-          ${stat("상위 3컬러 평균", b.topAvg.toFixed(1))}
-          ${stat("하위 3컬러 평균", b.bottomAvg.toFixed(1))}
-          ${stat("최고점 근처 컬러", b.nearTop + "개")}
-        </div>
-        <p class="bal-text">${b.text}</p>
-        <p class="bal-note">※ 이 지표는 다른 사람과 비교한 순위가 아니라, 본인의 13개 컬러 점수가 서로 얼마나 벌어져 있는지를 보여주는 참고 값입니다. 문항에 답할 때 극단(1점·5점)을 자주 고르는 편인지, 중간값을 주로 고르는 편인지에 따라 격차가 달라질 수 있으므로 절대적인 기준으로 해석하지 않는 것이 좋습니다.</p>
-      </div>
-    `;
-  }
-
   // Replaces the raw 13-color bar list that used to sit at the bottom of the
   // profile/overview page — that page is meant to be a skimmable "profile",
   // and a wall of 13 bars didn't read that way. This condenses the same
@@ -792,6 +740,110 @@
           <div class="fit-label">다소 불편하게 느껴질 수 있는 컬러</div>
           <div class="fit-chips">${chipRow(frictionColors)}</div>
           <p class="fit-text">${escapeHtml(top1.ko)}${josa(top1.ko, "과", "와")} 심리적으로 대비되는 지향을 가진 컬러들입니다. 일하는 속도나 우선순위를 정하는 기준이 달라 처음에는 다소 부딪히거나 답답하게 느껴질 수 있습니다. 다만 이 차이 덕분에 ${escapeHtml(top1.ko)} 혼자서는 놓치기 쉬운 지점을 채워줄 수 있으니, 불편함 자체보다 "무엇을 다르게 보고 있는지"를 먼저 확인하는 태도가 도움이 됩니다.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Side-by-side "at a glance" comparison of the reader's single strongest
+  // color against their complement. Straight from the guide data — score, core
+  // definition, domain group, a healthy expression and an overuse warning —
+  // so the two profiles can be read against each other in one pass instead of
+  // being scattered across two separate sections.
+  function buildColorCompareTableHTML(top1, comp) {
+    const rows = [
+      ["점수", `${top1.score.toFixed(1)} / 5.0`, `${comp.score.toFixed(1)} / 5.0`],
+      ["핵심 정의", top1.core, comp.core],
+      ["속한 강점영역", top1.group, comp.group],
+      ["잘 드러나는 모습", (top1.healthy || [])[0] || "", (comp.healthy || [])[0] || ""],
+      ["지나칠 때", (top1.overuse || [])[0] || "", (comp.overuse || [])[0] || ""],
+    ];
+    const head = (c, role) => `
+      <div class="cmp-col-head">
+        <div class="cmp-role">${escapeHtml(role)}</div>
+        <div class="cmp-name"><span class="cmp-dot" style="background:${c.hex}"></span>${escapeHtml(c.ko)} · ${escapeHtml(
+      c.strength
+    )}</div>
+      </div>`;
+    const body = rows
+      .map(
+        ([label, a, b]) => `
+        <div class="cmp-row">
+          <div class="cmp-label">${escapeHtml(label)}</div>
+          <div class="cmp-val cmp-val-a">${escapeHtml(a)}</div>
+          <div class="cmp-val cmp-val-b">${escapeHtml(b)}</div>
+        </div>`
+      )
+      .join("");
+    return `
+      <div class="cmp-table">
+        <div class="cmp-row cmp-header">
+          <div class="cmp-label"></div>
+          <div class="cmp-val">${head(top1, "강점 컬러")}</div>
+          <div class="cmp-val">${head(comp, "보완 컬러")}</div>
+        </div>
+        ${body}
+      </div>
+    `;
+  }
+
+  // ---------- 강점 컬러 × 보완 컬러의 균형 ----------
+  // Pairs the reader's single strongest color with their complement and spells
+  // out what the two produce together. Every sentence is assembled from fields
+  // that already exist for those two colors in the guide data (core / healthy /
+  // overuse / actions / growthQuestion) — this section introduces no new
+  // psychological claim of its own, it just puts the existing two profiles
+  // side by side and names the trade they make.
+  function buildStrengthBalanceHTML(top1, comp) {
+    const chip = (c) =>
+      `<span class="syn-chip" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)} · ${escapeHtml(
+        c.strength
+      )}</span>`;
+
+    const pick = (arr, i) => (arr && arr[i] ? arr[i] : "");
+    const steps = [
+      pick(top1.actions, 0),
+      pick(comp.actions, 0),
+      `중요한 결정 앞에서는 "${escapeHtml(top1.growthQuestion)}"와 "${escapeHtml(comp.growthQuestion)}"를 나란히 놓고 점검해봅니다.`,
+    ].filter(Boolean);
+
+    return `
+      <div class="syn-wrap">
+        <div class="syn-pair">${chip(top1)}<span class="syn-plus">+</span>${chip(comp)}</div>
+
+        <div class="syn-row">
+          <div class="syn-label">두 컬러가 함께 만드는 힘</div>
+          <p class="syn-text">${escapeHtml(top1.ko)}${josa(top1.ko, "은", "는")} '${escapeHtml(top1.core)}'${josa(
+      top1.core,
+      "이",
+      "가"
+    )} 중심이고, ${escapeHtml(comp.ko)}${josa(comp.ko, "은", "는")} '${escapeHtml(comp.core)}'${josa(
+      comp.core,
+      "이",
+      "가"
+    )} 중심입니다. 방향이 서로 반대이기 때문에, 한쪽이 놓치는 지점을 다른 쪽이 정확히 메워줍니다. ${escapeHtml(
+      top1.ko
+    )}${euro(top1.ko)} 일을 움직이고 ${escapeHtml(comp.ko)}${euro(
+      comp.ko
+    )} 그 움직임을 다듬는 흐름이 만들어질 때, 속도와 완성도를 동시에 챙기는 조합이 됩니다.</p>
+        </div>
+
+        <div class="syn-row">
+          <div class="syn-label">균형이 무너질 때 생기는 일</div>
+          <p class="syn-text">${escapeHtml(top1.ko)}에만 기대면 ${escapeHtml(
+      (pick(top1.overuse, 0) || "").replace(/\.$/, "")
+    )}. 이때 ${escapeHtml(comp.ko)}의 '${escapeHtml(comp.core)}'${josa(
+      comp.core,
+      "이",
+      "가"
+    )} 제동 장치가 되어 줍니다. 반대로 ${escapeHtml(comp.ko)} 쪽으로만 기울면 ${escapeHtml(
+      (pick(comp.overuse, 0) || "").replace(/\.$/, "")
+    )}. 두 컬러 중 어느 쪽도 정답이 아니라, 상황에 따라 비중을 바꿔 쓰는 것이 핵심입니다.</p>
+        </div>
+
+        <div class="syn-row">
+          <div class="syn-label">이렇게 번갈아 써보세요</div>
+          <ul class="syn-list">${steps.map((s) => `<li>${escapeHtml(s).replace(/&quot;/g, '"')}</li>`).join("")}</ul>
         </div>
       </div>
     `;
@@ -1209,11 +1261,18 @@
     // before so the page-fill pass can still place the two halves independently.
     // rigidBreak() forces this to start on a fresh page rather than continuing
     // wherever the TOP3 comparison page happened to leave off.
-    const [compIntro, compDetail] = buildColorSectionPdfParts(comp.chosen, "보완 컬러 · 성장 자원");
+    // ONE rigid block: title + rationale + the color card's intro AND detail
+    // halves together. Previously the detail half ("건강할 때 / 과도할 때 /
+    // 예시") was a separate block and reliably spilled onto the next page,
+    // leaving the card cut off right after its "이 강점이 드러나는 모습"
+    // heading. The Venn diagram that used to sit here moved to the synergy
+    // section below, which is what freed the vertical room for this to fit.
     rigidBreak(
-      `<div class="section-title">보완 컬러 심층 분석</div>${buildSynergyVennHTML(top1, comp.chosen)}${buildComplementRationaleHTML(top1, comp.chosen)}${compIntro}`
+      `<div class="section-title">보완 컬러 심층 분석</div>${buildComplementRationaleHTML(
+        top1,
+        comp.chosen
+      )}${buildColorSectionWholeHTML(comp.chosen, "보완 컬러 · 성장 자원")}`
     );
-    rigid(compDetail);
 
     // Concrete, actionable guidance: how to use the TOP3 strengths, warning signs
     // of overuse, and a short weekly practice checklist.
@@ -1228,7 +1287,7 @@
     // an unrelated section mid-flow — see the dedicated rigid appendix near
     // the end of this function for where that list lives now.
     const domainScores = computeDomainScores(scores);
-    let domainBlock = `<div class="section-subtitle">6대 상위 강점영역</div>`;
+    let domainBlock = `<div class="section-title">6대 상위 강점영역</div>`;
     domainBlock += `<div class="section-desc">13개 컬러를 이론적으로 묶은 상위 구조입니다. 표본 데이터 검증 이전의 초기 분류로 참고용입니다.</div>`;
     domainBlock += `<div class="domain-grid">`;
     domainScores.forEach((d) => {
@@ -1242,13 +1301,25 @@
       `;
     });
     domainBlock += `</div>`;
-    flexible(domainBlock);
+    // NOT emitted here — this block now rides along on the score-appendix page
+    // (see rigidBreak below), directly above "컬러별 상세 점수", because the two
+    // are both reference tables and read better together at the back.
 
-    flexible(`
-      <div class="section-subtitle">강점 분포 균형도</div>
-      <p class="section-desc">13개 컬러 점수가 소수에 집중되어 있는지, 고르게 퍼져 있는지를 보여주는 참고 지표입니다.</p>
-      ${buildBalanceProfileHTML(ranked)}
+    // Rigid so the Venn, the comparison table and the three explanation rows
+    // can never be split across a page. This is where the Venn diagram lives
+    // now — it belongs with the comparison rather than above the complement
+    // card, and moving it is what let the complement section fit one page.
+    // Two rigid blocks rather than one: the heading + Venn + comparison table
+    // read as a unit and fit the room 실전 지침 leaves behind, while the
+    // narrative card can start the next page. As one block the whole thing was
+    // page-sized and stranded half a page of white space above it.
+    rigid(`
+      <div class="section-title">강점 컬러와 보완 컬러의 시너지</div>
+      <p class="section-desc">가장 뚜렷한 강점 컬러와, 그와 심리적으로 대비되는 보완 컬러를 나란히 비교하고 두 컬러가 함께 작동할 때 만들어지는 효과를 정리했습니다.</p>
+      ${buildSynergyVennHTML(top1, comp.chosen)}
+      ${buildColorCompareTableHTML(ranked[0], comp.chosen)}
     `);
+    rigid(buildStrengthBalanceHTML(ranked[0], comp.chosen));
 
     if (ranked.length >= 2) {
       rigid(`
@@ -1269,10 +1340,13 @@
     const CHUNK = 5;
     for (let i = 0; i < barRowsHtml.length; i += CHUNK) {
       const chunk = barRowsHtml.slice(i, i + CHUNK).join("");
-      let html = i === 0 ? `<div class="section-title">컬러별 상세 점수 (13개 전체)</div>` : "";
+      // The 6대 강점영역 table rides on this same forced page break, above the
+      // score title, so the two reference tables stay together and the domain
+      // table can never be orphaned onto a page of its own.
+      let html = i === 0 ? domainBlock + `<div class="section-title score-appendix-title">컬러별 상세 점수 (13개 전체)</div>` : "";
       html += `<div class="bar-chart">${chunk}</div>`;
       if (i === 0) {
-        rigidBreak(html);
+        rigid(html);
       } else {
         rigid(html);
       }
