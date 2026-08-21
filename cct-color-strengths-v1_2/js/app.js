@@ -797,6 +797,68 @@
     `;
   }
 
+  // ---------- 강점 컬러 × 보완 컬러의 균형 ----------
+  // Pairs the reader's single strongest color with their complement and spells
+  // out what the two produce together. Every sentence is assembled from fields
+  // that already exist for those two colors in the guide data (core / healthy /
+  // overuse / actions / growthQuestion) — this section introduces no new
+  // psychological claim of its own, it just puts the existing two profiles
+  // side by side and names the trade they make.
+  function buildStrengthBalanceHTML(top1, comp) {
+    const chip = (c) =>
+      `<span class="syn-chip" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)} · ${escapeHtml(
+        c.strength
+      )}</span>`;
+
+    const pick = (arr, i) => (arr && arr[i] ? arr[i] : "");
+    const steps = [
+      pick(top1.actions, 0),
+      pick(comp.actions, 0),
+      `중요한 결정 앞에서는 "${escapeHtml(top1.growthQuestion)}"와 "${escapeHtml(comp.growthQuestion)}"를 나란히 놓고 점검해봅니다.`,
+    ].filter(Boolean);
+
+    return `
+      <div class="syn-wrap">
+        <div class="syn-pair">${chip(top1)}<span class="syn-plus">+</span>${chip(comp)}</div>
+
+        <div class="syn-row">
+          <div class="syn-label">두 컬러가 함께 만드는 힘</div>
+          <p class="syn-text">${escapeHtml(top1.ko)}${josa(top1.ko, "은", "는")} '${escapeHtml(top1.core)}'${josa(
+      top1.core,
+      "이",
+      "가"
+    )} 중심이고, ${escapeHtml(comp.ko)}${josa(comp.ko, "은", "는")} '${escapeHtml(comp.core)}'${josa(
+      comp.core,
+      "이",
+      "가"
+    )} 중심입니다. 방향이 서로 반대이기 때문에, 한쪽이 놓치는 지점을 다른 쪽이 정확히 메워줍니다. ${escapeHtml(
+      top1.ko
+    )}${euro(top1.ko)} 일을 움직이고 ${escapeHtml(comp.ko)}${euro(
+      comp.ko
+    )} 그 움직임을 다듬는 흐름이 만들어질 때, 속도와 완성도를 동시에 챙기는 조합이 됩니다.</p>
+        </div>
+
+        <div class="syn-row">
+          <div class="syn-label">균형이 무너질 때 생기는 일</div>
+          <p class="syn-text">${escapeHtml(top1.ko)}에만 기대면 ${escapeHtml(
+      (pick(top1.overuse, 0) || "").replace(/\.$/, "")
+    )}. 이때 ${escapeHtml(comp.ko)}의 '${escapeHtml(comp.core)}'${josa(
+      comp.core,
+      "이",
+      "가"
+    )} 제동 장치가 되어 줍니다. 반대로 ${escapeHtml(comp.ko)} 쪽으로만 기울면 ${escapeHtml(
+      (pick(comp.overuse, 0) || "").replace(/\.$/, "")
+    )}. 두 컬러 중 어느 쪽도 정답이 아니라, 상황에 따라 비중을 바꿔 쓰는 것이 핵심입니다.</p>
+        </div>
+
+        <div class="syn-row">
+          <div class="syn-label">이렇게 번갈아 써보세요</div>
+          <ul class="syn-list">${steps.map((s) => `<li>${escapeHtml(s).replace(/&quot;/g, '"')}</li>`).join("")}</ul>
+        </div>
+      </div>
+    `;
+  }
+
   // Radar/spider chart of all 13 colors (SVG shapes only — labels are absolutely
   // positioned HTML so html2canvas renders the Korean text reliably).
   function buildRadarChartHTML(scores) {
@@ -1242,12 +1304,22 @@
       `;
     });
     domainBlock += `</div>`;
-    flexible(domainBlock);
+    // NOT emitted here — this block now rides along on the score-appendix page
+    // (see rigidBreak below), directly above "컬러별 상세 점수", because the two
+    // are both reference tables and read better together at the back.
 
     flexible(`
       <div class="section-subtitle">강점 분포 균형도</div>
       <p class="section-desc">13개 컬러 점수가 소수에 집중되어 있는지, 고르게 퍼져 있는지를 보여주는 참고 지표입니다.</p>
       ${buildBalanceProfileHTML(ranked)}
+    `);
+
+    // Fills the slot the 6대 강점영역 table used to occupy. Rigid so the pair of
+    // colors and the three explanation rows can never be split across a page.
+    rigid(`
+      <div class="section-title">강점 컬러와 보완 컬러의 균형</div>
+      <p class="section-desc">가장 뚜렷한 강점 컬러와, 그와 심리적으로 대비되는 보완 컬러가 함께 작동할 때 만들어지는 효과입니다.</p>
+      ${buildStrengthBalanceHTML(ranked[0], comp.chosen)}
     `);
 
     if (ranked.length >= 2) {
@@ -1269,7 +1341,10 @@
     const CHUNK = 5;
     for (let i = 0; i < barRowsHtml.length; i += CHUNK) {
       const chunk = barRowsHtml.slice(i, i + CHUNK).join("");
-      let html = i === 0 ? `<div class="section-title">컬러별 상세 점수 (13개 전체)</div>` : "";
+      // The 6대 강점영역 table rides on this same forced page break, above the
+      // score title, so the two reference tables stay together and the domain
+      // table can never be orphaned onto a page of its own.
+      let html = i === 0 ? domainBlock + `<div class="section-title score-appendix-title">컬러별 상세 점수 (13개 전체)</div>` : "";
       html += `<div class="bar-chart">${chunk}</div>`;
       if (i === 0) {
         rigidBreak(html);
