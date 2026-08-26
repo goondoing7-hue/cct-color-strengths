@@ -1348,22 +1348,60 @@
       `;
     });
     domainBlock += `</div>`;
-    // Each domain's meaning, straight from CCT_DOMAINS.desc, so the chart above
-    // is readable without flipping back to the guide.
+    // Each domain's meaning (CCT_DOMAINS.desc) plus the individual colors that
+    // were averaged to produce its bar above, each with its own score. That
+    // second part matters: a domain average alone can look flat while hiding a
+    // big spread between its member colors, and this makes the composition
+    // visible without flipping to the appendix. Two-column card grid so this
+    // fills the page it sits on rather than trailing off half way down.
     domainBlock += `<div class="domain-legend">`;
+    domainBlock += `<div class="dl-heading">각 영역의 의미와 구성 컬러</div>`;
+    domainBlock += `<div class="dl-grid">`;
     domainScores.forEach((d) => {
-      const names = d.colors.map((k) => cctColorByKey(k).ko).join(" · ");
+      const chips = d.colors
+        .map((k) => {
+          const c = cctColorByKey(k);
+          return `
+            <div class="dl-chip">
+              <span class="dl-dot" style="background:${c.hex}"></span>
+              <span class="dl-chip-name">${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</span>
+              <span class="dl-chip-score">${scores[k].toFixed(1)}</span>
+            </div>`;
+        })
+        .join("");
+      // A domain average can hide a wide spread between its member colors — e.g.
+      // 3.6 and 2.0 average to a flat-looking 2.8. Say so explicitly rather than
+      // letting the single bar above imply the whole area sits at one level.
+      const memberScores = d.colors.map((k) => scores[k]);
+      const hi = Math.max(...memberScores);
+      const lo = Math.min(...memberScores);
+      const spread = Math.round((hi - lo) * 10) / 10;
+      let readNote;
+      if (d.colors.length === 1) {
+        readNote = `이 영역은 ${escapeHtml(
+          cctColorByKey(d.colors[0]).ko
+        )} 한 컬러로만 구성되어, 영역 점수가 곧 해당 컬러의 점수입니다.`;
+      } else if (spread >= 1.0) {
+        readNote = `구성 컬러 간 점수 차이가 ${spread.toFixed(
+          1
+        )}점으로 큰 편입니다. 평균값보다 위의 개별 컬러 점수를 함께 보시는 것이 정확합니다.`;
+      } else {
+        readNote = `구성 컬러들이 비슷한 수준으로 나타나, 평균값이 이 영역 전체를 잘 대표합니다.`;
+      }
+
       domainBlock += `
-        <div class="dl-row">
-          <div class="dl-name">${escapeHtml(d.name)}</div>
-          <div class="dl-body">
-            <div class="dl-desc">${escapeHtml(d.desc)}</div>
-            <div class="dl-colors">${escapeHtml(names)}</div>
+        <div class="dl-card">
+          <div class="dl-card-head">
+            <div class="dl-name">${escapeHtml(d.name)}</div>
+            <div class="dl-score">${d.value.toFixed(1)}</div>
           </div>
+          <div class="dl-desc">${escapeHtml(d.desc)}</div>
+          <div class="dl-chips">${chips}</div>
+          <div class="dl-note">${readNote}</div>
         </div>
       `;
     });
-    domainBlock += `</div>`;
+    domainBlock += `</div></div>`;
     // NOT emitted here — this block now rides along on the score-appendix page
     // (see rigidBreak below), directly above "컬러별 상세 점수", because the two
     // are both reference tables and read better together at the back.
