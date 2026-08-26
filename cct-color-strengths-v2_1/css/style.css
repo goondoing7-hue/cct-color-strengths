@@ -758,7 +758,7 @@ img, svg { display: block; }
 .pdf-report .comp-rationale {
   background: var(--surface-2);
   border-radius: var(--radius-md);
-  padding: 14px 18px;
+  padding: 10px 18px 18px;
   margin-bottom: 16px;
 }
 .pdf-report .comp-rationale-label {
@@ -774,7 +774,7 @@ img, svg { display: block; }
 .pdf-report .compare-table th,
 .pdf-report .compare-table td {
   border: 1px solid var(--line);
-  padding: 10px 12px;
+  padding: 6px 12px 14px;
   text-align: left;
   vertical-align: top;
   font-size: 11.5px;
@@ -800,9 +800,15 @@ img, svg { display: block; }
 .pdf-report .compare-table ul { margin: 0; padding-left: 14px; }
 .pdf-report .compare-table li { margin-bottom: 4px; }
 .pdf-report .compare-table li:last-child { margin-bottom: 0; }
+/* html2canvas seats text ~4px lower than a browser does, so a filled box with
+   symmetric vertical padding renders with the text visibly low inside it
+   (measured +22px at 300dpi = 8 CSS px of imbalance across every box below).
+   Each of these carries padding-top 4px smaller and padding-bottom 4px larger
+   than the symmetric value, which cancels that out. PDF-only on purpose — do
+   not equalize these back, and do not copy them onto screen-side rules. */
 .pdf-report .ct-adjacent {
   margin-top: 12px; font-size: 11.5px; color: var(--ink-500); line-height: 1.6;
-  background: var(--surface-2); padding: 10px 14px; border-radius: var(--radius-md);
+  background: var(--surface-2); padding: 6px 14px 14px; border-radius: var(--radius-md);
 }
 
 /* ---------- Action guide ---------- */
@@ -812,7 +818,7 @@ img, svg { display: block; }
 .pdf-report .ag-item {
   flex: 1; min-width: 0;
   background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md);
-  padding: 12px 14px;
+  padding: 8px 14px 16px;
 }
 .pdf-report .ag-item-label { font-size: 12px; font-weight: 800; margin-bottom: 8px; }
 .pdf-report .ag-item ul, .pdf-report .ag-warn ul, .pdf-report .ag-mission ul { margin: 0; padding-left: 16px; }
@@ -820,9 +826,9 @@ img, svg { display: block; }
   font-size: 11.5px; line-height: 1.65; color: var(--ink-700); margin-bottom: 5px;
 }
 .pdf-report .ag-item li:last-child, .pdf-report .ag-warn li:last-child, .pdf-report .ag-mission li:last-child { margin-bottom: 0; }
-.pdf-report .ag-warn { background: #FDF3E4; border-radius: var(--radius-md); padding: 12px 16px; }
+.pdf-report .ag-warn { background: #FDF3E4; border-radius: var(--radius-md); padding: 8px 16px 16px; }
 .pdf-report .ag-warn li b { color: #B4791F; }
-.pdf-report .ag-mission { background: #EAF6EF; border-radius: var(--radius-md); padding: 12px 16px; }
+.pdf-report .ag-mission { background: #EAF6EF; border-radius: var(--radius-md); padding: 8px 16px 16px; }
 
 .bar-chart { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
 .bar-row { display: flex; flex-direction: column; gap: 5px; }
@@ -847,7 +853,7 @@ img, svg { display: block; }
 .pdf-report .t3-axis-notes p {
   font-size: 12px; line-height: 1.7; color: var(--ink-700);
   background: var(--surface-2); border-radius: var(--radius-md);
-  padding: 10px 14px; margin-bottom: 8px;
+  padding: 6px 14px 14px; margin-bottom: 8px;
 }
 .pdf-report .t3-axis-notes p:last-child { margin-bottom: 0; }
 .pdf-report .t3-moments { margin: 0; padding-left: 18px; }
@@ -857,7 +863,7 @@ img, svg { display: block; }
 /* ---------- TOP3 "who am I" persona breakdown ---------- */
 .pdf-report .t3-persona-block {
   margin-top: 18px; background: var(--surface-2); border-radius: var(--radius-lg);
-  padding: 18px 20px;
+  padding: 14px 20px 22px;
 }
 .pdf-report .t3-persona-block .section-subtitle { margin-bottom: 14px; }
 .pdf-report .persona-grid { display: flex; flex-direction: column; gap: 14px; }
@@ -942,10 +948,15 @@ img, svg { display: block; }
 /* ---------- Relationship fit: colors that click vs. colors that friction ---------- */
 .pdf-report .fit-block { display: flex; gap: 14px; margin-top: 16px; }
 .pdf-report .fit-col {
-  flex: 1; min-width: 0; border-radius: var(--radius-lg); padding: 16px 18px;
+  flex: 1; min-width: 0; border-radius: var(--radius-lg); padding: 12px 18px 20px;
 }
 .pdf-report .fit-good { background: #EAF6EF; }
 .pdf-report .fit-friction { background: #FDF3E4; }
+/* Colors that qualify for BOTH columns above — same 강점영역 as TOP1/TOP2 yet
+   also TOP1's contrast pair. Full-width under the two columns, neutral tint so
+   it reads as "both", not as a third verdict. */
+.pdf-report .fit-mixed { background: #EFEDF6; margin-top: 12px; }
+.pdf-report .fit-mixed .fit-label { color: #5A5480; }
 .pdf-report .fit-label { font-size: 11.5px; font-weight: 800; margin-bottom: 10px; }
 .pdf-report .fit-good .fit-label { color: #1F8A56; }
 .pdf-report .fit-friction .fit-label { color: #B4791F; }
@@ -958,7 +969,7 @@ img, svg { display: block; }
 .pdf-report .fit-text { font-size: 11.5px; line-height: 1.7; color: var(--ink-700); }
 
 /* ---------- 강점 컬러 × 보완 컬러의 균형 ---------- */
-.pdf-report .syn-wrap { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px 20px; }
+.pdf-report .syn-wrap { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px 20px 22px; }
 .pdf-report .syn-pair { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .pdf-report .syn-chip {
   /* asymmetric padding = html2canvas baseline compensation, same measured
@@ -1015,12 +1026,33 @@ img, svg { display: block; }
 .pdf-report .domain-grid { gap: 12px; }
 .pdf-report .domain-row .dtrack { height: 11px; }
 
-/* The score appendix title now sits under the 6대 강점영역 table on the same
-   forced page, so it needs its own top margin instead of the :first-of-type
-   zeroing that applied when it opened the page. */
-.pdf-report .section-title.score-appendix-title { margin-top: 34px; }
+/* Meaning of each 강점영역, listed under the chart on the same page. */
+.pdf-report .domain-legend { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 20px; }
+.pdf-report .dl-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+.pdf-report .dl-row:last-child { margin-bottom: 0; }
+.pdf-report .dl-name {
+  width: 150px; flex-shrink: 0;
+  font-size: 12.5px; font-weight: 800; color: var(--ink-900); line-height: 1.6;
+}
+.pdf-report .dl-body { flex: 1; min-width: 0; }
+.pdf-report .dl-desc { font-size: 12px; line-height: 1.65; color: var(--ink-700); }
+.pdf-report .dl-colors { font-size: 11px; line-height: 1.6; color: var(--ink-300); font-weight: 700; margin-top: 3px; }
 
-.pdf-report .disclaimer { margin-top: 40px; background: var(--surface-2); border-radius: var(--radius-md); padding: 16px 18px; font-size: 11px; line-height: 1.75; color: var(--ink-500); }
+/* html2canvas seats text ~4px lower than a browser does, so a filled box with
+   symmetric vertical padding renders with the text visibly low inside it
+   (measured +22px at 300dpi = 8 CSS px of imbalance across every box below).
+   Each of these carries padding-top 4px smaller and padding-bottom 4px larger
+   than the symmetric value, which cancels that out. PDF-only on purpose — do
+   not equalize these back, and do not copy them onto screen-side rules. */
+.pdf-report .cs-example { padding: 12px 18px 20px; }
+.pdf-report .quick-facts { padding: 8px 16px 16px; }
+.pdf-report .cmp-label { padding: 6px 12px 14px; }
+.pdf-report .cmp-val { padding: 6px 13px 14px; }
+
+
+
+
+.pdf-report .disclaimer { margin-top: 40px; background: var(--surface-2); border-radius: var(--radius-md); padding: 12px 18px 20px; font-size: 11px; line-height: 1.75; color: var(--ink-500); }
 .pdf-report .disclaimer b { color: var(--ink-700); }
 .pdf-report .rp-footer { margin-top: 24px; padding-bottom: 6px; text-align: center; font-size: 10.5px; line-height: 1.6; color: var(--ink-300); }
 
