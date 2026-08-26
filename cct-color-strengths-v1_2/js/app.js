@@ -684,20 +684,6 @@
     `;
   }
 
-  function renderCombo(top1, top2) {
-    const text = `이 조합을 가진 사람은 “${top1.question}”${josa(top1.question, "과", "와")} “${top2.question}”라는 두 질문 모두에서 강점을 보일 수 있습니다. 실제 상황에서는 ${top1.ko}의 ‘${top1.core}’${euro(top1.core)} 상황을 시작하고, ${top2.ko}의 ‘${top2.core}’${euro(top2.core)} 흐름을 이어가는 방식이 자연스럽게 나타날 수 있습니다. 두 강점이 함께 발휘될 때는 ${top1.strength}${josa(top1.strength, "과", "와")} ${top2.strength}${josa(top2.strength, "이", "가")} 서로를 보완하며 시너지를 만들 수 있지만, 두 강점 모두 과도하게 사용되는 상황이라면 각각의 "과도하게 사용될 때" 항목을 함께 점검해보는 것이 좋습니다.`;
-    return `
-      <div class="combo-card">
-        <div class="combo-chips">
-          <span class="combo-chip" style="background:${top1.hex}">${top1.ko} · ${top1.strength}</span>
-          <span class="combo-plus">+</span>
-          <span class="combo-chip" style="background:${top2.hex}">${top2.ko} · ${top2.strength}</span>
-        </div>
-        <p>${text}</p>
-      </div>
-    `;
-  }
-
   // Relationship-fit read for the TOP1+TOP2 combo: which colors tend to click
   // easily vs. which tend to feel a little friction-prone, plus what synergy
   // and what to watch for in each case. Grounded in data already established
@@ -707,7 +693,11 @@
   // TOP1's CCT_COMPLEMENT_MAP candidates — the same "psychologically
   // contrasting orientation" pairing already used for the complement deep-dive,
   // reframed here for how it can feel in a relationship rather than personal growth.
-  function buildRelationshipFitHTML(top1, top2) {
+  // Takes the full ranked list: the fit columns are driven by TOP1/TOP2, but
+  // the closing "내 강점이 상대에게 닿는 방식" cards cover all three.
+  function buildRelationshipFitHTML(ranked) {
+    const top1 = ranked[0];
+    const top2 = ranked[1];
     const domainOf = (key) => CCT_DOMAINS.find((d) => d.colors.includes(key));
     const top1Domain = domainOf(top1.key);
     const top2Domain = domainOf(top2.key);
@@ -777,6 +767,95 @@
       `
       : "";
 
+    // What each listed person actually brings, one line per color straight from
+    // that color's own healthy[] entry — so the chips above are more than a
+    // bare list of names.
+    const bringRow = (colors) =>
+      colors
+        .map(
+          (c) => `
+          <div class="fit-bring">
+            <span class="fit-bring-dot" style="background:${c.hex}"></span>
+            <span class="fit-bring-name">${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</span>
+            <span class="fit-bring-text">${escapeHtml((c.healthy || [])[0] || "")}</span>
+          </div>`
+        )
+        .join("");
+
+    const allListed = [...goodColors, ...bothColors, ...frictionColors];
+    const bringBlock = allListed.length
+      ? `
+        <div class="fit-extra">
+          <div class="section-subtitle">이 사람들이 관계에 가져오는 것</div>
+          <p class="section-desc">위에 나온 각 컬러가 강점인 사람이 관계에서 실제로 잘 해내는 일입니다. 잘 맞는 쪽이든 불편한 쪽이든, 상대가 무엇을 잘하는지 알고 있으면 대화의 출발점이 달라집니다.</p>
+          <div class="fit-brings">${bringRow(allListed)}</div>
+        </div>
+      `
+      : "";
+
+    // How the reader's own top strengths can land on the other side — all three
+    // TOP colors, each with its own card. The "이렇게 비칠 수 있어요" lines are
+    // that color's overuse entries (the guide already phrases them in
+    // interpersonal terms) and the closing line is one of its healthy entries,
+    // so each card shows the same strength's two faces rather than only the
+    // negative one.
+    const effectCards = ranked
+      .slice(0, 3)
+      .map((c, i) => {
+        const overs = (c.overuse || [])
+          .slice(0, 2)
+          .map((o) => `<li>${escapeHtml(o)}</li>`)
+          .join("");
+        const healthyLine = (c.healthy || [])[1] || (c.healthy || [])[0] || "";
+        return `
+          <div class="fx-card">
+            <div class="fx-head">
+              <span class="fx-tag" style="background:${c.hex};color:${getContrastText(c.hex)}">TOP${i + 1} · ${escapeHtml(
+          c.ko
+        )}</span>
+              <span class="fx-strength">${escapeHtml(c.strength)}</span>
+            </div>
+            <div class="fx-sub">과하게 나올 때 상대가 겪을 수 있는 일</div>
+            <ul class="fx-list">${overs}</ul>
+            <div class="fx-good">건강하게 작동할 때는 — ${escapeHtml(healthyLine)}</div>
+          </div>`;
+      })
+      .join("");
+    const myEffectBlock = `
+        <div class="fit-extra">
+          <div class="section-subtitle">내 강점이 상대에게 닿는 방식</div>
+          <p class="section-desc">관계의 어려움은 상대의 성향만이 아니라 내 강점이 과하게 나올 때도 생깁니다. 같은 강점이라도 조절되면 상대에게 도움이 되고, 지나치면 부담이 됩니다. TOP 3 강점 각각의 두 얼굴을 정리했습니다.</p>
+          <div class="fx-grid">${effectCards}</div>
+        </div>
+      `;
+
+    // Where the reader and each friction-side color are literally looking at
+    // different things — both halves are the two colors' own core definitions,
+    // put next to each other. Names the source of the friction instead of just
+    // labelling it "불편할 수 있음".
+    const diffColors = [...frictionColors, ...bothColors];
+    const diffRows = diffColors
+      .map(
+        (c) => `
+        <div class="fit-diff-row">
+          <div class="fit-diff-who"><span class="fit-bring-dot" style="background:${c.hex}"></span>${escapeHtml(c.ko)}</div>
+          <div class="fit-diff-cols">
+            <div class="fit-diff-cell"><span class="fit-diff-tag">나</span>${escapeHtml(top1.core)}</div>
+            <div class="fit-diff-cell"><span class="fit-diff-tag">상대</span>${escapeHtml(c.core)}</div>
+          </div>
+        </div>`
+      )
+      .join("");
+    const diffBlock = diffColors.length
+      ? `
+        <div class="fit-extra">
+          <div class="section-subtitle">서로 다르게 보고 있는 지점</div>
+          <p class="section-desc">부딪힘의 원인은 대개 성격이 아니라 무엇을 먼저 보느냐의 차이입니다. 내 TOP1 강점과 상대 강점이 각각 무엇에 초점을 두는지 나란히 놓았습니다.</p>
+          <div class="fit-diffs">${diffRows}</div>
+        </div>
+      `
+      : "";
+
     return `
       <div class="fit-block">
         <div class="fit-col fit-good">
@@ -789,6 +868,9 @@
         </div>
       </div>
       ${bothBlock}
+      ${bringBlock}
+      ${diffBlock}
+      ${myEffectBlock}
     `;
   }
 
@@ -804,6 +886,7 @@
       ["속한 강점영역", top1.group, comp.group],
       ["잘 드러나는 모습", (top1.healthy || [])[0] || "", (comp.healthy || [])[0] || ""],
       ["지나칠 때", (top1.overuse || [])[0] || "", (comp.overuse || [])[0] || ""],
+      ["스스로 점검할 질문", top1.growthQuestion, comp.growthQuestion],
     ];
     const head = (c, role) => `
       <div class="cmp-col-head">
@@ -891,6 +974,34 @@
         <div class="syn-row">
           <div class="syn-label">이렇게 번갈아 써보세요</div>
           <ul class="syn-list">${steps.map((s) => `<li>${escapeHtml(s).replace(/&quot;/g, '"')}</li>`).join("")}</ul>
+        </div>
+
+        <div class="syn-row">
+          <div class="syn-label">어느 쪽을 꺼내 쓸지 헷갈릴 때</div>
+          <div class="syn-when">
+            <div class="syn-when-col">
+              <div class="syn-when-head" style="color:${top1.hex}">${escapeHtml(top1.ko)}${josa(
+      top1.ko,
+      "을",
+      "를"
+    )} 꺼낼 상황</div>
+              <ul class="syn-list">${(top1.actions || [])
+                .slice(0, 2)
+                .map((a) => `<li>${escapeHtml(a)}</li>`)
+                .join("")}</ul>
+            </div>
+            <div class="syn-when-col">
+              <div class="syn-when-head" style="color:${comp.hex}">${escapeHtml(comp.ko)}${josa(
+      comp.ko,
+      "을",
+      "를"
+    )} 꺼낼 상황</div>
+              <ul class="syn-list">${(comp.actions || [])
+                .slice(0, 2)
+                .map((a) => `<li>${escapeHtml(a)}</li>`)
+                .join("")}</ul>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -1081,28 +1192,70 @@
   function buildActionGuideHTML(ranked, comp) {
     const top3 = ranked.slice(0, 3);
 
+    // 3 actions per color (was 2) — this section owns a full page now, and the
+    // guide data carries 5 per color, so there is no need to truncate so hard.
     const topActionsHtml = top3
       .map((c, i) => {
         const items = (c.actions || [])
-          .slice(0, 2)
+          .slice(0, 3)
           .map((a) => `<li>${escapeHtml(a)}</li>`)
           .join("");
         return `
           <div class="ag-item">
-            <div class="ag-item-label" style="color:${c.hex}">TOP${i + 1} · ${escapeHtml(c.ko)}</div>
+            <div class="ag-item-label" style="color:${c.hex}">TOP${i + 1} · ${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</div>
             <ul>${items}</ul>
           </div>
         `;
       })
       .join("");
 
-    const warnItems = top3
-      .slice(0, 2)
-      .flatMap((c) => (c.overuse || []).slice(0, 1).map((o) => `<li><b>${escapeHtml(c.ko)}</b> — ${escapeHtml(o)}</li>`))
+    // Grouped per TOP color rather than one flat list — the flat version made
+    // it hard to see which warning belonged to which strength. Each card also
+    // closes with the balancing move, taken from that color's complement pair
+    // so the reader gets a correction, not just a warning.
+    const warnCards = top3
+      .map((c, i) => {
+        const items = (c.overuse || []).map((o) => `<li>${escapeHtml(o)}</li>`).join("");
+        const compCandidates = CCT_COMPLEMENT_MAP[c.key] || [];
+        const balanceColor = compCandidates.length ? cctColorByKey(compCandidates[0]) : null;
+        const balance = balanceColor
+          ? `조절이 필요할 때는 <b>${escapeHtml(balanceColor.ko)}</b>의 '${escapeHtml(balanceColor.core)}'${josa(
+              balanceColor.core,
+              "을",
+              "를"
+            )} 잠시 빌려오면 균형이 잡힙니다.`
+          : "";
+        return `
+          <div class="ag-warn-card">
+            <div class="ag-warn-head">
+              <span class="ag-warn-tag" style="background:${c.hex};color:${getContrastText(c.hex)}">TOP${i + 1} · ${escapeHtml(
+          c.ko
+        )}</span>
+              <span class="ag-warn-strength">${escapeHtml(c.strength)}</span>
+            </div>
+            <ul class="ag-warn-list">${items}</ul>
+            ${balance ? `<div class="ag-warn-balance">${balance}</div>` : ""}
+          </div>`;
+      })
+      .join("");
+
+    // The guide already ships one self-check question per color; collecting the
+    // TOP3 + complement ones gives the reader a concrete way to tell whether a
+    // strength is being used well or overused, which the lists above only imply.
+    const checkColors = [...top3, comp.chosen];
+    const checkItems = checkColors
+      .map(
+        (c, i) => `
+        <div class="ag-check">
+          <div class="ag-check-tag" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)}</div>
+          <div class="ag-check-q">${escapeHtml(c.growthQuestion)}</div>
+        </div>`
+      )
       .join("");
 
     const missionCandidates = [
       (top3[0].actions || [])[0],
+      (top3[1] && top3[1].actions ? top3[1].actions[1] : null),
       (comp.chosen.actions || [])[0],
       "오늘 하루, 보완 컬러의 관점으로 한 번 더 생각해보고 짧게 기록을 남겨보세요.",
     ].filter(Boolean);
@@ -1111,11 +1264,18 @@
     return `
       <div class="ag-block">
         <div class="section-subtitle">TOP 3 강점 활용법</div>
+        <p class="section-desc">각 강점이 실제로 힘을 발휘하는 구체적인 장면입니다.</p>
         <div class="ag-grid">${topActionsHtml}</div>
       </div>
       <div class="ag-block">
         <div class="section-subtitle">과사용 경고 신호 체크리스트</div>
-        <div class="ag-warn"><ul>${warnItems}</ul></div>
+        <p class="section-desc">강점은 지나치면 약점처럼 작동합니다. 아래 신호가 반복된다면 잠시 속도를 조절해볼 시점입니다.</p>
+        <div class="ag-warn-grid">${warnCards}</div>
+      </div>
+      <div class="ag-block">
+        <div class="section-subtitle">스스로 점검하는 질문</div>
+        <p class="section-desc">판단이 어려운 순간에 아래 질문을 꺼내보면, 지금 강점을 잘 쓰고 있는지 스스로 가늠할 수 있습니다.</p>
+        <div class="ag-checks">${checkItems}</div>
       </div>
       <div class="ag-block">
         <div class="section-subtitle">이번 주 실천 미션</div>
@@ -1323,7 +1483,9 @@
 
     // Concrete, actionable guidance: how to use the TOP3 strengths, warning signs
     // of overuse, and a short weekly practice checklist.
-    rigid(`<div class="section-title">실전 지침</div>${buildActionGuideHTML(ranked, comp)}`);
+    // Each of these three owns a full page from here on, per the report layout:
+    // 실전 지침 → 시너지 → 관계 → 6대 강점영역 → 점수 부록.
+    rigidBreak(`<div class="section-title">실전 지침</div>${buildActionGuideHTML(ranked, comp)}`);
 
     // ---- Flexible supplementary section (domains / axes) ----
     // Split into small chunks so generatePdf() can slot them into whatever
@@ -1410,31 +1572,21 @@
     // can never be split across a page. This is where the Venn diagram lives
     // now — it belongs with the comparison rather than above the complement
     // card, and moving it is what let the complement section fit one page.
-    // Two rigid blocks rather than one: the heading + Venn + comparison table
-    // read as a unit and fit the room 실전 지침 leaves behind, while the
-    // narrative card can start the next page. As one block the whole thing was
-    // page-sized and stranded half a page of white space above it.
-    rigid(`
+    rigidBreak(`
       <div class="section-title">강점 컬러와 보완 컬러의 시너지</div>
       <p class="section-desc">가장 뚜렷한 강점 컬러와, 그와 심리적으로 대비되는 보완 컬러를 나란히 비교하고 두 컬러가 함께 작동할 때 만들어지는 효과를 정리했습니다.</p>
       ${buildSynergyVennHTML(top1, comp.chosen)}
       ${buildColorCompareTableHTML(ranked[0], comp.chosen)}
+      ${buildStrengthBalanceHTML(ranked[0], comp.chosen)}
     `);
-    rigid(buildStrengthBalanceHTML(ranked[0], comp.chosen));
 
     if (ranked.length >= 2) {
-      rigid(`
-        <div class="section-title">TOP 컬러 조합 해석</div>
-        ${renderCombo(ranked[0], ranked[1])}
-      `);
-      // Its own section, directly under the combo reading. These two boxes are
-      // about OTHER PEOPLE — whoever has those colors as their strengths — not
-      // about more of the reader's own colors, which the old "잘 맞을 수 있는
-      // 컬러" heading inside the combo block did not make clear.
-      rigid(`
+      // These boxes are about OTHER PEOPLE — whoever has those colors as their
+      // strengths — not about more of the reader's own colors.
+      rigidBreak(`
         <div class="section-title">관계에서 만나는 컬러</div>
         <p class="section-desc">내 TOP 컬러를 기준으로, 그 컬러가 강점인 사람들과 어떤 관계를 맺기 쉬운지 정리했습니다. 사람 자체의 좋고 나쁨이 아니라 성향의 결이 얼마나 비슷한지를 뜻합니다.</p>
-        ${buildRelationshipFitHTML(ranked[0], ranked[1])}
+        ${buildRelationshipFitHTML(ranked)}
       `);
     }
 
@@ -1448,7 +1600,7 @@
     // page up front now shows the condensed "한눈에 보는 요약" instead; this is
     // for anyone who wants every raw number. rigidBreak() on the first chunk
     // forces this appendix to always start on its own fresh page rather than
-    // tacking onto whatever room "TOP 컬러 조합 해석" happened to leave behind.
+    // tacking onto whatever room the preceding section happened to leave behind.
     const barRowsHtml = ranked.map((c, i) => buildScoreBarRowHTML(c, i));
     const CHUNK = 5;
     for (let i = 0; i < barRowsHtml.length; i += CHUNK) {
