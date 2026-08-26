@@ -828,7 +828,45 @@ img, svg { display: block; }
 .pdf-report .ag-item li:last-child, .pdf-report .ag-warn li:last-child, .pdf-report .ag-mission li:last-child { margin-bottom: 0; }
 .pdf-report .ag-warn { background: #FDF3E4; border-radius: var(--radius-md); padding: 8px 16px 16px; }
 .pdf-report .ag-warn li b { color: #B4791F; }
+
+/* Overuse checklist, grouped per TOP3 color. */
+.pdf-report .ag-warn-grid { display: flex; gap: 12px; }
+.pdf-report .ag-warn-card {
+  flex: 1; min-width: 0; background: #FDF3E4; border-radius: var(--radius-md);
+  padding: 10px 14px 18px;
+}
+.pdf-report .ag-warn-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; flex-wrap: wrap; }
+.pdf-report .ag-warn-tag {
+  display: inline-block; line-height: 1; font-size: 10.5px; font-weight: 800;
+  border-radius: var(--radius-pill);
+  /* asymmetric padding = html2canvas baseline compensation (see .cs-tag) */
+  padding: 3px 10px 10px;
+}
+.pdf-report .ag-warn-strength { font-size: 11px; font-weight: 700; color: #8A6420; position: relative; top: -2px; }
+.pdf-report .ag-warn-list { margin: 0 0 8px; padding-left: 14px; }
+.pdf-report .ag-warn-list li { font-size: 11px; line-height: 1.6; color: var(--ink-700); margin-bottom: 4px; }
+.pdf-report .ag-warn-list li:last-child { margin-bottom: 0; }
+.pdf-report .ag-warn-balance {
+  font-size: 10.5px; line-height: 1.6; color: var(--ink-700);
+  border-top: 1px dashed rgba(180,121,31,0.35); padding-top: 8px;
+}
+.pdf-report .ag-warn-balance b { color: #B4791F; }
 .pdf-report .ag-mission { background: #EAF6EF; border-radius: var(--radius-md); padding: 8px 16px 16px; }
+/* Self-check questions: one per TOP3 color + the complement. */
+.pdf-report .ag-checks { display: flex; flex-direction: column; gap: 8px; }
+.pdf-report .ag-check {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md);
+  padding: 8px 14px 14px;
+}
+.pdf-report .ag-check-tag {
+  flex-shrink: 0; display: inline-block; line-height: 1;
+  font-size: 10.5px; font-weight: 800; border-radius: var(--radius-pill);
+  /* asymmetric padding = html2canvas baseline compensation (see .cs-tag) */
+  padding: 3px 10px 10px;
+  position: relative; top: 2px;
+}
+.pdf-report .ag-check-q { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.65; color: var(--ink-700); }
 
 .bar-chart { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
 .bar-row { display: flex; flex-direction: column; gap: 5px; }
@@ -962,6 +1000,71 @@ img, svg { display: block; }
    it reads as "both", not as a third verdict. */
 .pdf-report .fit-mixed { background: #EFEDF6; margin-top: 12px; }
 .pdf-report .fit-mixed .fit-label { color: #5A5480; }
+/* What each listed person brings, and how the reader's own strengths land. */
+.pdf-report .fit-extra { margin-top: 22px; }
+.pdf-report .fit-brings { display: flex; flex-direction: column; gap: 8px; }
+.pdf-report .fit-bring {
+  display: flex; align-items: flex-start; gap: 8px;
+  border-bottom: 1px solid var(--line); padding-bottom: 8px;
+}
+.pdf-report .fit-bring:last-child { border-bottom: none; padding-bottom: 0; }
+.pdf-report .fit-bring-dot {
+  width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.12);
+  /* Bigger nudge than .dl-dot because this row is align-items:flex-start, not
+     centre: the dot starts at the top of the line box (~5px above the glyph
+     centre) AND html2canvas seats the text ~5px lower again. Measured 9.9px. */
+  position: relative; top: 9.9px;
+}
+.pdf-report .fit-bring-name { width: 132px; flex-shrink: 0; font-size: 11.5px; line-height: 1.6; font-weight: 800; color: var(--ink-900); }
+.pdf-report .fit-bring-text { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.6; color: var(--ink-700); }
+
+/* Side-by-side focus comparison for the friction-side colors. */
+.pdf-report .fit-diffs { display: flex; flex-direction: column; gap: 10px; }
+.pdf-report .fit-diff-row { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 8px 14px 14px; }
+.pdf-report .fit-diff-who { display: flex; align-items: flex-start; gap: 7px; font-size: 11.5px; font-weight: 800; color: var(--ink-900); margin-bottom: 8px; }
+/* Same dot, shorter line box here — measured separately. */
+.pdf-report .fit-diff-who .fit-bring-dot { top: 7.7px; }
+.pdf-report .fit-diff-cols { display: flex; gap: 12px; }
+.pdf-report .fit-diff-cell { flex: 1; min-width: 0; font-size: 11px; line-height: 1.6; color: var(--ink-700); }
+.pdf-report .fit-diff-tag {
+  display: inline-block; font-size: 9.5px; font-weight: 800; color: var(--ink-500);
+  background: var(--surface-2); border-radius: var(--radius-pill);
+  padding: 2px 7px 8px; line-height: 1; margin-right: 6px; position: relative; top: 2px;
+}
+.pdf-report .fit-effect {
+  background: #FDF3E4; border-radius: var(--radius-md);
+  padding: 8px 16px 16px;
+}
+.pdf-report .fit-effect ul { margin: 0; padding-left: 16px; }
+.pdf-report .fit-effect li { font-size: 11.5px; line-height: 1.65; color: var(--ink-700); margin-bottom: 5px; }
+.pdf-report .fit-effect li:last-child { margin-bottom: 0; }
+.pdf-report .fit-effect li b { color: #B4791F; }
+
+/* "내 강점이 상대에게 닿는 방식" — one card per TOP3 color, two faces each. */
+/* Three across, matching the overuse cards — stacked they ran past the page. */
+.pdf-report .fx-grid { display: flex; gap: 12px; }
+.pdf-report .fx-card {
+  flex: 1; min-width: 0;
+  background: #FDF3E4; border-radius: var(--radius-md);
+  padding: 10px 14px 18px;
+}
+.pdf-report .fx-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; flex-wrap: wrap; }
+.pdf-report .fx-tag {
+  display: inline-block; line-height: 1; font-size: 11px; font-weight: 800;
+  border-radius: var(--radius-pill);
+  /* asymmetric padding = html2canvas baseline compensation (see .cs-tag) */
+  padding: 3px 11px 10px;
+}
+.pdf-report .fx-strength { font-size: 11.5px; font-weight: 700; color: #8A6420; position: relative; top: -2px; }
+.pdf-report .fx-sub { font-size: 10.5px; font-weight: 800; color: #B4791F; margin-bottom: 5px; }
+.pdf-report .fx-list { margin: 0 0 8px; padding-left: 15px; }
+.pdf-report .fx-list li { font-size: 11px; line-height: 1.6; color: var(--ink-700); margin-bottom: 4px; }
+.pdf-report .fx-list li:last-child { margin-bottom: 0; }
+.pdf-report .fx-good {
+  font-size: 10.5px; line-height: 1.6; color: var(--ink-700);
+  border-top: 1px dashed rgba(180,121,31,0.35); padding-top: 8px;
+}
 .pdf-report .fit-label { font-size: 11.5px; font-weight: 800; margin-bottom: 10px; }
 .pdf-report .fit-good .fit-label { color: #1F8A56; }
 .pdf-report .fit-friction .fit-label { color: #B4791F; }
@@ -994,6 +1097,10 @@ img, svg { display: block; }
 }
 .pdf-report .syn-list li::before { content: "·"; position: absolute; left: 3px; top: -1px; color: var(--ink-300); font-weight: 800; }
 .pdf-report .syn-list li:last-child { margin-bottom: 0; }
+/* "Which one do I reach for" — the two colors' own action lists, side by side. */
+.pdf-report .syn-when { display: flex; gap: 16px; }
+.pdf-report .syn-when-col { flex: 1; min-width: 0; }
+.pdf-report .syn-when-head { font-size: 11.5px; font-weight: 800; margin-bottom: 7px; }
 
 /* At-a-glance comparison table: strength color vs complement color. Plain
    flex rows rather than a real <table> — html2canvas lays flex out far more
