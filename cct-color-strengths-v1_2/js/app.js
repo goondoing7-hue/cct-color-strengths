@@ -712,36 +712,83 @@
     const top1Domain = domainOf(top1.key);
     const top2Domain = domainOf(top2.key);
 
-    const goodKeys = Array.from(
+    const domainKeys = Array.from(
       new Set([...(top1Domain ? top1Domain.colors : []), ...(top2Domain ? top2Domain.colors : [])])
     ).filter((k) => k !== top1.key && k !== top2.key);
+    const complementKeys = CCT_COMPLEMENT_MAP[top1.key] || [];
+
+    // A color can legitimately qualify for BOTH lists: it shares a 강점영역
+    // with TOP1/TOP2 (so values line up) while ALSO being TOP1's theoretical
+    // contrast pair (so pace and priorities differ). That happens in 46 of the
+    // 156 possible TOP1+TOP2 pairings, and printing the same color under both
+    // headings reads as a contradiction — so the overlap is pulled out into its
+    // own honestly-labelled group instead of being silently assigned to one.
+    const bothKeys = domainKeys.filter((k) => complementKeys.includes(k));
+    const goodKeys = domainKeys.filter((k) => !bothKeys.includes(k));
+    const frictionKeys = complementKeys.filter((k) => !bothKeys.includes(k));
+
     const goodColors = goodKeys.map((k) => cctColorByKey(k));
-
-    const frictionKeys = CCT_COMPLEMENT_MAP[top1.key] || [];
     const frictionColors = frictionKeys.map((k) => cctColorByKey(k));
+    const bothColors = bothKeys.map((k) => cctColorByKey(k));
 
-    const domainNames = Array.from(new Set([top1Domain && top1Domain.name, top2Domain && top2Domain.name].filter(Boolean))).join(
-      ", "
-    );
+    const domainNames = Array.from(
+      new Set([top1Domain && top1Domain.name, top2Domain && top2Domain.name].filter(Boolean))
+    ).join(", ");
 
     const chipRow = (colors) =>
       colors
         .map((c) => `<span class="fit-chip" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)}</span>`)
         .join("");
 
+    // Dedup can empty either column (8 pairings leave no "잘 맞을" color, 3 leave
+    // no "불편할" color), so both sides fall back to an explanation rather than
+    // rendering an empty chip row.
+    const goodBody = goodColors.length
+      ? `<div class="fit-chips">${chipRow(goodColors)}</div>
+         <p class="fit-text">${escapeHtml(top1.ko)}·${escapeHtml(top2.ko)}${josa(top2.ko, "과", "와")} 같은 '${escapeHtml(
+          domainNames
+        )}' 영역에 속한 컬러들입니다. 가치관과 접근 방식의 결이 비슷해 대화가 자연스럽게 통하고, 서로를 이해하는 데 큰 노력이 들지 않는 편입니다. 다만 비슷한 성향끼리는 놓치는 부분도 비슷할 수 있어, 가끔은 다른 관점을 가진 사람을 의도적으로 곁에 두는 것도 도움이 됩니다.</p>`
+      : `<p class="fit-text">내 TOP 컬러와 같은 영역에 속하면서 아래 '양면적' 조건에 걸리지 않는 컬러가 이번 결과에는 없습니다. 같은 영역의 컬러가 모두 ${escapeHtml(
+          top1.ko
+        )}의 대비 짝과 겹쳤기 때문이며, 관계가 나쁘다는 뜻이 아닙니다.</p>`;
+
+    const frictionBody = frictionColors.length
+      ? `<div class="fit-chips">${chipRow(frictionColors)}</div>
+         <p class="fit-text">${escapeHtml(top1.ko)}${josa(top1.ko, "과", "와")} 심리적으로 대비되는 지향을 가진 컬러들입니다. 일하는 속도나 우선순위를 정하는 기준이 달라 처음에는 다소 부딪히거나 답답하게 느껴질 수 있습니다. 다만 이 차이 덕분에 ${escapeHtml(
+          top1.ko
+        )} 혼자서는 놓치기 쉬운 지점을 채워줄 수 있으니, 불편함 자체보다 "무엇을 다르게 보고 있는지"를 먼저 확인하는 태도가 도움이 됩니다.</p>`
+      : `<p class="fit-text">${escapeHtml(
+          top1.ko
+        )}의 대비 짝이 모두 아래 '양면적' 그룹에 포함되어, 일방적으로 불편하기만 한 컬러는 이번 결과에 없습니다.</p>`;
+
+    const bothBlock = bothColors.length
+      ? `
+        <div class="fit-col fit-mixed">
+          <div class="fit-label">양면적으로 작용할 수 있는 사람 (해당 컬러가 강점인 사람)</div>
+          <div class="fit-chips">${chipRow(bothColors)}</div>
+          <p class="fit-text">위 두 조건에 동시에 해당하는 컬러입니다. 나와 같은 '${escapeHtml(
+            domainNames
+          )}' 영역에 속해 지향하는 가치와 대화의 결은 잘 맞지만, 동시에 ${escapeHtml(top1.ko)}${josa(
+          top1.ko,
+          "과",
+          "와"
+        )} 심리적으로 대비되는 짝이기도 합니다. 큰 방향에는 쉽게 합의가 되는데 그 방향을 어떤 속도와 순서로 갈지에서는 의견이 갈리기 쉬운 관계로, 목표에 먼저 합의한 뒤 방법을 조율하면 서로의 빈틈을 잘 메워주는 조합이 됩니다.</p>
+        </div>
+      `
+      : "";
+
     return `
       <div class="fit-block">
         <div class="fit-col fit-good">
-          <div class="fit-label">잘 맞을 수 있는 컬러</div>
-          <div class="fit-chips">${chipRow(goodColors)}</div>
-          <p class="fit-text">${escapeHtml(top1.ko)}·${escapeHtml(top2.ko)}${josa(top2.ko, "과", "와")} 같은 '${escapeHtml(domainNames)}' 영역에 속한 컬러들입니다. 가치관과 접근 방식의 결이 비슷해 대화가 자연스럽게 통하고, 서로를 이해하는 데 큰 노력이 들지 않는 편입니다. 다만 비슷한 성향끼리는 놓치는 부분도 비슷할 수 있어, 가끔은 다른 관점을 가진 사람을 의도적으로 곁에 두는 것도 도움이 됩니다.</p>
+          <div class="fit-label">잘 맞을 수 있는 사람 (해당 컬러가 강점인 사람)</div>
+          ${goodBody}
         </div>
         <div class="fit-col fit-friction">
-          <div class="fit-label">다소 불편하게 느껴질 수 있는 컬러</div>
-          <div class="fit-chips">${chipRow(frictionColors)}</div>
-          <p class="fit-text">${escapeHtml(top1.ko)}${josa(top1.ko, "과", "와")} 심리적으로 대비되는 지향을 가진 컬러들입니다. 일하는 속도나 우선순위를 정하는 기준이 달라 처음에는 다소 부딪히거나 답답하게 느껴질 수 있습니다. 다만 이 차이 덕분에 ${escapeHtml(top1.ko)} 혼자서는 놓치기 쉬운 지점을 채워줄 수 있으니, 불편함 자체보다 "무엇을 다르게 보고 있는지"를 먼저 확인하는 태도가 도움이 됩니다.</p>
+          <div class="fit-label">다소 불편하게 느껴질 수 있는 사람 (해당 컬러가 강점인 사람)</div>
+          ${frictionBody}
         </div>
       </div>
+      ${bothBlock}
     `;
   }
 
@@ -1301,6 +1348,22 @@
       `;
     });
     domainBlock += `</div>`;
+    // Each domain's meaning, straight from CCT_DOMAINS.desc, so the chart above
+    // is readable without flipping back to the guide.
+    domainBlock += `<div class="domain-legend">`;
+    domainScores.forEach((d) => {
+      const names = d.colors.map((k) => cctColorByKey(k).ko).join(" · ");
+      domainBlock += `
+        <div class="dl-row">
+          <div class="dl-name">${escapeHtml(d.name)}</div>
+          <div class="dl-body">
+            <div class="dl-desc">${escapeHtml(d.desc)}</div>
+            <div class="dl-colors">${escapeHtml(names)}</div>
+          </div>
+        </div>
+      `;
+    });
+    domainBlock += `</div>`;
     // NOT emitted here — this block now rides along on the score-appendix page
     // (see rigidBreak below), directly above "컬러별 상세 점수", because the two
     // are both reference tables and read better together at the back.
@@ -1325,9 +1388,21 @@
       rigid(`
         <div class="section-title">TOP 컬러 조합 해석</div>
         ${renderCombo(ranked[0], ranked[1])}
+      `);
+      // Its own section, directly under the combo reading. These two boxes are
+      // about OTHER PEOPLE — whoever has those colors as their strengths — not
+      // about more of the reader's own colors, which the old "잘 맞을 수 있는
+      // 컬러" heading inside the combo block did not make clear.
+      rigid(`
+        <div class="section-title">관계에서 만나는 컬러</div>
+        <p class="section-desc">내 TOP 컬러를 기준으로, 그 컬러가 강점인 사람들과 어떤 관계를 맺기 쉬운지 정리했습니다. 사람 자체의 좋고 나쁨이 아니라 성향의 결이 얼마나 비슷한지를 뜻합니다.</p>
         ${buildRelationshipFitHTML(ranked[0], ranked[1])}
       `);
     }
+
+    // 6대 강점영역 + the meaning of each domain, as a page of its own directly
+    // before the raw score appendix.
+    rigidBreak(domainBlock);
 
     // Full color-by-color score list, as its own dedicated appendix at the very
     // end of the report (rigid, not flexible — so unlike before, it can never
@@ -1340,13 +1415,11 @@
     const CHUNK = 5;
     for (let i = 0; i < barRowsHtml.length; i += CHUNK) {
       const chunk = barRowsHtml.slice(i, i + CHUNK).join("");
-      // The 6대 강점영역 table rides on this same forced page break, above the
-      // score title, so the two reference tables stay together and the domain
-      // table can never be orphaned onto a page of its own.
-      let html = i === 0 ? domainBlock + `<div class="section-title score-appendix-title">컬러별 상세 점수 (13개 전체)</div>` : "";
+      let html = i === 0 ? `<div class="section-title">컬러별 상세 점수 (13개 전체)</div>` : "";
       html += `<div class="bar-chart">${chunk}</div>`;
       if (i === 0) {
-        rigid(html);
+        // Fresh page: 6대 강점영역 + its legend own the page before this one.
+        rigidBreak(html);
       } else {
         rigid(html);
       }
