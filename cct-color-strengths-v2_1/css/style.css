@@ -835,6 +835,11 @@ img, svg { display: block; }
 .bar-row .label-line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .bar-row .name { font-size: 12.5px; line-height: 1.5; font-weight: 700; color: var(--ink-700); display: flex; align-items: center; gap: 7px; }
 .bar-row .swatch { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.12); }
+/* PDF-only: the score-row swatch is flex-centred against the label, but
+   html2canvas seats that label ~4.3px lower, leaving the swatch high.
+   Measured over 14 swatches on the appendix page. Screen rendering is
+   correct as-is, so this must stay scoped to .pdf-report. */
+.pdf-report .bar-row .swatch { position: relative; top: 4.3px; }
 .bar-track { height: 11px; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
 .bar-fill { height: 100%; border-radius: var(--radius-pill); }
 .bar-row .score { font-size: 11.5px; line-height: 1.5; font-weight: 700; color: var(--ink-500); }
@@ -1023,20 +1028,42 @@ img, svg { display: block; }
 
 /* 6대 강점영역 is a full section of its own at the back of the report now, so
    its rows match the weight of the 컬러별 상세 점수 rows sitting under it. */
-.pdf-report .domain-grid { gap: 12px; }
+.pdf-report .domain-grid { gap: 16px; }
 .pdf-report .domain-row .dtrack { height: 11px; }
 
-/* Meaning of each 강점영역, listed under the chart on the same page. */
-.pdf-report .domain-legend { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 20px; }
-.pdf-report .dl-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
-.pdf-report .dl-row:last-child { margin-bottom: 0; }
-.pdf-report .dl-name {
-  width: 150px; flex-shrink: 0;
-  font-size: 12.5px; font-weight: 800; color: var(--ink-900); line-height: 1.6;
+/* Meaning of each 강점영역 + the colors averaged into it, as a 2-column card
+   grid under the chart on the same page. */
+.pdf-report .domain-legend { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 22px; }
+.pdf-report .dl-heading { font-size: 13px; font-weight: 800; color: var(--ink-900); margin-bottom: 16px; }
+.pdf-report .dl-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+.pdf-report .dl-card {
+  /* must stay in sync with .dl-grid gap: 2 cards + 1 gap = 100% */
+  width: calc(50% - 7px); box-sizing: border-box;
+  background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md);
+  /* top padding 4px under bottom — html2canvas baseline compensation, same
+     measured pattern as the other filled boxes. Do not equalize. */
+  padding: 14px 16px 22px;
 }
-.pdf-report .dl-body { flex: 1; min-width: 0; }
-.pdf-report .dl-desc { font-size: 12px; line-height: 1.65; color: var(--ink-700); }
-.pdf-report .dl-colors { font-size: 11px; line-height: 1.6; color: var(--ink-300); font-weight: 700; margin-top: 3px; }
+.pdf-report .dl-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.pdf-report .dl-name { font-size: 12.5px; font-weight: 800; color: var(--ink-900); line-height: 1.5; }
+.pdf-report .dl-score { font-size: 12.5px; font-weight: 800; color: var(--accent-soft); line-height: 1.5; }
+.pdf-report .dl-desc { font-size: 11.5px; line-height: 1.7; color: var(--ink-500); margin-bottom: 11px; }
+.pdf-report .dl-chips { display: flex; flex-direction: column; gap: 7px; }
+.pdf-report .dl-chip { display: flex; align-items: center; gap: 6px; }
+.pdf-report .dl-dot {
+  width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.12);
+  /* flex align-items:center centres the dot against the line box, but
+     html2canvas draws the text ~4.7px lower than that, leaving the dot
+     visibly high. Measured nudge, same pattern as .ct-swatch / .cmp-dot. */
+  position: relative; top: 4.7px;
+}
+.pdf-report .dl-chip-name { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--ink-700); }
+.pdf-report .dl-chip-score { font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--ink-300); }
+.pdf-report .dl-note {
+  margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--line);
+  font-size: 11px; line-height: 1.65; color: var(--ink-500);
+}
 
 /* html2canvas seats text ~4px lower than a browser does, so a filled box with
    symmetric vertical padding renders with the text visibly low inside it
