@@ -280,6 +280,43 @@ img, svg { display: block; }
 
 .btn-start { width: 100%; margin-bottom: 24px; }
 
+/* ---------- In-app browser (KakaoTalk etc.) notice ---------- */
+.inapp-notice {
+  width: 100%; text-align: left;
+  background: #FDF3E4; border: 1px solid rgba(180,121,31,0.28);
+  border-radius: var(--radius-md);
+  padding: 16px 18px; margin-bottom: 22px;
+}
+.inapp-title { font-size: 13.5px; font-weight: 800; color: #8A6420; margin-bottom: 7px; }
+.inapp-text { font-size: 12.5px; line-height: 1.7; color: var(--ink-700); margin-bottom: 12px; }
+.inapp-text b { color: #B4791F; }
+.inapp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.inapp-btn {
+  appearance: none; cursor: pointer; font-family: inherit;
+  font-size: 12.5px; font-weight: 700; color: #fff;
+  background: #B4791F; border: 1px solid #B4791F;
+  border-radius: var(--radius-pill); padding: 10px 16px;
+}
+.inapp-btn-ghost { background: transparent; color: #8A6420; }
+
+/* Blocking dialog shown if the PDF button is pressed inside an in-app browser */
+.inapp-block {
+  display: none; position: fixed; inset: 0; z-index: 80;
+  background: rgba(23,22,29,0.55);
+  align-items: center; justify-content: center; padding: 24px;
+}
+.inapp-block.is-open { display: flex; }
+.inapp-block-card {
+  background: var(--surface-1); border-radius: var(--radius-lg);
+  padding: 26px 24px; max-width: 420px; width: 100%;
+  box-shadow: var(--shadow-lg); text-align: left;
+}
+.inapp-block-title { font-size: 16px; font-weight: 800; color: var(--ink-900); margin-bottom: 10px; line-height: 1.45; }
+.inapp-block-text { font-size: 13px; line-height: 1.75; color: var(--ink-700); margin-bottom: 10px; }
+.inapp-block-note { font-size: 12px; line-height: 1.7; color: var(--ink-500); margin-bottom: 18px; }
+.inapp-block-actions { display: flex; flex-direction: column; gap: 8px; }
+.inapp-block-actions .btn-primary { width: 100%; }
+
 .intro-fineprint {
   font-size: 11.5px;
   line-height: 1.75;

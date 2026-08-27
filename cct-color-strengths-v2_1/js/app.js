@@ -1747,7 +1747,114 @@
   }
 
   // v1-only: lets the user download their own PDF immediately.
+  // ---------- In-app browser handling ----------
+  // KakaoTalk / Instagram / Facebook / Line in-app webviews block file
+  // downloads. jsPDF's doc.save() builds a blob and clicks a hidden
+  // <a download>, which those webviews swallow WITHOUT throwing — so the
+  // button appears to do nothing at all. Detect the webview up front and give
+  // the user a way out instead of letting the download fail silently.
+  function detectInAppBrowser() {
+    const ua = navigator.userAgent || "";
+    if (/KAKAOTALK/i.test(ua)) return "kakao";
+    if (/Instagram/i.test(ua)) return "instagram";
+    if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "facebook";
+    if (/Line\//i.test(ua)) return "line";
+    if (/NAVER\(inapp/i.test(ua)) return "naver";
+    if (/DaumApps/i.test(ua)) return "daum";
+    return null;
+  }
+
+  const isAndroid = () => /Android/i.test(navigator.userAgent || "");
+
+  function openInExternalBrowser() {
+    const url = window.location.href;
+    const kind = detectInAppBrowser();
+    if (kind === "kakao") {
+      // KakaoTalk's documented escape hatch — works on both iOS and Android.
+      window.location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(url);
+      return true;
+    }
+    if (isAndroid()) {
+      // Android intent: hand the URL to Chrome directly.
+      const bare = url.replace(/^https?:\/\//, "");
+      window.location.href =
+        "intent://" + bare + "#Intent;scheme=https;package=com.android.chrome;end";
+      return true;
+    }
+    return false; // iOS outside KakaoTalk can't be forced — fall back to copy.
+  }
+
+  async function copyCurrentLink() {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      return true;
+    } catch (e) {
+      // clipboard API is unavailable in several in-app webviews
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        return ok;
+      } catch (e2) {
+        return false;
+      }
+    }
+  }
+
+  function initInAppNotice() {
+    const kind = detectInAppBrowser();
+    const box = document.getElementById("inappNotice");
+    if (!box) return;
+    if (!kind) return;
+
+    const NAMES = {
+      kakao: "카카오톡",
+      instagram: "인스타그램",
+      facebook: "페이스북",
+      line: "라인",
+      naver: "네이버",
+      daum: "다음",
+    };
+    const title = box.querySelector(".inapp-title");
+    if (title) title.textContent = `지금은 ${NAMES[kind] || "앱"} 브라우저로 보고 계세요`;
+    box.hidden = false;
+    document.body.classList.add("is-inapp");
+
+    const openBtn = document.getElementById("btnOpenExternal");
+    const copyBtn = document.getElementById("btnCopyLink");
+    if (openBtn) {
+      openBtn.addEventListener("click", () => {
+        if (!openInExternalBrowser()) {
+          openBtn.textContent = "아래 '링크 복사'를 눌러주세요";
+        }
+      });
+    }
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async () => {
+        const ok = await copyCurrentLink();
+        copyBtn.textContent = ok ? "복사됐어요! 브라우저에 붙여넣기" : "복사 실패 — 주소창을 길게 눌러 복사해주세요";
+        setTimeout(() => {
+          copyBtn.textContent = "링크 복사";
+        }, 4000);
+      });
+    }
+  }
+
   async function downloadPdf(scores, ranked, btn) {
+    // Bail out BEFORE spending ~10s generating a PDF the webview will refuse
+    // to hand over. Without this the button just spins and nothing happens.
+    const inApp = detectInAppBrowser();
+    if (inApp) {
+      showInAppBlockedDialog();
+      return;
+    }
+
     const toast = document.getElementById("toast");
     const originalLabel = btn.innerHTML;
     btn.disabled = true;
@@ -1764,6 +1871,40 @@
       btn.innerHTML = originalLabel;
       toast.classList.remove("show");
     }
+  }
+
+  // Shown when the PDF button is pressed inside an in-app browser.
+  function showInAppBlockedDialog() {
+    let el = document.getElementById("inappBlock");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "inappBlock";
+      el.className = "inapp-block";
+      el.innerHTML = `
+        <div class="inapp-block-card">
+          <div class="inapp-block-title">이 브라우저에서는 PDF를 저장할 수 없어요</div>
+          <p class="inapp-block-text">카카오톡·인스타그램 등 앱 안의 브라우저는 파일 다운로드를 막고 있습니다. 기본 브라우저(크롬·사파리)에서 열면 정상적으로 저장됩니다.</p>
+          <p class="inapp-block-note">브라우저에서 다시 검사를 진행해주세요. 결과는 저장되지 않습니다.</p>
+          <div class="inapp-block-actions">
+            <button type="button" class="btn btn-primary" id="ibOpen">브라우저에서 열기</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="ibCopy">링크 복사</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="ibClose">닫기</button>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+      el.querySelector("#ibOpen").addEventListener("click", () => {
+        if (!openInExternalBrowser()) {
+          el.querySelector("#ibOpen").textContent = "아래 '링크 복사'를 눌러주세요";
+        }
+      });
+      el.querySelector("#ibCopy").addEventListener("click", async (e) => {
+        const ok = await copyCurrentLink();
+        e.target.textContent = ok ? "복사됐어요!" : "복사 실패 — 주소창에서 복사해주세요";
+        setTimeout(() => { e.target.textContent = "링크 복사"; }, 4000);
+      });
+      el.querySelector("#ibClose").addEventListener("click", () => { el.classList.remove("is-open"); });
+    }
+    el.classList.add("is-open");
   }
 
   function resetApp() {
@@ -1818,4 +1959,5 @@
 
   buildColorRing();
   bindAccessCode();
+  initInAppNotice();
 })();
