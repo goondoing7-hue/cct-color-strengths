@@ -999,33 +999,6 @@
           <ul class="syn-list">${steps.map((s) => `<li>${escapeHtml(s).replace(/&quot;/g, '"')}</li>`).join("")}</ul>
         </div>
 
-        <div class="syn-row">
-          <div class="syn-label">어느 쪽을 꺼내 쓸지 헷갈릴 때</div>
-          <div class="syn-when">
-            <div class="syn-when-col">
-              <div class="syn-when-head" style="color:${top1.hex}">${escapeHtml(top1.ko)}${josa(
-      top1.ko,
-      "을",
-      "를"
-    )} 꺼낼 상황</div>
-              <ul class="syn-list">${(top1.actions || [])
-                .slice(0, 2)
-                .map((a) => `<li>${escapeHtml(a)}</li>`)
-                .join("")}</ul>
-            </div>
-            <div class="syn-when-col">
-              <div class="syn-when-head" style="color:${comp.hex}">${escapeHtml(comp.ko)}${josa(
-      comp.ko,
-      "을",
-      "를"
-    )} 꺼낼 상황</div>
-              <ul class="syn-list">${(comp.actions || [])
-                .slice(0, 2)
-                .map((a) => `<li>${escapeHtml(a)}</li>`)
-                .join("")}</ul>
-            </div>
-          </div>
-        </div>
       </div>
     `;
   }
@@ -1247,9 +1220,9 @@
         const balanceColor = balancePick && balancePick.chosen ? balancePick.chosen : null;
         const isReportComplement = balanceColor && balanceColor.key === comp.chosen.key;
         const balance = balanceColor
-          ? `조절이 필요할 때는 ${isReportComplement ? "보완 컬러인 " : ""}<b>${escapeHtml(
-              balanceColor.ko
-            )}</b>의 '${escapeHtml(balanceColor.core)}'${josa(
+          ? `조절이 필요할 때는 ${isReportComplement ? "보완 컬러인 " : ""}<b style="color:${
+              balanceColor.hex
+            }">${escapeHtml(balanceColor.ko)}</b>의 '${escapeHtml(balanceColor.core)}'${josa(
               balanceColor.core,
               "을",
               "를"
@@ -1323,18 +1296,22 @@
     const top3 = ranked.slice(0, 3);
     const [t1, t2, t3] = top3;
 
+    // Name the colors rather than counting them — "2개 컬러가 협력 쪽" told the
+    // reader nothing about WHICH of their strengths pulls that way.
+    const swatchName = (c) =>
+      `<b style="color:${c.hex}">${escapeHtml(c.ko)}</b>`;
     const axisNotes = [];
     Object.values(CCT_AXES).forEach((axis) => {
-      const leftCount = top3.filter((c) => axis.left.colors.includes(c.key)).length;
-      const rightCount = top3.filter((c) => axis.right.colors.includes(c.key)).length;
-      if (leftCount >= 2 && leftCount > rightCount) {
-        axisNotes.push(
-          `TOP3 중 ${leftCount}개 컬러가 '${axis.left.name}' 쪽에 속해 있어, ${axis.label} 축에서 ${axis.left.name} 지향이 뚜렷한 조합입니다.`
-        );
-      } else if (rightCount >= 2 && rightCount > leftCount) {
-        axisNotes.push(
-          `TOP3 중 ${rightCount}개 컬러가 '${axis.right.name}' 쪽에 속해 있어, ${axis.label} 축에서 ${axis.right.name} 지향이 뚜렷한 조합입니다.`
-        );
+      const leftHits = top3.filter((c) => axis.left.colors.includes(c.key));
+      const rightHits = top3.filter((c) => axis.right.colors.includes(c.key));
+      const write = (hits, side) =>
+        `${hits.map(swatchName).join("과 ")}${josa(hits[hits.length - 1].ko, "이", "가")} '${escapeHtml(
+          side.name
+        )}' 쪽에 속해, ${escapeHtml(axis.label)} 축에서 ${escapeHtml(side.name)} 지향이 뚜렷한 조합입니다.`;
+      if (leftHits.length >= 2 && leftHits.length > rightHits.length) {
+        axisNotes.push(write(leftHits, axis.left));
+      } else if (rightHits.length >= 2 && rightHits.length > leftHits.length) {
+        axisNotes.push(write(rightHits, axis.right));
       }
     });
 
@@ -1350,7 +1327,7 @@
           ? `
         <div class="t3-synergy-block">
           <div class="section-subtitle">이 조합의 종합 성향</div>
-          <div class="t3-axis-notes">${axisNotes.map((n) => `<p>${escapeHtml(n)}</p>`).join("")}</div>
+          <div class="t3-axis-notes">${axisNotes.map((n) => `<p>${n}</p>`).join("")}</div>
         </div>
       `
           : ""
