@@ -338,10 +338,25 @@
     return CCT_COLORS.map((c) => ({ ...c, score: scores[c.key] })).sort((a, b) => b.score - a.score);
   }
 
-  function getComplement(top1Key, scores) {
+  function getComplement(top1Key, scores, ranked) {
     const compKeys = CCT_COMPLEMENT_MAP[top1Key] || [];
     const candidates = compKeys.map((k) => ({ ...cctColorByKey(k), score: scores[k] }));
-    candidates.sort((a, b) => a.score - b.score); // lowest currently-used candidate first
+    // Lowest currently-used candidate first — the complement is meant to be the
+    // contrast resource the person leans on LEAST.
+    candidates.sort((a, b) => a.score - b.score);
+
+    // Tie-break only: when candidates score exactly the same, prefer one that
+    // isn't already a TOP3 strength. Calling a top strength "아직 덜 활용된
+    // 자원" contradicts the rest of the report, and with tied scores the order
+    // was arbitrary anyway. Never overrides a genuine score difference.
+    if (ranked && candidates.length > 1 && candidates[0].score === candidates[1].score) {
+      const topKeys = ranked.slice(0, 3).map((c) => c.key);
+      const outside = candidates.filter((c) => !topKeys.includes(c.key));
+      if (outside.length) {
+        const pick = outside[0];
+        return { chosen: pick, all: candidates };
+      }
+    }
     return { chosen: candidates[0], all: candidates };
   }
 
@@ -429,7 +444,7 @@
   function renderResult(scores) {
     const ranked = getRanked(scores);
     const top1 = ranked[0];
-    const comp = getComplement(top1.key, scores);
+    const comp = getComplement(top1.key, scores, ranked);
     // Fire-and-forget: builds the PDF and logs it to the admin's Google Sheet/
     // Drive in the background. Runs for BOTH variants, and never blocks or
     // breaks the result screen if it fails (see autoLogResult's own try/catch).
@@ -606,14 +621,22 @@
   function buildQuickCardsHTML(ranked, comp) {
     // Labels say "강점" / "보완 컬러" outright — plain "TOP1/TOP2/TOP3" left
     // readers thinking these were just "my colors" rather than strength colors.
-    const cards = [
-      ...ranked.slice(0, 3).map((c, i) => ({ rank: `강점 TOP${i + 1}`, c })),
-      { rank: "보완 컬러", c: comp.chosen },
-    ];
+    // A color can be BOTH a TOP3 strength and the complement (~2.5% of results;
+    // in 72% of those the alternate candidate is also a top strength, so
+    // swapping colors doesn't fix it). Rendering it twice looked like a bug, so
+    // the two labels are merged onto one card instead of duplicating it.
+    const topKeys = ranked.slice(0, 3).map((c) => c.key);
+    const compIsTop = topKeys.indexOf(comp.chosen.key);
+    const cards = ranked.slice(0, 3).map((c, i) => ({
+      rank: i === compIsTop ? `강점 TOP${i + 1} · 보완` : `강점 TOP${i + 1}`,
+      dual: i === compIsTop,
+      c,
+    }));
+    if (compIsTop === -1) cards.push({ rank: "보완 컬러", dual: false, c: comp.chosen });
     return cards
       .map(
-        ({ rank, c }) => `
-        <div class="quick-card">
+        ({ rank, c, dual }) => `
+        <div class="quick-card${dual ? " qc-dual" : ""}">
           <div class="qc-rank">${rank}</div>
           <div class="qc-dot" style="background:${c.hex}"></div>
           <div class="qc-name">${escapeHtml(c.ko)}</div>
@@ -1438,7 +1461,7 @@
     const flexible = (html) => blocks.push({ html, flexible: true, pageBreakBefore: false });
 
     const top1 = ranked[0];
-    const comp = getComplement(top1.key, scores);
+    const comp = getComplement(top1.key, scores, ranked);
     const dateStr = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
     rigid(`
@@ -1754,6 +1777,74 @@
   }
 
   // v1-only: lets the user download their own PDF immediately.
+  // ---------- Carrying a finished result to another browser ----------
+  // In-app webviews can't save files (see below), and the fix is to continue in
+  // the real browser. Re-taking 65 questions there would be absurd, so the
+  // finished scores travel in the URL: the target browser restores the exact
+  // same result screen and downloads from there. Only the 13 averages and the
+  // display name are carried — no answers, nothing sent to any server.
+  const RESULT_PARAM = "r";
+
+  function encodeResultParam(scores, name) {
+    try {
+      const payload = {
+        n: name || "",
+        s: CCT_COLORS.map((c) => Math.round((scores[c.key] || 0) * 10)),
+      };
+      const json = JSON.stringify(payload);
+      // btoa() is latin1-only, so UTF-8 the Korean name first.
+      const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json)));
+      return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function decodeResultParam(raw) {
+    try {
+      const b64 = String(raw).replace(/-/g, "+").replace(/_/g, "/");
+      const bin = atob(b64 + "===".slice((b64.length + 3) % 4));
+      const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      if (!payload || !Array.isArray(payload.s) || payload.s.length !== CCT_COLORS.length) return null;
+
+      const scores = {};
+      for (let i = 0; i < CCT_COLORS.length; i++) {
+        const v = Number(payload.s[i]) / 10;
+        if (!isFinite(v) || v < 1 || v > 5) return null;
+        scores[CCT_COLORS[i].key] = v;
+      }
+      return { scores, name: typeof payload.n === "string" ? payload.n.slice(0, 12) : "" };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function buildResultUrl(scores, name) {
+    const token = encodeResultParam(scores, name);
+    if (!token) return null;
+    const base = window.location.origin + window.location.pathname;
+    return `${base}?${RESULT_PARAM}=${token}`;
+  }
+
+  // Restores a result handed over from another browser. Returns true if the
+  // result screen was shown, so the caller can skip the normal intro flow.
+  function restoreResultFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get(RESULT_PARAM);
+    if (!raw) return false;
+    const restored = decodeResultParam(raw);
+    if (!restored) return false;
+
+    userName = restored.name;
+    // resultLogged guard: this result was already logged to the sheet when it
+    // was originally completed — restoring it must not create a duplicate row.
+    resultLogged = true;
+    renderResult(restored.scores);
+    showScreen(screenResult);
+    return true;
+  }
+
   // ---------- In-app browser handling ----------
   // KakaoTalk / Instagram / Facebook / Line in-app webviews block file
   // downloads. jsPDF's doc.save() builds a blob and clicks a hidden
@@ -1773,8 +1864,8 @@
 
   const isAndroid = () => /Android/i.test(navigator.userAgent || "");
 
-  function openInExternalBrowser() {
-    const url = window.location.href;
+  function openInExternalBrowser(targetUrl) {
+    const url = targetUrl || window.location.href;
     const kind = detectInAppBrowser();
     if (kind === "kakao") {
       // KakaoTalk's documented escape hatch — works on both iOS and Android.
@@ -1791,8 +1882,8 @@
     return false; // iOS outside KakaoTalk can't be forced — fall back to copy.
   }
 
-  async function copyCurrentLink() {
-    const url = window.location.href;
+  async function copyCurrentLink(targetUrl) {
+    const url = targetUrl || window.location.href;
     try {
       await navigator.clipboard.writeText(url);
       return true;
@@ -1814,61 +1905,27 @@
     }
   }
 
-  function initInAppNotice() {
-    const kind = detectInAppBrowser();
-    const box = document.getElementById("inappNotice");
-    if (!box) return;
-    if (!kind) return;
-
-    const NAMES = {
-      kakao: "카카오톡",
-      instagram: "인스타그램",
-      facebook: "페이스북",
-      line: "라인",
-      naver: "네이버",
-      daum: "다음",
-    };
-    const title = box.querySelector(".inapp-title");
-    if (title) title.textContent = `지금은 ${NAMES[kind] || "앱"} 브라우저로 보고 계세요`;
-    box.hidden = false;
-    document.body.classList.add("is-inapp");
-
-    const openBtn = document.getElementById("btnOpenExternal");
-    const copyBtn = document.getElementById("btnCopyLink");
-    if (openBtn) {
-      openBtn.addEventListener("click", () => {
-        if (!openInExternalBrowser()) {
-          openBtn.textContent = "아래 '링크 복사'를 눌러주세요";
-        }
-      });
-    }
-    if (copyBtn) {
-      copyBtn.addEventListener("click", async () => {
-        const ok = await copyCurrentLink();
-        copyBtn.textContent = ok ? "복사됐어요! 브라우저에 붙여넣기" : "복사 실패 — 주소창을 길게 눌러 복사해주세요";
-        setTimeout(() => {
-          copyBtn.textContent = "링크 복사";
-        }, 4000);
-      });
-    }
-  }
 
   async function downloadPdf(scores, ranked, btn) {
+    // Inside an in-app webview, saving a file is impossible no matter how the
+    // bytes are produced: the webview does not save the response itself, it
+    // hands the URL to the host app which re-requests it with a plain GET —
+    // so a POST-only endpoint (or a blob: URL) can never be fetched. Rather
+    // than fail silently, hand the finished result to the real browser and let
+    // the download happen there.
+    if (detectInAppBrowser()) {
+      handOffToBrowser(scores, ranked);
+      return;
+    }
+
     const toast = document.getElementById("toast");
     const originalLabel = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = "PDF 생성 중…";
     toast.classList.add("show");
     try {
-      const { doc, fileName, pdfBase64 } = await getPdfDoc(scores, ranked);
-      if (detectInAppBrowser()) {
-        // In-app webviews drop blob downloads, so route the same bytes through
-        // /api/download, which returns them as a real file response.
-        downloadViaServer(pdfBase64, fileName);
-        showInAppDownloadHint();
-      } else {
-        doc.save(fileName);
-      }
+      const { doc, fileName } = await getPdfDoc(scores, ranked);
+      doc.save(fileName);
     } catch (err) {
       console.error(err);
       alert("PDF 생성 중 문제가 발생했습니다. 다시 시도해주세요.");
@@ -1879,39 +1936,42 @@
     }
   }
 
-  // Hands the already-generated PDF to the browser as an HTTP file response.
-  // A hidden form POST (not fetch) is deliberate: the browser must NAVIGATE to
-  // the response for the Content-Disposition header to trigger a real download,
-  // and a navigation-driven download is the one path in-app webviews honour.
-  function downloadViaServer(pdfDataUri, fileName) {
-    const base64 = String(pdfDataUri).split(",")[1] || "";
-    // base64url so the value survives form-urlencoding without + and / being
-    // percent-escaped (which would inflate the request body by ~8%).
-    const safe = base64.replace(/\+/g, "-").replace(/\//g, "_");
+  // Opens the same finished result in the device's real browser, where the
+  // normal download works. The scores ride in the URL so nobody has to retake
+  // the test — see encodeResultParam() above.
+  function handOffToBrowser(scores, ranked) {
+    const url = buildResultUrl(scores, userName);
+    if (!url) {
+      showBrowserHandoffDialog(url);
+      return;
+    }
 
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = "/api/download";
-    form.style.display = "none";
+    // Try to open the real browser silently — when it works the user just sees
+    // Chrome/Safari come up with their result, and any dialog here would be
+    // pure noise. The fallback below exists because "we asked the OS to open a
+    // browser" is not proof that one opened (Chrome missing on Android, some
+    // iOS webviews): if the page is still in the foreground a moment later,
+    // nothing happened, and a dead button is exactly the silent failure this
+    // whole feature was meant to remove.
+    const opened = openInExternalBrowser(url);
 
-    const addField = (name, value) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value;
-      form.appendChild(input);
-    };
-    addField("data", safe);
-    addField("filename", fileName);
+    let settled = false;
+    const cancel = () => { settled = true; };
+    // Leaving for another app fires these; if they fire, the browser opened.
+    document.addEventListener("visibilitychange", cancel, { once: true });
+    window.addEventListener("pagehide", cancel, { once: true });
+    window.addEventListener("blur", cancel, { once: true });
 
-    document.body.appendChild(form);
-    form.submit();
-    setTimeout(() => form.remove(), 2000);
+    setTimeout(() => {
+      document.removeEventListener("visibilitychange", cancel);
+      window.removeEventListener("pagehide", cancel);
+      window.removeEventListener("blur", cancel);
+      if (settled || document.hidden) return; // browser took over — stay quiet
+      showBrowserHandoffDialog(url);
+    }, opened ? 2500 : 0);
   }
 
-  // Small, non-blocking note shown after the in-app download is handed off,
-  // with an escape hatch in case the webview still refuses it.
-  function showInAppDownloadHint() {
+  function showBrowserHandoffDialog(url) {
     let el = document.getElementById("inappHint");
     if (!el) {
       el = document.createElement("div");
@@ -1919,33 +1979,46 @@
       el.className = "inapp-hint";
       el.innerHTML = `
         <div class="inapp-hint-card">
-          <div class="inapp-hint-title">PDF를 저장하고 있어요</div>
-          <p class="inapp-hint-text">잠시 후 저장 안내가 뜨지 않는다면, 아래에서 기본 브라우저로 열어 다시 시도해주세요.</p>
+          <div class="inapp-hint-title">브라우저에서 저장해주세요</div>
+          <p class="inapp-hint-text">카카오톡 안에서는 파일을 저장할 수 없습니다. 크롬·사파리로 <b>지금 결과 그대로</b> 넘겨드릴게요. 검사를 다시 하실 필요는 없습니다.</p>
           <div class="inapp-hint-actions">
-            <button type="button" class="inapp-btn" id="ihOpen">브라우저에서 열기</button>
-            <button type="button" class="inapp-btn inapp-btn-ghost" id="ihCopy">링크 복사</button>
+            <button type="button" class="inapp-btn" id="ihOpen">브라우저에서 결과 열기</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="ihCopy">결과 링크 복사</button>
             <button type="button" class="inapp-btn inapp-btn-ghost" id="ihClose">닫기</button>
           </div>
         </div>`;
       document.body.appendChild(el);
-      el.querySelector("#ihOpen").addEventListener("click", () => {
-        if (!openInExternalBrowser()) {
-          el.querySelector("#ihOpen").textContent = "'링크 복사'를 눌러주세요";
-        }
-      });
-      el.querySelector("#ihCopy").addEventListener("click", async (e) => {
-        const ok = await copyCurrentLink();
-        e.target.textContent = ok ? "복사됐어요!" : "복사 실패 — 주소창에서 복사해주세요";
-        setTimeout(() => { e.target.textContent = "링크 복사"; }, 4000);
-      });
       el.querySelector("#ihClose").addEventListener("click", () => el.classList.remove("is-open"));
     }
+    // Carry the URL on the element so the dialog is self-describing (and the
+    // hand-off is inspectable) rather than living only in a closure.
+    el.dataset.resultUrl = url || "";
+    const openBtn = el.querySelector("#ihOpen");
+    const copyBtn = el.querySelector("#ihCopy");
+    // Rebind each time so the buttons always carry the current result URL.
+    openBtn.replaceWith(openBtn.cloneNode(true));
+    copyBtn.replaceWith(copyBtn.cloneNode(true));
+    el.querySelector("#ihOpen").addEventListener("click", () => {
+      if (!openInExternalBrowser(url)) {
+        el.querySelector("#ihOpen").textContent = "'결과 링크 복사'를 눌러주세요";
+      }
+    });
+    el.querySelector("#ihCopy").addEventListener("click", async (e) => {
+      const ok = await copyCurrentLink(url);
+      e.target.textContent = ok ? "복사됐어요! 브라우저에 붙여넣기" : "복사 실패 — 주소창에서 복사해주세요";
+      setTimeout(() => { e.target.textContent = "결과 링크 복사"; }, 5000);
+    });
     el.classList.add("is-open");
   }
 
   function resetApp() {
     answers = [];
     currentIndex = 0;
+    // Drop ?r= so a reload after retaking doesn't resurrect the handed-over
+    // result and drop the user straight back onto the old result screen.
+    if (window.location.search) {
+      history.replaceState(null, "", window.location.pathname);
+    }
     showScreen(screenIntro);
   }
 
@@ -1995,5 +2068,5 @@
 
   buildColorRing();
   bindAccessCode();
-  initInAppNotice();
+  restoreResultFromUrl();
 })();
