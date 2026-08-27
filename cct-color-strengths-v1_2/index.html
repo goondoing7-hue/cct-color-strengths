@@ -54,11 +54,12 @@
         <div class="meta-chip"><span class="meta-num">13</span><span class="meta-label">컬러 강점</span></div>
       </div>
 
-      <!-- Shown only inside in-app browsers (KakaoTalk, Instagram, ...), where
-           file downloads are blocked and the PDF button silently does nothing. -->
+      <!-- Shown only inside in-app browsers (KakaoTalk, Instagram, ...). The PDF
+           download itself now works there via /api/download, so this is a
+           heads-up with an escape hatch, not a blocker. -->
       <div class="inapp-notice" id="inappNotice" hidden>
         <div class="inapp-title">지금은 카카오톡 브라우저로 보고 계세요</div>
-        <p class="inapp-text">이 화면에서는 검사는 가능하지만 <b>결과 PDF 다운로드가 차단</b>됩니다. 아래 버튼으로 기본 브라우저에서 열고 진행해주세요.</p>
+        <p class="inapp-text">이대로 검사와 PDF 저장 모두 가능합니다. 혹시 저장이 되지 않으면 아래 버튼으로 기본 브라우저에서 열어주세요.</p>
         <div class="inapp-actions">
           <button type="button" class="inapp-btn" id="btnOpenExternal">브라우저에서 열기</button>
           <button type="button" class="inapp-btn inapp-btn-ghost" id="btnCopyLink">링크 복사</button>

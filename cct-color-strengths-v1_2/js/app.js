@@ -1189,7 +1189,7 @@
     `;
   }
 
-  function buildActionGuideHTML(ranked, comp) {
+  function buildActionGuideHTML(ranked, comp, scores) {
     const top3 = ranked.slice(0, 3);
 
     // 3 actions per color (was 2) — this section owns a full page now, and the
@@ -1216,10 +1216,17 @@
     const warnCards = top3
       .map((c, i) => {
         const items = (c.overuse || []).map((o) => `<li>${escapeHtml(o)}</li>`).join("");
-        const compCandidates = CCT_COMPLEMENT_MAP[c.key] || [];
-        const balanceColor = compCandidates.length ? cctColorByKey(compCandidates[0]) : null;
+        // MUST use getComplement() — the same score-aware rule the report's own
+        // 보완 컬러 uses. Taking CCT_COMPLEMENT_MAP[key][0] blindly (as this
+        // once did) picked a different color than the 보완 컬러 section for the
+        // very same TOP1, so the report contradicted itself across two pages.
+        const balancePick = getComplement(c.key, scores);
+        const balanceColor = balancePick && balancePick.chosen ? balancePick.chosen : null;
+        const isReportComplement = balanceColor && balanceColor.key === comp.chosen.key;
         const balance = balanceColor
-          ? `조절이 필요할 때는 <b>${escapeHtml(balanceColor.ko)}</b>의 '${escapeHtml(balanceColor.core)}'${josa(
+          ? `조절이 필요할 때는 ${isReportComplement ? "보완 컬러인 " : ""}<b>${escapeHtml(
+              balanceColor.ko
+            )}</b>의 '${escapeHtml(balanceColor.core)}'${josa(
               balanceColor.core,
               "을",
               "를"
@@ -1485,7 +1492,7 @@
     // of overuse, and a short weekly practice checklist.
     // Each of these three owns a full page from here on, per the report layout:
     // 실전 지침 → 시너지 → 관계 → 6대 강점영역 → 점수 부록.
-    rigidBreak(`<div class="section-title">실전 지침</div>${buildActionGuideHTML(ranked, comp)}`);
+    rigidBreak(`<div class="section-title">실전 지침</div>${buildActionGuideHTML(ranked, comp, scores)}`);
 
     // ---- Flexible supplementary section (domains / axes) ----
     // Split into small chunks so generatePdf() can slot them into whatever
@@ -1666,7 +1673,7 @@
         });
 
         rendered.push({
-          imgData: canvas.toDataURL("image/jpeg", 0.95),
+          imgData: canvas.toDataURL("image/jpeg", 0.82),
           imgH: (canvas.height * PDF_CONTENT_W) / canvas.width,
           flexible: blocks[i].flexible,
           pageBreakBefore: !!blocks[i].pageBreakBefore,
@@ -1847,22 +1854,21 @@
   }
 
   async function downloadPdf(scores, ranked, btn) {
-    // Bail out BEFORE spending ~10s generating a PDF the webview will refuse
-    // to hand over. Without this the button just spins and nothing happens.
-    const inApp = detectInAppBrowser();
-    if (inApp) {
-      showInAppBlockedDialog();
-      return;
-    }
-
     const toast = document.getElementById("toast");
     const originalLabel = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = "PDF 생성 중…";
     toast.classList.add("show");
     try {
-      const { doc, fileName } = await getPdfDoc(scores, ranked);
-      doc.save(fileName);
+      const { doc, fileName, pdfBase64 } = await getPdfDoc(scores, ranked);
+      if (detectInAppBrowser()) {
+        // In-app webviews drop blob downloads, so route the same bytes through
+        // /api/download, which returns them as a real file response.
+        downloadViaServer(pdfBase64, fileName);
+        showInAppDownloadHint();
+      } else {
+        doc.save(fileName);
+      }
     } catch (err) {
       console.error(err);
       alert("PDF 생성 중 문제가 발생했습니다. 다시 시도해주세요.");
@@ -1873,36 +1879,66 @@
     }
   }
 
-  // Shown when the PDF button is pressed inside an in-app browser.
-  function showInAppBlockedDialog() {
-    let el = document.getElementById("inappBlock");
+  // Hands the already-generated PDF to the browser as an HTTP file response.
+  // A hidden form POST (not fetch) is deliberate: the browser must NAVIGATE to
+  // the response for the Content-Disposition header to trigger a real download,
+  // and a navigation-driven download is the one path in-app webviews honour.
+  function downloadViaServer(pdfDataUri, fileName) {
+    const base64 = String(pdfDataUri).split(",")[1] || "";
+    // base64url so the value survives form-urlencoding without + and / being
+    // percent-escaped (which would inflate the request body by ~8%).
+    const safe = base64.replace(/\+/g, "-").replace(/\//g, "_");
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/api/download";
+    form.style.display = "none";
+
+    const addField = (name, value) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value;
+      form.appendChild(input);
+    };
+    addField("data", safe);
+    addField("filename", fileName);
+
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(() => form.remove(), 2000);
+  }
+
+  // Small, non-blocking note shown after the in-app download is handed off,
+  // with an escape hatch in case the webview still refuses it.
+  function showInAppDownloadHint() {
+    let el = document.getElementById("inappHint");
     if (!el) {
       el = document.createElement("div");
-      el.id = "inappBlock";
-      el.className = "inapp-block";
+      el.id = "inappHint";
+      el.className = "inapp-hint";
       el.innerHTML = `
-        <div class="inapp-block-card">
-          <div class="inapp-block-title">이 브라우저에서는 PDF를 저장할 수 없어요</div>
-          <p class="inapp-block-text">카카오톡·인스타그램 등 앱 안의 브라우저는 파일 다운로드를 막고 있습니다. 기본 브라우저(크롬·사파리)에서 열면 정상적으로 저장됩니다.</p>
-          <p class="inapp-block-note">브라우저에서 다시 검사를 진행해주세요. 결과는 저장되지 않습니다.</p>
-          <div class="inapp-block-actions">
-            <button type="button" class="btn btn-primary" id="ibOpen">브라우저에서 열기</button>
-            <button type="button" class="inapp-btn inapp-btn-ghost" id="ibCopy">링크 복사</button>
-            <button type="button" class="inapp-btn inapp-btn-ghost" id="ibClose">닫기</button>
+        <div class="inapp-hint-card">
+          <div class="inapp-hint-title">PDF를 저장하고 있어요</div>
+          <p class="inapp-hint-text">잠시 후 저장 안내가 뜨지 않는다면, 아래에서 기본 브라우저로 열어 다시 시도해주세요.</p>
+          <div class="inapp-hint-actions">
+            <button type="button" class="inapp-btn" id="ihOpen">브라우저에서 열기</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="ihCopy">링크 복사</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="ihClose">닫기</button>
           </div>
         </div>`;
       document.body.appendChild(el);
-      el.querySelector("#ibOpen").addEventListener("click", () => {
+      el.querySelector("#ihOpen").addEventListener("click", () => {
         if (!openInExternalBrowser()) {
-          el.querySelector("#ibOpen").textContent = "아래 '링크 복사'를 눌러주세요";
+          el.querySelector("#ihOpen").textContent = "'링크 복사'를 눌러주세요";
         }
       });
-      el.querySelector("#ibCopy").addEventListener("click", async (e) => {
+      el.querySelector("#ihCopy").addEventListener("click", async (e) => {
         const ok = await copyCurrentLink();
         e.target.textContent = ok ? "복사됐어요!" : "복사 실패 — 주소창에서 복사해주세요";
         setTimeout(() => { e.target.textContent = "링크 복사"; }, 4000);
       });
-      el.querySelector("#ibClose").addEventListener("click", () => { el.classList.remove("is-open"); });
+      el.querySelector("#ihClose").addEventListener("click", () => el.classList.remove("is-open"));
     }
     el.classList.add("is-open");
   }
