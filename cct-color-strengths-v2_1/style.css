@@ -1,0 +1,1242 @@
+/* ==========================================================
+   CCT 컬러성격강점검사 — Stylesheet (v3, refined)
+   ========================================================== */
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("../fonts/Pretendard-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("../fonts/Pretendard-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("../fonts/Pretendard-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("../fonts/Pretendard-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("../fonts/Pretendard-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font: "Pretendard", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+
+  --ink-900: #17161d;
+  --ink-700: #423f4d;
+  --ink-500: #726f7d;
+  --ink-300: #aca9b6;
+  --ink-100: #ece9f2;
+
+  --surface-0: #faf9f7;
+  --surface-1: #ffffff;
+  --surface-2: #f2f0ee;
+
+  --accent: #2c2a3a;
+  --accent-soft: #55516b;
+
+  --line: rgba(23, 22, 29, 0.08);
+  --line-soft: rgba(23, 22, 29, 0.05);
+  --shadow-sm: 0 1px 2px rgba(23,22,29,0.04), 0 6px 16px rgba(23, 22, 29, 0.05);
+  --shadow-md: 0 2px 4px rgba(23,22,29,0.04), 0 16px 32px rgba(23, 22, 29, 0.08);
+  --shadow-lg: 0 24px 64px rgba(23, 22, 29, 0.14);
+
+  --c-red: #E74C3C;
+  --c-orange: #F28C28;
+  --c-yellow: #F4C542;
+  --c-lime: #A6C94A;
+  --c-green: #4F9D69;
+  --c-blue: #4A78C2;
+  --c-bluegreen: #247D7A;
+  --c-indigo: #4D5A9E;
+  --c-purple: #8A5AA9;
+  --c-pink: #E890AE;
+  --c-coral: #ED7D6B;
+  --c-gold: #C99A2E;
+  --c-turquoise: #38BFC3;
+
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--surface-0);
+  color: var(--ink-900);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+h1, h2, h3, p { margin: 0; }
+button { font-family: inherit; }
+img, svg { display: block; }
+
+#app { position: relative; min-height: 100vh; }
+
+.screen {
+  display: none;
+  min-height: 100vh;
+  width: 100%;
+}
+.screen.is-active { display: block; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease, background .15s ease;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: .55; cursor: default; }
+
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 16px 28px;
+  font-size: 15.5px;
+  color: #fff;
+  background: var(--ink-900);
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover { background: #000; box-shadow: var(--shadow-md); }
+.btn-primary svg { flex-shrink: 0; }
+
+.icon-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  color: var(--ink-700);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.icon-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ================= INTRO ================= */
+.screen--intro {
+  position: relative;
+  padding: 64px 20px 48px;
+  overflow: hidden;
+}
+.screen--intro.is-active {
+  display: flex; align-items: center; justify-content: center;
+}
+
+.intro-bg {
+  position: absolute; z-index: 0;
+  width: 720px; height: 720px;
+  top: -360px; left: 50%; transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(138,90,169,0.10), rgba(56,191,195,0.06) 55%, transparent 72%);
+  filter: blur(10px);
+}
+
+.intro-content {
+  position: relative; z-index: 1;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+.brand-kicker {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--ink-300);
+  margin-bottom: 34px;
+}
+
+.color-ring {
+  position: relative;
+  width: 132px; height: 132px;
+  margin-bottom: 30px;
+  animation: ring-rotate 90s linear infinite;
+}
+@keyframes ring-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.intro-title {
+  font-size: 32px;
+  line-height: 1.36;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--ink-900);
+  margin-bottom: 18px;
+}
+
+.intro-sub {
+  font-size: 15px;
+  color: var(--ink-500);
+  line-height: 1.7;
+  margin-bottom: 30px;
+}
+
+.intro-meta {
+  display: flex; gap: 0; margin-bottom: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: 100%;
+}
+.meta-chip {
+  flex: 1;
+  padding: 14px 8px;
+  border-right: 1px solid var(--line);
+}
+.meta-chip:last-child { border-right: none; }
+.meta-num { display: block; font-size: 18px; font-weight: 800; color: var(--ink-900); letter-spacing: -0.02em; }
+.meta-label { display: block; font-size: 11px; color: var(--ink-500); margin-top: 2px; }
+
+.intro-name-field {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 22px;
+}
+.intro-name-field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-500);
+  margin-bottom: 8px;
+}
+.intro-name-field .optional { font-weight: 400; color: var(--ink-300); }
+.intro-name-field .required { font-weight: 600; color: #B4791F; }
+.intro-name-field input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.intro-name-field input:focus {
+  border-color: var(--ink-500);
+  box-shadow: 0 0 0 3px rgba(23,22,29,0.06);
+}
+
+/* Access code — a small, understated gate (replaces the old follow-upload card) */
+.access-field {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 22px;
+}
+.access-field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-500);
+  margin-bottom: 8px;
+}
+.access-field input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+  letter-spacing: 0.02em;
+}
+.access-field input:focus {
+  border-color: var(--ink-500);
+  box-shadow: 0 0 0 3px rgba(23,22,29,0.06);
+}
+.access-status {
+  font-size: 12px; font-weight: 600; line-height: 1.6;
+  margin-top: 8px; min-height: 0;
+}
+.access-status.ok { color: #1F8A56; }
+.access-status.warn { color: #B4791F; }
+
+.btn-start { width: 100%; margin-bottom: 24px; }
+
+/* ---------- In-app browser (KakaoTalk etc.) notice ---------- */
+.inapp-notice {
+  width: 100%; text-align: left;
+  background: #FDF3E4; border: 1px solid rgba(180,121,31,0.28);
+  border-radius: var(--radius-md);
+  padding: 16px 18px; margin-bottom: 22px;
+}
+.inapp-title { font-size: 13.5px; font-weight: 800; color: #8A6420; margin-bottom: 7px; }
+.inapp-text { font-size: 12.5px; line-height: 1.7; color: var(--ink-700); margin-bottom: 12px; }
+.inapp-text b { color: #B4791F; }
+.inapp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.inapp-btn {
+  appearance: none; cursor: pointer; font-family: inherit;
+  font-size: 12.5px; font-weight: 700; color: #fff;
+  background: #B4791F; border: 1px solid #B4791F;
+  border-radius: var(--radius-pill); padding: 10px 16px;
+}
+.inapp-btn-ghost { background: transparent; color: #8A6420; }
+
+/* Blocking dialog shown if the PDF button is pressed inside an in-app browser */
+.inapp-hint {
+  display: none; position: fixed; inset: 0; z-index: 80;
+  background: rgba(23,22,29,0.55);
+  align-items: center; justify-content: center; padding: 24px;
+}
+.inapp-hint.is-open { display: flex; }
+.inapp-hint-card {
+  background: var(--surface-1); border-radius: var(--radius-lg);
+  padding: 26px 24px; max-width: 420px; width: 100%;
+  box-shadow: var(--shadow-lg); text-align: left;
+}
+.inapp-hint-title { font-size: 16px; font-weight: 800; color: var(--ink-900); margin-bottom: 10px; line-height: 1.45; }
+.inapp-hint-text { font-size: 13px; line-height: 1.75; color: var(--ink-700); margin-bottom: 10px; }
+
+.inapp-hint-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+
+
+.intro-fineprint {
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--ink-300);
+}
+
+/* ================= QUIZ ================= */
+.screen--quiz {
+  display: none;
+  min-height: 100vh;
+  background: var(--surface-0);
+  flex-direction: column;
+}
+.screen--quiz.is-active { display: flex; }
+
+.quiz-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 22px 20px 0;
+  max-width: 600px; width: 100%; margin: 0 auto;
+}
+.progress-track {
+  flex: 1; height: 4px; border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  border-radius: var(--radius-pill);
+  background: var(--ink-900);
+  transition: width .35s ease;
+}
+.progress-count { font-size: 12.5px; font-weight: 600; color: var(--ink-500); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.quiz-body {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 20px 48px;
+}
+
+.quiz-card {
+  max-width: 520px; width: 100%;
+  background: var(--surface-1);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--line);
+  padding: 48px 34px;
+  animation: card-in .3s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.quiz-question {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  color: var(--ink-900);
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.quiz-scale {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.scale-btn {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  cursor: pointer;
+  text-align: left;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink-700);
+  transition: border-color .15s ease, background .15s ease, transform .1s ease;
+}
+.scale-btn:hover { border-color: var(--ink-300); background: var(--surface-2); }
+.scale-btn:active { transform: scale(0.99); }
+.scale-btn .dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid var(--ink-100);
+  flex-shrink: 0;
+}
+.scale-btn.selected {
+  border-color: var(--ink-900);
+  background: var(--surface-1);
+}
+.scale-btn.selected .dot { background: var(--ink-900); border-color: var(--ink-900); }
+
+/* smooth question-to-question transition */
+.quiz-card { transition: opacity .2s ease, transform .2s ease; }
+.quiz-card.leaving { opacity: 0; transform: translateY(-8px); }
+
+/* ================= RESULT (simple, on-screen) ================= */
+/* extra bottom room so the floating CTA bar never covers the last content */
+.screen--result { background: var(--surface-0); padding: 0 0 110px; }
+.result-wrap { max-width: 480px; margin: 0 auto; padding: 0 24px; }
+
+/* Document-level title: the first thing on the result screen, so the reader
+   immediately knows what they're looking at. Sized below the 34px color-name
+   h1 on purpose — it labels the document, the h1 is still the headline. */
+.result-doc-title {
+  padding: 56px 0 0;
+  text-align: center;
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  line-height: 1.35; color: var(--ink-900);
+}
+.result-doc-title::after {
+  content: ""; display: block;
+  width: 34px; height: 3px; border-radius: 2px;
+  background: var(--accent);
+  margin: 14px auto 0;
+}
+
+.result-hero {
+  padding: 26px 0 8px;
+  text-align: center;
+}
+.result-hero .lead { font-size: 15px; color: var(--ink-500); margin-bottom: 6px; }
+.result-hero h1 {
+  font-size: 34px; font-weight: 800; line-height: 1.28; letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.result-hero .strength-name { font-size: 15.5px; color: var(--ink-500); font-weight: 600; }
+
+.pair-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 34px 0 18px;
+  color: var(--ink-300); font-size: 12px; font-weight: 700; letter-spacing: .06em;
+}
+.pair-divider::before, .pair-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--line);
+}
+.pair-divider-note {
+  font-size: 12px; line-height: 1.6; color: var(--ink-300);
+  text-align: center; margin: -10px 0 18px;
+}
+
+.result-note {
+  /* Centred at the user's request. The explicit <br/> breaks in the markup do
+     the line splitting, so each line centres as its own unit — keep the width
+     capped and the text balanced so the centred block stays a tidy stack
+     instead of ragged full-width lines. Colour stays one step darker than the
+     original muted grey, which was hard to read. */
+  font-size: 12px; color: var(--ink-500); line-height: 1.75;
+  text-align: center; text-wrap: balance;
+  max-width: 400px; margin: 30px auto 8px;
+}
+
+/* ---------- Result screen: section blocks & disclosure ---------- */
+.rs-block { margin-top: 34px; }
+.rs-title {
+  /* Accent rule as a ::before pinned to the glyphs, matching the PDF titles.
+     This one renders in a real browser, so plain 50%/translateY centring is
+     correct here — the measured `top` offset used in the .pdf-report rules is
+     an html2canvas compensation and must NOT be copied onto this selector. */
+  font-size: 18px; font-weight: 800; letter-spacing: -0.015em;
+  color: var(--ink-900); margin-bottom: 14px;
+  position: relative; line-height: 1.3; padding-left: 16px;
+}
+.rs-title::before {
+  content: ""; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 4px; height: 17px; background: var(--accent); border-radius: 1px;
+}
+.rs-note {
+  font-size: 12.5px; line-height: 1.7; color: var(--ink-500);
+  margin: -6px 0 16px; padding-left: 16px;
+}
+
+.result-wrap .quick-grid { gap: 8px; margin-bottom: 14px; }
+.result-wrap .quick-card { background: var(--surface-1); border: 1px solid var(--line); padding: 14px 6px; }
+.result-wrap .quick-facts { background: var(--surface-1); border: 1px solid var(--line); font-size: 12.5px; }
+
+.rs-radar-card {
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface-1);
+  padding: 8px; margin-bottom: 12px;
+  display: flex; justify-content: center;
+  overflow: hidden;
+}
+
+/* Disclosure buttons (score panel + each color card's detail half) */
+.cs-toggle, .rs-toggle {
+  appearance: none; cursor: pointer; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 12px 16px;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  color: var(--ink-700);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+.cs-toggle:hover, .rs-toggle:hover { border-color: var(--ink-300); }
+.cs-toggle-icon { font-size: 11px; transition: transform .2s ease; }
+.cs-toggle.is-open .cs-toggle-icon, .rs-toggle.is-open .cs-toggle-icon { transform: rotate(180deg); }
+
+.cs-details, .rs-panel { display: none; }
+.cs-details.is-open, .rs-panel.is-open { display: block; }
+.cs-details.is-open { margin-top: 22px; }
+.rs-panel.is-open { margin-top: 14px; }
+
+/* Floating primary action */
+.rs-cta-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: rgba(250,249,247,0.94);
+  border-top: 1px solid var(--line);
+  display: flex; justify-content: center;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 40;
+}
+.rs-cta-bar .btn-primary { width: 100%; max-width: 432px; padding: 15px 18px; font-size: 15px; }
+.rs-cta-bar.is-hidden { opacity: 0; transform: translateY(100%); pointer-events: none; }
+
+/* ---------- Color section (hero + structured detail, used on-screen and in PDF) ---------- */
+.color-section {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 20px;
+  background: var(--surface-1);
+  break-inside: avoid;
+}
+.cs-hero { padding: 26px 24px 22px; position: relative; text-align: center; }
+.cs-hero .cs-tag {
+  /* On SCREEN this pill must be optically centered by a real browser, so the
+     padding here is symmetric. The html2canvas baseline-drift compensation
+     (asymmetric padding) lives in the .pdf-report override further down —
+     applying that compensation here made the label sit visibly high in the
+     pill on screen, which is the exact bug this split fixes. Keep the two
+     contexts separate; do not merge them back into one rule. */
+  display: inline-block;
+  font-size: 11px; font-weight: 800; letter-spacing: .04em;
+  line-height: 1;
+  padding: 6px 12px; border-radius: var(--radius-pill);
+  margin-bottom: 16px;
+}
+.cs-hero h3 { font-size: 23px; font-weight: 800; letter-spacing: -0.015em; margin-bottom: 3px; }
+.cs-hero .cs-en {
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  margin-bottom: 12px; text-transform: uppercase; opacity: .82;
+}
+.cs-hero .cs-tagline { font-size: 13.5px; line-height: 1.65; opacity: .96; }
+
+.cs-body { padding: 22px 24px 26px; }
+.cs-summary { font-size: 13.5px; line-height: 1.8; color: var(--ink-700); margin-bottom: 22px; }
+
+.cs-subhead {
+  font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-300); margin-bottom: 12px;
+}
+
+.cs-dual { border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); margin-bottom: 20px; }
+.dual-row { display: flex; gap: 16px; padding: 15px 0; border-bottom: 1px solid var(--line-soft); }
+.dual-row:last-child { border-bottom: none; }
+.dual-label {
+  width: 78px; flex-shrink: 0;
+  font-size: 12.5px; font-weight: 800; color: var(--ink-900); padding-top: 1px;
+}
+.dual-content { min-width: 0; }
+.dual-content ul { margin: 0; padding-left: 16px; }
+.dual-content li { font-size: 12.5px; line-height: 1.68; color: var(--ink-700); margin-bottom: 5px; }
+.dual-content li:last-child { margin-bottom: 0; }
+
+.cs-example {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+.cs-example-label {
+  font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink-500); margin-bottom: 9px;
+}
+.cs-example ul { margin: 0; padding-left: 16px; }
+.cs-example li { font-size: 12.5px; line-height: 1.68; color: var(--ink-700); margin-bottom: 6px; }
+.cs-example li:last-child { margin-bottom: 0; }
+
+.cs-growth {
+  display: flex; gap: 9px; align-items: flex-start;
+  font-size: 13px; font-weight: 700; color: var(--ink-900); line-height: 1.6;
+}
+
+.result-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 26px; }
+.btn-secondary {
+  width: 100%;
+  padding: 15px 18px;
+  font-size: 14.5px; font-weight: 700;
+  background: var(--surface-1); color: var(--ink-700);
+  border: 1px solid var(--line);
+}
+.btn-secondary:hover { border-color: var(--ink-300); }
+.result-actions .btn-primary { width: 100%; padding: 16px 18px; font-size: 15px; }
+
+/* ---------- v2: center-visit notice + Naver Map links (no self-download) ---------- */
+.center-notice {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-top: 30px;
+  text-align: center;
+}
+.center-notice-title { font-size: 14.5px; font-weight: 800; color: var(--ink-900); margin-bottom: 8px; }
+.center-notice p { font-size: 12.5px; line-height: 1.7; color: var(--ink-500); }
+
+.btn-center {
+  /* an <a> tag styled as a button — explicit flex (block-level, not inline)
+     centers the icon+label regardless of context, and text-decoration/color
+     resets undo default link styling */
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  text-decoration: none;
+  width: 100%;
+  padding: 15px 18px;
+  font-size: 14.5px; font-weight: 700;
+  background: var(--surface-1); color: var(--ink-700);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  box-sizing: border-box;
+}
+.btn-center:hover { border-color: var(--ink-300); }
+.btn-center svg { flex-shrink: 0; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+  background: var(--ink-900); color: #fff; font-size: 13.5px; font-weight: 600;
+  padding: 12px 20px; border-radius: var(--radius-pill);
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+  z-index: 50;
+  box-shadow: var(--shadow-lg);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ================= PDF REPORT (off-screen render source) ================= */
+.pdf-report {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 760px;
+  background: #ffffff;
+  font-family: var(--font);
+  color: var(--ink-900);
+}
+.pdf-report .pdf-block-pad { padding-bottom: 6px; }
+.pdf-report .rp-cover { text-align: center; padding-bottom: 34px; border-bottom: 1px solid var(--line); margin-bottom: 34px; }
+.pdf-report .rp-kicker { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--ink-300); margin-bottom: 14px; }
+.pdf-report .rp-title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+.pdf-report .rp-date { font-size: 12.5px; color: var(--ink-500); }
+.pdf-report .rp-swatchbar { display: flex; justify-content: center; gap: 6px; margin-top: 22px; }
+.pdf-report .rp-swatchbar span { width: 22px; height: 22px; border-radius: 6px; display: inline-block; }
+
+.pdf-report .color-section { margin-bottom: 0; }
+.pdf-report .cs-hero { padding: 24px 26px 20px; }
+.pdf-report .cs-hero .cs-tag {
+  /* html2canvas baseline-drift compensation — measured against real rendered
+     PDF output, NOT eyeballed. html2canvas seats the glyph baseline ~4px lower
+     than a browser does at this size, so equal padding renders the label low
+     in the pill. This asymmetry cancels that out and is PDF-only on purpose:
+     the on-screen rule above stays symmetric. Do not equalize these values. */
+  padding: 2px 12px 10px;
+}
+.pdf-report .cs-hero h3 { font-size: 21px; }
+.pdf-report .cs-hero .cs-tagline { font-size: 12.5px; }
+.pdf-report .cs-body { padding: 20px 26px 24px; }
+.pdf-report .cs-body-continued { padding-top: 22px; }
+.pdf-report .cs-body-continued .cs-dual { border-top: none; margin-top: 0; }
+.pdf-report .cs-summary { font-size: 12.5px; }
+.pdf-report .dual-label { width: 74px; }
+.pdf-report .dual-content li, .pdf-report .cs-example li { font-size: 12px; }
+.pdf-report .cs-growth { font-size: 12.5px; }
+
+/* Section headings carry a short accent rule on the left.
+   This is a ::before bar, NOT border-left. border-left is stretched to the
+   full line box, so the rule ran taller than the text and — because
+   html2canvas seats glyphs lower than the browser does — sat visibly high
+   against them (measured 6px high on titles, 5px on subtitles). A ::before
+   with an explicit height and an explicit `top` pins the rule to the glyphs
+   instead of to the line box. Both offsets below were measured through the
+   real html2canvas pipeline to land at 0.0px, so DO NOT swap `top` for
+   `top:50%; transform:translateY(-50%)` — the transform path re-introduces
+   the same 6px error. Screen titles (.rs-title) centre normally; only this
+   PDF path needs the compensation. */
+.pdf-report .section-title {
+  font-size: 20px; font-weight: 800; letter-spacing: -0.015em;
+  color: var(--ink-900); margin: 40px 0 16px;
+  position: relative; line-height: 1.2; padding-left: 17px;
+}
+.pdf-report .section-title::before {
+  content: ""; position: absolute; left: 0; top: 9.7px;
+  width: 4px; height: 18px; background: var(--accent); border-radius: 1px;
+}
+.pdf-report .section-title:first-of-type { margin-top: 0; }
+.pdf-report .section-desc { font-size: 12.5px; color: var(--ink-500); margin: -6px 0 16px; line-height: 1.6; padding-left: 17px; }
+.pdf-report .section-subtitle {
+  font-size: 13px; font-weight: 800; color: var(--ink-900); margin: 22px 0 12px;
+  position: relative; line-height: 1.2; padding-left: 13px;
+}
+.pdf-report .section-subtitle::before {
+  content: ""; position: absolute; left: 0; top: 6.5px;
+  width: 3px; height: 12px; background: var(--ink-300); border-radius: 1px;
+}
+.pdf-report .section-subtitle:first-of-type { margin-top: 0; }
+
+/* ---------- 13-color overview: radar chart + strength/complement summary ---------- */
+.pdf-report .rp-overview { display: flex; gap: 16px; align-items: stretch; }
+.pdf-report .rp-radar-card {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface-1);
+  padding: 10px;
+}
+.radar-wrap { position: relative; }
+.radar-label {
+  position: absolute;
+  display: flex; align-items: center; gap: 3px;
+  font-size: 9.5px; font-weight: 700; color: var(--ink-700);
+  white-space: nowrap;
+}
+.radar-label-score { color: var(--ink-300); font-weight: 700; }
+
+.pdf-report .rp-summary-card {
+  flex: 1; min-width: 0;
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  overflow: hidden; background: var(--surface-1);
+  display: flex; flex-direction: column;
+}
+.pdf-report .rp-summary-row { display: flex; flex: 1; border-bottom: 1px solid var(--line); }
+.pdf-report .rp-summary-row:last-child { border-bottom: none; }
+.pdf-report .rp-summary-label {
+  flex: 0 0 76px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 12px; font-weight: 800; line-height: 1.4;
+  padding: 14px 6px;
+}
+.pdf-report .rp-summary-row.is-strength .rp-summary-label { background: #EAF6EF; color: #1F8A56; }
+.pdf-report .rp-summary-row.is-growth .rp-summary-label { background: #FDF3E4; color: #B4791F; }
+.pdf-report .rp-summary-body { flex: 1; min-width: 0; padding: 14px 16px; }
+.pdf-report .rp-summary-body h4 { font-size: 13px; font-weight: 800; color: var(--ink-900); margin-bottom: 6px; line-height: 1.4; }
+.pdf-report .rp-summary-body p { font-size: 11.5px; line-height: 1.65; color: var(--ink-700); }
+.pdf-report .rp-summary-body .rp-summary-note {
+  font-size: 10.5px; line-height: 1.6; color: var(--ink-300); margin-top: 8px;
+}
+
+/* ---------- Profile page "at a glance" quick summary ---------- */
+/* Replaces the old raw 13-bar list on the profile page — TOP3 + complement
+   as small stat cards, plus a one-line recap of the top domain and the two
+   axis leanings. The full color-by-color list still exists; it just lives in
+   its own appendix section at the end of the report now. */
+.quick-summary { margin-top: 18px; }
+.quick-grid { display: flex; gap: 10px; margin-bottom: 12px; }
+.quick-card {
+  flex: 1; min-width: 0; background: var(--surface-2); border-radius: var(--radius-md);
+  padding: 12px 8px; text-align: center;
+}
+.qc-rank {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-300); margin-bottom: 6px;
+}
+.qc-dot { width: 14px; height: 14px; border-radius: 50%; margin: 0 auto 6px; }
+.qc-name { font-size: 13px; font-weight: 800; color: var(--ink-900); line-height: 1.3; }
+.qc-strength { font-size: 10px; color: var(--ink-500); margin-top: 2px; line-height: 1.3; }
+.qc-score { font-size: 9.5px; color: var(--ink-300); margin-top: 4px; }
+/* A card that is both a TOP3 strength and the complement — marked so the merged
+   label doesn't read as a mistake. */
+.qc-dual { outline: 1px dashed var(--ink-300); outline-offset: -1px; }
+.qc-dual .qc-rank { color: var(--ink-500); }
+.quick-facts {
+  background: var(--surface-2); border-radius: var(--radius-md);
+  padding: 12px 16px; font-size: 12px; line-height: 1.75; color: var(--ink-700);
+}
+.quick-facts b { color: var(--ink-900); }
+
+/* ---------- Complement rationale callout (why THIS color is the complement) ---------- */
+.pdf-report .comp-rationale {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 10px 18px 18px;
+  margin-bottom: 16px;
+}
+.pdf-report .comp-rationale-label {
+  font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-500); margin-bottom: 8px;
+}
+.pdf-report .comp-rationale p { font-size: 12px; line-height: 1.7; color: var(--ink-700); }
+
+/* ---------- TOP3 comparison table (Enneagram-style comparative summary) ---------- */
+.pdf-report .ct-headline { font-size: 18px; font-weight: 800; color: var(--ink-900); margin-bottom: 8px; }
+.pdf-report .ct-combo-text { font-size: 12.5px; line-height: 1.75; color: var(--ink-700); margin-bottom: 18px; }
+.pdf-report .compare-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.pdf-report .compare-table th,
+.pdf-report .compare-table td {
+  border: 1px solid var(--line);
+  padding: 6px 12px 14px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-700);
+}
+.pdf-report .compare-table th {
+  background: var(--surface-2);
+  font-size: 10.5px; font-weight: 800; color: var(--ink-500);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.pdf-report .compare-table th:nth-child(1), .pdf-report .compare-table td:nth-child(1) { width: 128px; }
+.pdf-report .compare-table th:nth-child(2), .pdf-report .compare-table td:nth-child(2) { width: 82px; }
+.pdf-report .compare-table td.ct-color { font-weight: 800; color: var(--ink-900); }
+.pdf-report .ct-swatch {
+  /* vertical-align:middle alone leaves the square sitting 4px ABOVE the visual
+     centre of the Hangul next to it once html2canvas rasterises the row; the
+     measured +4px nudge puts the two centres exactly level. */
+  display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+  margin-right: 6px; vertical-align: middle;
+  position: relative; top: 4px;
+}
+.pdf-report .compare-table ul { margin: 0; padding-left: 14px; }
+.pdf-report .compare-table li { margin-bottom: 4px; }
+.pdf-report .compare-table li:last-child { margin-bottom: 0; }
+/* html2canvas seats text ~4px lower than a browser does, so a filled box with
+   symmetric vertical padding renders with the text visibly low inside it
+   (measured +22px at 300dpi = 8 CSS px of imbalance across every box below).
+   Each of these carries padding-top 4px smaller and padding-bottom 4px larger
+   than the symmetric value, which cancels that out. PDF-only on purpose — do
+   not equalize these back, and do not copy them onto screen-side rules. */
+.pdf-report .ct-adjacent {
+  margin-top: 12px; font-size: 11.5px; color: var(--ink-500); line-height: 1.6;
+  background: var(--surface-2); padding: 6px 14px 14px; border-radius: var(--radius-md);
+}
+
+/* ---------- Action guide ---------- */
+.pdf-report .ag-block { margin-bottom: 20px; }
+.pdf-report .ag-block:last-child { margin-bottom: 0; }
+.pdf-report .ag-grid { display: flex; gap: 12px; }
+.pdf-report .ag-item {
+  flex: 1; min-width: 0;
+  background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md);
+  padding: 8px 14px 16px;
+}
+.pdf-report .ag-item-label { font-size: 12px; font-weight: 800; margin-bottom: 8px; }
+.pdf-report .ag-item ul, .pdf-report .ag-warn ul, .pdf-report .ag-mission ul { margin: 0; padding-left: 16px; }
+.pdf-report .ag-item li, .pdf-report .ag-warn li, .pdf-report .ag-mission li {
+  font-size: 11.5px; line-height: 1.65; color: var(--ink-700); margin-bottom: 5px;
+}
+.pdf-report .ag-item li:last-child, .pdf-report .ag-warn li:last-child, .pdf-report .ag-mission li:last-child { margin-bottom: 0; }
+.pdf-report .ag-warn { background: #FDF3E4; border-radius: var(--radius-md); padding: 8px 16px 16px; }
+.pdf-report .ag-warn li b { color: #B4791F; }
+
+/* Overuse checklist, grouped per TOP3 color. */
+.pdf-report .ag-warn-grid { display: flex; gap: 12px; }
+.pdf-report .ag-warn-card {
+  flex: 1; min-width: 0; background: #FDF3E4; border-radius: var(--radius-md);
+  padding: 10px 14px 18px;
+}
+.pdf-report .ag-warn-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; flex-wrap: wrap; }
+.pdf-report .ag-warn-tag {
+  display: inline-block; line-height: 1; font-size: 10.5px; font-weight: 800;
+  border-radius: var(--radius-pill);
+  /* asymmetric padding = html2canvas baseline compensation (see .cs-tag) */
+  padding: 3px 10px 10px;
+}
+.pdf-report .ag-warn-strength { font-size: 11px; font-weight: 700; color: #8A6420; position: relative; top: -2px; }
+.pdf-report .ag-warn-list { margin: 0 0 8px; padding-left: 14px; }
+.pdf-report .ag-warn-list li { font-size: 11px; line-height: 1.6; color: var(--ink-700); margin-bottom: 4px; }
+.pdf-report .ag-warn-list li:last-child { margin-bottom: 0; }
+.pdf-report .ag-warn-balance {
+  font-size: 10.5px; line-height: 1.6; color: var(--ink-700);
+  border-top: 1px dashed rgba(180,121,31,0.35); padding-top: 8px;
+}
+.pdf-report .ag-warn-balance b { color: #B4791F; }
+.pdf-report .ag-mission { background: #EAF6EF; border-radius: var(--radius-md); padding: 8px 16px 16px; }
+/* Self-check questions: one per TOP3 color + the complement. */
+.pdf-report .ag-checks { display: flex; flex-direction: column; gap: 8px; }
+.pdf-report .ag-check {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md);
+  padding: 8px 14px 14px;
+}
+.pdf-report .ag-check-tag {
+  flex-shrink: 0; display: inline-block; line-height: 1;
+  font-size: 10.5px; font-weight: 800; border-radius: var(--radius-pill);
+  /* asymmetric padding = html2canvas baseline compensation (see .cs-tag) */
+  padding: 3px 10px 10px;
+  position: relative; top: 2px;
+}
+.pdf-report .ag-check-q { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.65; color: var(--ink-700); }
+
+.bar-chart { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
+.bar-row { display: flex; flex-direction: column; gap: 5px; }
+.bar-row .label-line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.bar-row .name { font-size: 12.5px; line-height: 1.5; font-weight: 700; color: var(--ink-700); display: flex; align-items: center; gap: 7px; }
+.bar-row .swatch { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.12); }
+/* PDF-only: the score-row swatch is flex-centred against the label, but
+   html2canvas seats that label ~4.3px lower, leaving the swatch high.
+   Measured over 14 swatches on the appendix page. Screen rendering is
+   correct as-is, so this must stay scoped to .pdf-report. */
+.pdf-report .bar-row .swatch { position: relative; top: 4.3px; }
+.bar-track { height: 11px; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: var(--radius-pill); }
+.bar-row .score { font-size: 11.5px; line-height: 1.5; font-weight: 700; color: var(--ink-500); }
+.bar-row.is-top .name { color: var(--ink-900); font-weight: 800; }
+
+.pdf-report .domain-grid { display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; }
+.pdf-report .domain-row { display: flex; align-items: center; gap: 12px; min-height: 20px; }
+.pdf-report .domain-row .dname { width: 150px; flex-shrink: 0; font-size: 12.5px; line-height: 1.6; font-weight: 700; color: var(--ink-700); }
+.pdf-report .domain-row .dtrack { flex: 1; height: 10px; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
+.pdf-report .domain-row .dfill { height: 100%; border-radius: var(--radius-pill); background: var(--accent-soft); }
+.pdf-report .domain-row .dscore { width: 34px; text-align: right; font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--ink-500); }
+
+
+/* ---------- TOP3 synergy: axis-tilt notes + "moments this combo shines" ---------- */
+.pdf-report .t3-synergy-block { margin-top: 18px; }
+.pdf-report .t3-axis-notes p {
+  font-size: 12px; line-height: 1.7; color: var(--ink-700);
+  background: var(--surface-2); border-radius: var(--radius-md);
+  padding: 6px 14px 14px; margin-bottom: 8px;
+}
+.pdf-report .t3-axis-notes p:last-child { margin-bottom: 0; }
+.pdf-report .t3-moments { margin: 0; padding-left: 18px; }
+.pdf-report .t3-moments li { font-size: 12px; line-height: 1.75; color: var(--ink-700); margin-bottom: 6px; }
+.pdf-report .t3-moments li:last-child { margin-bottom: 0; }
+
+/* ---------- TOP3 "who am I" persona breakdown ---------- */
+.pdf-report .t3-persona-block {
+  margin-top: 18px; background: var(--surface-2); border-radius: var(--radius-lg);
+  padding: 14px 20px 22px;
+}
+.pdf-report .t3-persona-block .section-subtitle { margin-bottom: 14px; }
+.pdf-report .persona-grid { display: flex; flex-direction: column; gap: 14px; }
+.pdf-report .persona-item { display: flex; align-items: flex-start; gap: 12px; }
+.pdf-report .persona-num {
+  /* block + text-align + a measured line-height, NOT flex centering:
+     html2canvas ignores align-items on a flex box whose only child is a bare
+     text node, dropping the digit ~4.5px too low inside the circle. A line-height of
+     16px on a 26px box lands the digit's ink dead-centre (measured against
+     real html2canvas output — do not "restore" flex here). */
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  display: block; text-align: center; line-height: 16px;
+  font-size: 12.5px; font-weight: 800;
+  margin-top: 1px;
+}
+.pdf-report .persona-body { flex: 1; }
+.pdf-report .persona-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.pdf-report .persona-name { font-size: 12.5px; font-weight: 800; }
+.pdf-report .persona-text { font-size: 12.5px; line-height: 1.7; color: var(--ink-700); }
+.pdf-report .persona-text b { color: var(--ink-900); }
+.pdf-report .persona-summary {
+  margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line);
+  font-size: 12.5px; line-height: 1.7; color: var(--ink-700);
+}
+.pdf-report .persona-summary b { color: var(--ink-900); }
+
+/* ---------- Strength × complement Venn infographic ---------- */
+.pdf-report .synergy-venn-wrap { position: relative; margin: 0 auto 22px; }
+.pdf-report .synergy-label {
+  position: absolute; transform: translate(-50%, -50%);
+  text-align: center; width: 108px;
+}
+.pdf-report .synergy-tag {
+  display: inline-block;
+  font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  opacity: .82; margin-bottom: 5px;
+}
+/* thin accent rule under the tag caption — a small "designed" touch that
+   also visually separates the caption from the color name below it */
+.pdf-report .synergy-tag::after {
+  content: ""; display: block; width: 18px; height: 2px; border-radius: 2px;
+  background: currentColor; opacity: .55; margin: 5px auto 0;
+}
+.pdf-report .synergy-name { font-size: 16px; font-weight: 800; line-height: 1.3; letter-spacing: -.01em; }
+.pdf-report .synergy-sub { font-size: 10px; font-weight: 600; opacity: .85; margin-top: 2px; }
+
+/* Balance-point badge: a proper circle (not a rounded rect) with a soft
+   translucent halo ring behind it — built from plain borders/opacity only
+   (no CSS filter/blur, which html2canvas does not render reliably here). */
+.pdf-report .synergy-mid-wrap {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 66px; height: 66px;
+}
+.pdf-report .synergy-mid-ring {
+  position: absolute; inset: -7px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.65);
+  background: rgba(255,255,255,0.16);
+}
+.pdf-report .synergy-mid-badge {
+  position: relative; width: 66px; height: 66px; border-radius: 50%;
+  background: rgba(255,255,255,0.97);
+  border: 1px solid rgba(23,22,29,0.10);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.pdf-report .synergy-mid-text {
+  font-size: 11px; font-weight: 800; line-height: 1.3; letter-spacing: .02em;
+  color: var(--ink-900);
+  /* same html2canvas baseline drift as the pills above — the flex centring on
+     .synergy-mid-badge lands this two-line label ~4px low, so nudge it back. */
+  position: relative; top: -4px;
+}
+
+.pdf-report .combo-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 22px 22px; }
+.pdf-report .combo-chips { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+/* Asymmetric top/bottom padding is deliberate and measured: html2canvas seats
+   the text baseline ~4px lower than the browser does, so equal padding renders
+   visibly low inside the pill. 2/10 lands the ink centred in the capture. */
+.pdf-report .combo-chip { display: inline-block; line-height: 1.5; font-size: 12.5px; font-weight: 800; color: #fff; padding: 2px 12px 10px; border-radius: var(--radius-pill); }
+.pdf-report .combo-plus { font-size: 14px; font-weight: 800; color: var(--ink-300); }
+.pdf-report .combo-card p { font-size: 13px; line-height: 1.7; color: var(--ink-700); }
+
+/* ---------- Relationship fit: colors that click vs. colors that friction ---------- */
+.pdf-report .fit-block { display: flex; gap: 14px; margin-top: 16px; }
+.pdf-report .fit-col {
+  flex: 1; min-width: 0; border-radius: var(--radius-lg); padding: 12px 18px 20px;
+}
+.pdf-report .fit-good { background: #EAF6EF; }
+.pdf-report .fit-friction { background: #FDF3E4; }
+/* Colors that qualify for BOTH columns above — same 강점영역 as TOP1/TOP2 yet
+   also TOP1's contrast pair. Full-width under the two columns, neutral tint so
+   it reads as "both", not as a third verdict. */
+.pdf-report .fit-mixed { background: #EFEDF6; margin-top: 12px; }
+.pdf-report .fit-mixed .fit-label { color: #5A5480; }
+/* What each listed person brings, and how the reader's own strengths land. */
+.pdf-report .fit-extra { margin-top: 22px; }
+.pdf-report .fit-brings { display: flex; flex-direction: column; gap: 8px; }
+.pdf-report .fit-bring {
+  display: flex; align-items: flex-start; gap: 8px;
+  border-bottom: 1px solid var(--line); padding-bottom: 8px;
+}
+.pdf-report .fit-bring:last-child { border-bottom: none; padding-bottom: 0; }
+.pdf-report .fit-bring-dot {
+  width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.12);
+  /* Bigger nudge than .dl-dot because this row is align-items:flex-start, not
+     centre: the dot starts at the top of the line box (~5px above the glyph
+     centre) AND html2canvas seats the text ~5px lower again. Measured 9.9px. */
+  position: relative; top: 9.9px;
+}
+.pdf-report .fit-bring-name { width: 132px; flex-shrink: 0; font-size: 11.5px; line-height: 1.6; font-weight: 800; color: var(--ink-900); }
+.pdf-report .fit-bring-text { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.6; color: var(--ink-700); }
+
+/* Side-by-side focus comparison for the friction-side colors. */
+.pdf-report .fit-diffs { display: flex; flex-direction: column; gap: 10px; }
+.pdf-report .fit-diff-row { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 8px 14px 14px; }
+.pdf-report .fit-diff-who { display: flex; align-items: flex-start; gap: 7px; font-size: 11.5px; font-weight: 800; color: var(--ink-900); margin-bottom: 8px; }
+/* Same dot, shorter line box here — measured separately. */
+.pdf-report .fit-diff-who .fit-bring-dot { top: 7.7px; }
+.pdf-report .fit-diff-cols { display: flex; gap: 12px; }
+.pdf-report .fit-diff-cell { flex: 1; min-width: 0; font-size: 11px; line-height: 1.6; color: var(--ink-700); }
+.pdf-report .fit-diff-tag {
+  display: inline-block; font-size: 9.5px; font-weight: 800; color: var(--ink-500);
+  background: var(--surface-2); border-radius: var(--radius-pill);
+  padding: 2px 7px 8px; line-height: 1; margin-right: 6px; position: relative; top: 2px;
+}
+.pdf-report .fit-effect {
+  background: #FDF3E4; border-radius: var(--radius-md);
+  padding: 8px 16px 16px;
+}
+.pdf-report .fit-effect ul { margin: 0; padding-left: 16px; }
+.pdf-report .fit-effect li { font-size: 11.5px; line-height: 1.65; color: var(--ink-700); margin-bottom: 5px; }
+.pdf-report .fit-effect li:last-child { margin-bottom: 0; }
+.pdf-report .fit-effect li b { color: #B4791F; }
+
+/* "내 강점이 상대에게 닿는 방식" — one card per TOP3 color, two faces each. */
+/* Three across, matching the overuse cards — stacked they ran past the page. */
+.pdf-report .fx-grid { display: flex; gap: 12px; }
+.pdf-report .fx-card {
+  flex: 1; min-width: 0;
+  background: #FDF3E4; border-radius: var(--radius-md);
+  padding: 10px 14px 18px;
+}
+.pdf-report .fx-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; flex-wrap: wrap; }
+.pdf-report .fx-tag {
+  display: inline-block; line-height: 1; font-size: 11px; font-weight: 800;
+  border-radius: var(--radius-pill);
+  /* asymmetric padding = html2canvas baseline compensation (see .cs-tag) */
+  padding: 3px 11px 10px;
+}
+.pdf-report .fx-strength { font-size: 11.5px; font-weight: 700; color: #8A6420; position: relative; top: -2px; }
+.pdf-report .fx-sub { font-size: 10.5px; font-weight: 800; color: #B4791F; margin-bottom: 5px; }
+.pdf-report .fx-list { margin: 0 0 8px; padding-left: 15px; }
+.pdf-report .fx-list li { font-size: 11px; line-height: 1.6; color: var(--ink-700); margin-bottom: 4px; }
+.pdf-report .fx-list li:last-child { margin-bottom: 0; }
+.pdf-report .fx-good {
+  font-size: 10.5px; line-height: 1.6; color: var(--ink-700);
+  border-top: 1px dashed rgba(180,121,31,0.35); padding-top: 8px;
+}
+.pdf-report .fit-label { font-size: 11.5px; font-weight: 800; margin-bottom: 10px; }
+.pdf-report .fit-good .fit-label { color: #1F8A56; }
+.pdf-report .fit-friction .fit-label { color: #B4791F; }
+.pdf-report .fit-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pdf-report .fit-chip {
+  /* measured asymmetric padding — see the note on .combo-chip */
+  display: inline-block; line-height: 1; font-size: 11px; font-weight: 800;
+  padding: 2px 10px 11px; border-radius: var(--radius-pill);
+}
+.pdf-report .fit-text { font-size: 11.5px; line-height: 1.7; color: var(--ink-700); }
+
+/* ---------- 강점 컬러 × 보완 컬러의 균형 ---------- */
+.pdf-report .syn-wrap { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px 20px 22px; }
+.pdf-report .syn-pair { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.pdf-report .syn-chip {
+  /* asymmetric padding = html2canvas baseline compensation, same measured
+     pattern as .pdf-report .cs-hero .cs-tag. Do not equalize. */
+  display: inline-block; line-height: 1; font-size: 12px; font-weight: 800;
+  padding: 3px 13px 11px; border-radius: var(--radius-pill);
+}
+.pdf-report .syn-plus { font-size: 13px; font-weight: 800; color: var(--ink-300); position: relative; top: -3px; }
+.pdf-report .syn-row { padding-top: 12px; border-top: 1px solid var(--line); margin-top: 12px; }
+.pdf-report .syn-row:first-of-type { padding-top: 0; border-top: none; margin-top: 0; }
+.pdf-report .syn-label { font-size: 11.5px; font-weight: 800; color: var(--ink-900); margin-bottom: 6px; }
+.pdf-report .syn-text { font-size: 11.5px; line-height: 1.75; color: var(--ink-700); }
+.pdf-report .syn-list { list-style: none; margin: 0; padding: 0; }
+.pdf-report .syn-list li {
+  font-size: 11.5px; line-height: 1.7; color: var(--ink-700);
+  padding-left: 12px; position: relative; margin-bottom: 5px;
+}
+.pdf-report .syn-list li::before { content: "·"; position: absolute; left: 3px; top: -1px; color: var(--ink-300); font-weight: 800; }
+.pdf-report .syn-list li:last-child { margin-bottom: 0; }
+/* "Which one do I reach for" — the two colors' own action lists, side by side. */
+.pdf-report .syn-when { display: flex; gap: 16px; }
+.pdf-report .syn-when-col { flex: 1; min-width: 0; }
+.pdf-report .syn-when-head { font-size: 11.5px; font-weight: 800; margin-bottom: 7px; }
+
+/* At-a-glance comparison table: strength color vs complement color. Plain
+   flex rows rather than a real <table> — html2canvas lays flex out far more
+   predictably than table-layout, and every row here is a fixed 3-cell grid. */
+.pdf-report .cmp-table { border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 16px; }
+.pdf-report .cmp-row { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+.pdf-report .cmp-row:first-child { border-top: none; }
+.pdf-report .cmp-row:nth-child(even) { background: var(--surface-1); }
+.pdf-report .cmp-row:nth-child(odd) { background: var(--surface-2); }
+.pdf-report .cmp-header { background: var(--surface-1); }
+.pdf-report .cmp-label {
+  width: 108px; flex-shrink: 0; padding: 10px 12px;
+  font-size: 11px; font-weight: 800; color: var(--ink-500);
+  line-height: 1.55; border-right: 1px solid var(--line);
+}
+.pdf-report .cmp-val {
+  flex: 1; min-width: 0; padding: 10px 13px;
+  font-size: 11.5px; line-height: 1.65; color: var(--ink-700);
+  border-right: 1px solid var(--line);
+}
+.pdf-report .cmp-val:last-child { border-right: none; }
+.pdf-report .cmp-col-head { padding: 2px 0 4px; }
+.pdf-report .cmp-role { font-size: 10px; font-weight: 800; color: var(--ink-300); margin-bottom: 5px; }
+.pdf-report .cmp-name { font-size: 12.5px; font-weight: 800; color: var(--ink-900); line-height: 1.4; }
+.pdf-report .cmp-dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 3px;
+  margin-right: 6px; border: 1px solid rgba(0,0,0,0.12);
+  /* html2canvas seats inline boxes low next to text — measured nudge, matches
+     the .ct-swatch pattern. Do not reset to vertical-align:middle. */
+  position: relative; top: 4px;
+}
+
+/* 6대 강점영역 is a full section of its own at the back of the report now, so
+   its rows match the weight of the 컬러별 상세 점수 rows sitting under it. */
+.pdf-report .domain-grid { gap: 16px; }
+.pdf-report .domain-row .dtrack { height: 11px; }
+
+/* Meaning of each 강점영역 + the colors averaged into it, as a 2-column card
+   grid under the chart on the same page. */
+.pdf-report .domain-legend { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 22px; }
+.pdf-report .dl-heading { font-size: 13px; font-weight: 800; color: var(--ink-900); margin-bottom: 16px; }
+.pdf-report .dl-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+.pdf-report .dl-card {
+  /* must stay in sync with .dl-grid gap: 2 cards + 1 gap = 100% */
+  width: calc(50% - 7px); box-sizing: border-box;
+  background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md);
+  /* top padding 4px under bottom — html2canvas baseline compensation, same
+     measured pattern as the other filled boxes. Do not equalize. */
+  padding: 14px 16px 22px;
+}
+.pdf-report .dl-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.pdf-report .dl-name { font-size: 12.5px; font-weight: 800; color: var(--ink-900); line-height: 1.5; }
+.pdf-report .dl-score { font-size: 12.5px; font-weight: 800; color: var(--accent-soft); line-height: 1.5; }
+.pdf-report .dl-desc { font-size: 11.5px; line-height: 1.7; color: var(--ink-500); margin-bottom: 11px; }
+.pdf-report .dl-chips { display: flex; flex-direction: column; gap: 7px; }
+.pdf-report .dl-chip { display: flex; align-items: center; gap: 6px; }
+.pdf-report .dl-dot {
+  width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.12);
+  /* flex align-items:center centres the dot against the line box, but
+     html2canvas draws the text ~4.7px lower than that, leaving the dot
+     visibly high. Measured nudge, same pattern as .ct-swatch / .cmp-dot. */
+  position: relative; top: 4.7px;
+}
+.pdf-report .dl-chip-name { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--ink-700); }
+.pdf-report .dl-chip-score { font-size: 11.5px; line-height: 1.6; font-weight: 700; color: var(--ink-300); }
+.pdf-report .dl-note {
+  margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--line);
+  font-size: 11px; line-height: 1.65; color: var(--ink-500);
+}
+
+/* html2canvas seats text ~4px lower than a browser does, so a filled box with
+   symmetric vertical padding renders with the text visibly low inside it
+   (measured +22px at 300dpi = 8 CSS px of imbalance across every box below).
+   Each of these carries padding-top 4px smaller and padding-bottom 4px larger
+   than the symmetric value, which cancels that out. PDF-only on purpose — do
+   not equalize these back, and do not copy them onto screen-side rules. */
+.pdf-report .cs-example { padding: 12px 18px 20px; }
+.pdf-report .quick-facts { padding: 8px 16px 16px; }
+.pdf-report .cmp-label { padding: 6px 12px 14px; }
+.pdf-report .cmp-val { padding: 6px 13px 14px; }
+
+
+
+
+.pdf-report .disclaimer { margin-top: 40px; background: var(--surface-2); border-radius: var(--radius-md); padding: 12px 18px 20px; font-size: 11px; line-height: 1.75; color: var(--ink-500); }
+.pdf-report .disclaimer b { color: var(--ink-700); }
+.pdf-report .rp-footer { margin-top: 24px; padding-bottom: 6px; text-align: center; font-size: 10.5px; line-height: 1.6; color: var(--ink-300); }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .intro-title { font-size: 27px; }
+  .quiz-card { padding: 36px 24px; }
+  .quiz-question { font-size: 18px; }
+  .brOnly { display: none; }
+  .result-hero h1 { font-size: 29px; }
+  .result-doc-title { font-size: 19.5px; padding-top: 48px; }
+}
