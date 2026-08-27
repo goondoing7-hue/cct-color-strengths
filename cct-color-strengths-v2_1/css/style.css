@@ -300,22 +300,22 @@ img, svg { display: block; }
 .inapp-btn-ghost { background: transparent; color: #8A6420; }
 
 /* Blocking dialog shown if the PDF button is pressed inside an in-app browser */
-.inapp-block {
+.inapp-hint {
   display: none; position: fixed; inset: 0; z-index: 80;
   background: rgba(23,22,29,0.55);
   align-items: center; justify-content: center; padding: 24px;
 }
-.inapp-block.is-open { display: flex; }
-.inapp-block-card {
+.inapp-hint.is-open { display: flex; }
+.inapp-hint-card {
   background: var(--surface-1); border-radius: var(--radius-lg);
   padding: 26px 24px; max-width: 420px; width: 100%;
   box-shadow: var(--shadow-lg); text-align: left;
 }
-.inapp-block-title { font-size: 16px; font-weight: 800; color: var(--ink-900); margin-bottom: 10px; line-height: 1.45; }
-.inapp-block-text { font-size: 13px; line-height: 1.75; color: var(--ink-700); margin-bottom: 10px; }
-.inapp-block-note { font-size: 12px; line-height: 1.7; color: var(--ink-500); margin-bottom: 18px; }
-.inapp-block-actions { display: flex; flex-direction: column; gap: 8px; }
-.inapp-block-actions .btn-primary { width: 100%; }
+.inapp-hint-title { font-size: 16px; font-weight: 800; color: var(--ink-900); margin-bottom: 10px; line-height: 1.45; }
+.inapp-hint-text { font-size: 13px; line-height: 1.75; color: var(--ink-700); margin-bottom: 10px; }
+
+.inapp-hint-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+
 
 .intro-fineprint {
   font-size: 11.5px;
