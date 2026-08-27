@@ -54,19 +54,6 @@
         <div class="meta-chip"><span class="meta-num">13</span><span class="meta-label">컬러 강점</span></div>
       </div>
 
-      <!-- Shown only inside in-app browsers (KakaoTalk, Instagram, ...), and only
-           in v1 where a PDF download exists. Saving a file is impossible in a
-           webview, but the finished result can be handed to the real browser
-           afterwards, so this is a heads-up rather than a dead end. -->
-      <div class="inapp-notice" id="inappNotice" hidden>
-        <div class="inapp-title">지금은 카카오톡 브라우저로 보고 계세요</div>
-        <p class="inapp-text">검사는 이대로 진행하셔도 됩니다. 다만 <b>PDF 저장은 카카오톡 안에서 불가능</b>해서, 검사가 끝나면 결과를 그대로 브라우저로 넘겨드립니다. 지금 미리 브라우저에서 여시면 더 편합니다.</p>
-        <div class="inapp-actions">
-          <button type="button" class="inapp-btn" id="btnOpenExternal">브라우저에서 열기</button>
-          <button type="button" class="inapp-btn inapp-btn-ghost" id="btnCopyLink">링크 복사</button>
-        </div>
-      </div>
-
       <div class="intro-name-field">
         <label for="userName">결과지에 표시할 이름 <span class="required">(필수)</span></label>
         <input type="text" id="userName" maxlength="12" placeholder="이름 또는 별명을 입력해주세요" />

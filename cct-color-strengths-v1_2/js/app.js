@@ -1905,46 +1905,6 @@
     }
   }
 
-  function initInAppNotice() {
-    const kind = detectInAppBrowser();
-    const box = document.getElementById("inappNotice");
-    if (!box) return;
-    if (!kind) return;
-    // v2 has no download button, so the webview limitation never bites there.
-    if (APP_VARIANT !== "v1") return;
-
-    const NAMES = {
-      kakao: "카카오톡",
-      instagram: "인스타그램",
-      facebook: "페이스북",
-      line: "라인",
-      naver: "네이버",
-      daum: "다음",
-    };
-    const title = box.querySelector(".inapp-title");
-    if (title) title.textContent = `지금은 ${NAMES[kind] || "앱"} 브라우저로 보고 계세요`;
-    box.hidden = false;
-    document.body.classList.add("is-inapp");
-
-    const openBtn = document.getElementById("btnOpenExternal");
-    const copyBtn = document.getElementById("btnCopyLink");
-    if (openBtn) {
-      openBtn.addEventListener("click", () => {
-        if (!openInExternalBrowser()) {
-          openBtn.textContent = "아래 '링크 복사'를 눌러주세요";
-        }
-      });
-    }
-    if (copyBtn) {
-      copyBtn.addEventListener("click", async () => {
-        const ok = await copyCurrentLink();
-        copyBtn.textContent = ok ? "복사됐어요! 브라우저에 붙여넣기" : "복사 실패 — 주소창을 길게 눌러 복사해주세요";
-        setTimeout(() => {
-          copyBtn.textContent = "링크 복사";
-        }, 4000);
-      });
-    }
-  }
 
   async function downloadPdf(scores, ranked, btn) {
     // Inside an in-app webview, saving a file is impossible no matter how the
@@ -1981,8 +1941,34 @@
   // the test — see encodeResultParam() above.
   function handOffToBrowser(scores, ranked) {
     const url = buildResultUrl(scores, userName);
-    showBrowserHandoffDialog(url);
-    if (url) openInExternalBrowser(url);
+    if (!url) {
+      showBrowserHandoffDialog(url);
+      return;
+    }
+
+    // Try to open the real browser silently — when it works the user just sees
+    // Chrome/Safari come up with their result, and any dialog here would be
+    // pure noise. The fallback below exists because "we asked the OS to open a
+    // browser" is not proof that one opened (Chrome missing on Android, some
+    // iOS webviews): if the page is still in the foreground a moment later,
+    // nothing happened, and a dead button is exactly the silent failure this
+    // whole feature was meant to remove.
+    const opened = openInExternalBrowser(url);
+
+    let settled = false;
+    const cancel = () => { settled = true; };
+    // Leaving for another app fires these; if they fire, the browser opened.
+    document.addEventListener("visibilitychange", cancel, { once: true });
+    window.addEventListener("pagehide", cancel, { once: true });
+    window.addEventListener("blur", cancel, { once: true });
+
+    setTimeout(() => {
+      document.removeEventListener("visibilitychange", cancel);
+      window.removeEventListener("pagehide", cancel);
+      window.removeEventListener("blur", cancel);
+      if (settled || document.hidden) return; // browser took over — stay quiet
+      showBrowserHandoffDialog(url);
+    }, opened ? 2500 : 0);
   }
 
   function showBrowserHandoffDialog(url) {
@@ -2082,6 +2068,5 @@
 
   buildColorRing();
   bindAccessCode();
-  initInAppNotice();
   restoreResultFromUrl();
 })();
