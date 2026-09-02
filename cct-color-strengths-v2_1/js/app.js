@@ -441,6 +441,89 @@
     `;
   }
 
+  // Only the opening sentence of a color's summary. Two of the 13 summaries
+  // (코랄, 터콰이즈) compare themselves to another color by name further in —
+  // printing those on the teaser screen would give away a color this variant is
+  // meant to withhold. The first sentence is self-contained for all 13.
+  function firstSentence(text) {
+    const t = String(text || "").trim();
+    const end = t.indexOf(". ");
+    return end === -1 ? t : t.slice(0, end + 1);
+  }
+
+  // ---------- v2 result screen (center-visit variant) ----------
+  // Deliberately withholds almost everything. The reader sees which color came
+  // out on top and a short, plain-language note on what that color means —
+  // enough to feel recognised, not enough to self-interpret. The other two
+  // strengths and the complement stay locked, because unpacking them is the
+  // point of the center session. No score is printed anywhere on this screen.
+  function renderTeaserResult(scores, ranked, comp, resultNote, ctaLabel) {
+    const top1 = ranked[0];
+    const textColor = getContrastText(top1.hex);
+    const overlay = textColor === "#ffffff" ? "rgba(255,255,255,.22)" : "rgba(23,22,29,.10)";
+    const nameLabel = userName ? `${escapeHtml(userName)}님의` : "나의";
+
+    // The two withheld strengths + the complement, shown as covered cards so
+    // the reader can see HOW MUCH is left without learning any of it.
+    const lockedCards = [
+      { label: "강점 TOP2" },
+      { label: "강점 TOP3" },
+      { label: "보완 컬러" },
+    ]
+      .map(
+        ({ label }) => `
+        <div class="tz-locked-card">
+          <div class="tz-locked-label">${label}</div>
+          <div class="tz-locked-dot">?</div>
+          <div class="tz-locked-bar"></div>
+        </div>`
+      )
+      .join("");
+
+    resultWrap.innerHTML = `
+      <div class="result-doc-title">CCT 컬러성격강점검사 분석 결과</div>
+
+      <div class="result-hero">
+        <p class="lead">${nameLabel} 가장 뚜렷한 강점 컬러는</p>
+        <h1 style="color:${top1.hex}">${escapeHtml(top1.ko)}</h1>
+        <p class="strength-name">${escapeHtml(top1.strength)} · ${escapeHtml(top1.en)}</p>
+      </div>
+
+      <section class="rs-block">
+        <div class="tz-hero" style="background:${top1.hex};color:${textColor}">
+          <span class="tz-tag" style="background:${overlay};color:${textColor}">나의 대표 강점 컬러</span>
+          <div class="tz-word">${escapeHtml(top1.strength)}</div>
+          <p class="tz-core">${escapeHtml(top1.core)}</p>
+        </div>
+        <p class="tz-summary">${escapeHtml(firstSentence(top1.summary))}</p>
+      </section>
+
+      <section class="rs-block">
+        <h2 class="rs-title">나머지 컬러도 궁금하신가요?</h2>
+        <p class="rs-note">13개 컬러 중 지금 보신 건 단 하나입니다. 나를 함께 움직이는 두 번째·세 번째 강점 컬러와, 앞으로 더 꺼내 쓰면 좋을 보완 컬러는 아직 열리지 않았어요.</p>
+        <div class="tz-locked-grid">${lockedCards}</div>
+        <div class="tz-teaser-list">
+          <div class="tz-teaser-item">두 번째·세 번째 강점 컬러는 무엇이고, 대표 강점과 어떻게 맞물려 작동하는지</div>
+          <div class="tz-teaser-item">나와 심리적으로 대비되는 보완 컬러, 그리고 그 컬러를 꺼내 쓰는 방법</div>
+          <div class="tz-teaser-item">13개 컬러 전체 점수와 6대 강점영역 프로파일</div>
+          <div class="tz-teaser-item">관계에서 잘 맞는 사람과 부딪히기 쉬운 사람, 그 이유</div>
+        </div>
+        <p class="tz-invite">전체 해석은 <b>럽리브 코칭센터</b>에서 전문 상담사와 함께 확인하실 수 있습니다.</p>
+      </section>
+
+      <p class="result-note">${resultNote}</p>
+
+      ${buildResultActionsHTML()}
+
+      <div class="rs-cta-bar" id="rsCtaBar">
+        <button type="button" class="btn btn-primary" id="btnCta">${ctaLabel}</button>
+      </div>
+    `;
+
+    document.getElementById("btnRetry").addEventListener("click", resetApp);
+    bindResultCta(scores, ranked);
+  }
+
   function renderResult(scores) {
     const ranked = getRanked(scores);
     const top1 = ranked[0];
@@ -457,6 +540,14 @@
         13개 컬러 전체 프로파일과 상세 해석은<br/>아래 PDF 리포트에서 확인하실 수 있습니다.`;
 
     const ctaLabel = APP_VARIANT === "v2" ? "센터 방문 안내 보기" : "상세 결과 PDF 다운로드";
+
+    // v2 is the center-visit variant: it reveals the single top strength color
+    // and nothing else. No scores, no radar, no TOP2/TOP3, no complement, no
+    // interpretation paragraph — those are what the center session is for.
+    if (APP_VARIANT === "v2") {
+      renderTeaserResult(scores, ranked, comp, resultNote, ctaLabel);
+      return;
+    }
 
     const html = `
       <div class="result-doc-title">CCT 컬러성격강점검사 분석 결과</div>
@@ -1439,14 +1530,20 @@
 
     const top1 = ranked[0];
     const comp = getComplement(top1.key, scores, ranked);
-    const dateStr = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+    const dateStr = new Date().toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     rigid(`
       <div class="rp-cover">
         <div class="rp-kicker">CCT COLOR CHARACTER STRENGTHS TEST</div>
         <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}컬러 성격강점 결과 리포트</div>
-        <div class="rp-date">${dateStr} 생성</div>
         <div class="rp-swatchbar">${CCT_COLORS.map((c) => `<span style="background:${c.hex}"></span>`).join("")}</div>
+        <div class="rp-date">검사 일시 · ${dateStr}</div>
       </div>
     `);
 
@@ -1733,6 +1830,38 @@
           cursorY = PDF_MARGIN_TOP;
           isFirstOnPage = true;
         }
+      }
+
+      // ---- Page footers ----
+      // Drawn as images, not doc.text(): jsPDF's built-in fonts have no Hangul
+      // glyphs, so "럽리브 코칭센터" would come out as garbage. Rendering after
+      // pagination is what makes "n / total" possible at all — the total isn't
+      // known until every block has been placed.
+      const totalPages = doc.getNumberOfPages();
+      const footerW = PDF_CONTENT_W;
+      for (let pageNo = 1; pageNo <= totalPages; pageNo++) {
+        container.innerHTML = `
+          <div class="rp-pagefoot">
+            <span class="rp-pagefoot-name">럽리브 코칭센터</span>
+            <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
+          </div>`;
+        await new Promise((r) => setTimeout(r, 10));
+        const fCanvas = await html2canvas(container, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          windowWidth: container.scrollWidth,
+        });
+        const footerH = (fCanvas.height * footerW) / fCanvas.width;
+        doc.setPage(pageNo);
+        doc.addImage(
+          fCanvas.toDataURL("image/jpeg", 0.82),
+          "JPEG",
+          PDF_MARGIN_X,
+          PDF_PAGE_H - PDF_MARGIN_BOTTOM + 4,
+          footerW,
+          footerH
+        );
       }
 
       const fileName = `CCT_결과리포트${userName ? "_" + userName : ""}.pdf`;
