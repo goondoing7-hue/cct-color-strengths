@@ -502,8 +502,10 @@ img, svg { display: block; }
 
 .tz-teaser-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .tz-teaser-item {
-  position: relative;
-  font-size: 13px; line-height: 1.7; color: var(--ink-700);
+  /* Each item is a one-line hook — kept short on purpose, and clamped so a
+     narrow phone shrinks the text instead of wrapping it. */
+  position: relative; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: clamp(11.5px, 3.3vw, 13px); line-height: 1.7; color: var(--ink-700);
   background: var(--surface-1); border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 12px 14px 12px 34px;
@@ -513,8 +515,12 @@ img, svg { display: block; }
   font-size: 13px; font-weight: 800; color: var(--ink-300);
 }
 .tz-invite {
-  font-size: 13.5px; line-height: 1.75; color: var(--ink-700);
+  /* Must stay on ONE line — it is the closing call to action. Kept short and
+     given nowrap + a shrink-to-fit clamp so a narrow phone scales the text
+     down rather than breaking it across two lines. */
+  font-size: clamp(11.5px, 3.4vw, 13.5px); line-height: 1.7; color: var(--ink-700);
   text-align: center; padding: 0 4px;
+  white-space: nowrap;
 }
 .tz-invite b { color: var(--ink-900); }
 

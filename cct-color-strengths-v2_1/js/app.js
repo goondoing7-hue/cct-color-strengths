@@ -503,12 +503,12 @@
         <p class="rs-note">13개 컬러 중 지금 보신 건 단 하나입니다. 나를 함께 움직이는 두 번째·세 번째 강점 컬러와, 앞으로 더 꺼내 쓰면 좋을 보완 컬러는 아직 열리지 않았어요.</p>
         <div class="tz-locked-grid">${lockedCards}</div>
         <div class="tz-teaser-list">
-          <div class="tz-teaser-item">두 번째·세 번째 강점 컬러는 무엇이고, 대표 강점과 어떻게 맞물려 작동하는지</div>
-          <div class="tz-teaser-item">나와 심리적으로 대비되는 보완 컬러, 그리고 그 컬러를 꺼내 쓰는 방법</div>
-          <div class="tz-teaser-item">13개 컬러 전체 점수와 6대 강점영역 프로파일</div>
-          <div class="tz-teaser-item">관계에서 잘 맞는 사람과 부딪히기 쉬운 사람, 그 이유</div>
+          <div class="tz-teaser-item">두 번째·세 번째 강점 컬러와 조합 해석</div>
+          <div class="tz-teaser-item">나와 대비되는 보완 컬러와 활용법</div>
+          <div class="tz-teaser-item">13개 컬러 전체 점수와 6대 강점영역</div>
+          <div class="tz-teaser-item">관계에서 잘 맞는 사람과 불편한 사람</div>
         </div>
-        <p class="tz-invite">전체 해석은 <b>럽리브 코칭센터</b>에서 전문 상담사와 함께 확인하실 수 있습니다.</p>
+        <p class="tz-invite">전체 해석은 <b>럽리브 코칭센터</b>에서 확인하세요</p>
       </section>
 
       <p class="result-note">${resultNote}</p>
