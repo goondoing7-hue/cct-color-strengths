@@ -441,89 +441,6 @@
     `;
   }
 
-  // Only the opening sentence of a color's summary. Two of the 13 summaries
-  // (코랄, 터콰이즈) compare themselves to another color by name further in —
-  // printing those on the teaser screen would give away a color this variant is
-  // meant to withhold. The first sentence is self-contained for all 13.
-  function firstSentence(text) {
-    const t = String(text || "").trim();
-    const end = t.indexOf(". ");
-    return end === -1 ? t : t.slice(0, end + 1);
-  }
-
-  // ---------- v2 result screen (center-visit variant) ----------
-  // Deliberately withholds almost everything. The reader sees which color came
-  // out on top and a short, plain-language note on what that color means —
-  // enough to feel recognised, not enough to self-interpret. The other two
-  // strengths and the complement stay locked, because unpacking them is the
-  // point of the center session. No score is printed anywhere on this screen.
-  function renderTeaserResult(scores, ranked, comp, resultNote, ctaLabel) {
-    const top1 = ranked[0];
-    const textColor = getContrastText(top1.hex);
-    const overlay = textColor === "#ffffff" ? "rgba(255,255,255,.22)" : "rgba(23,22,29,.10)";
-    const nameLabel = userName ? `${escapeHtml(userName)}님의` : "나의";
-
-    // The two withheld strengths + the complement, shown as covered cards so
-    // the reader can see HOW MUCH is left without learning any of it.
-    const lockedCards = [
-      { label: "강점 TOP2" },
-      { label: "강점 TOP3" },
-      { label: "보완 컬러" },
-    ]
-      .map(
-        ({ label }) => `
-        <div class="tz-locked-card">
-          <div class="tz-locked-label">${label}</div>
-          <div class="tz-locked-dot">?</div>
-          <div class="tz-locked-bar"></div>
-        </div>`
-      )
-      .join("");
-
-    resultWrap.innerHTML = `
-      <div class="result-doc-title">CCT 컬러성격강점검사 분석 결과</div>
-
-      <div class="result-hero">
-        <p class="lead">${nameLabel} 가장 뚜렷한 강점 컬러는</p>
-        <h1 style="color:${top1.hex}">${escapeHtml(top1.ko)}</h1>
-        <p class="strength-name">${escapeHtml(top1.strength)} · ${escapeHtml(top1.en)}</p>
-      </div>
-
-      <section class="rs-block">
-        <div class="tz-hero" style="background:${top1.hex};color:${textColor}">
-          <span class="tz-tag" style="background:${overlay};color:${textColor}">나의 대표 강점 컬러</span>
-          <div class="tz-word">${escapeHtml(top1.strength)}</div>
-          <p class="tz-core">${escapeHtml(top1.core)}</p>
-        </div>
-        <p class="tz-summary">${escapeHtml(firstSentence(top1.summary))}</p>
-      </section>
-
-      <section class="rs-block">
-        <h2 class="rs-title">나머지 컬러도 궁금하신가요?</h2>
-        <p class="rs-note">13개 컬러 중 지금 보신 건 단 하나입니다. 나를 함께 움직이는 두 번째·세 번째 강점 컬러와, 앞으로 더 꺼내 쓰면 좋을 보완 컬러는 아직 열리지 않았어요.</p>
-        <div class="tz-locked-grid">${lockedCards}</div>
-        <div class="tz-teaser-list">
-          <div class="tz-teaser-item">두 번째·세 번째 강점 컬러와 조합 해석</div>
-          <div class="tz-teaser-item">나와 대비되는 보완 컬러와 활용법</div>
-          <div class="tz-teaser-item">13개 컬러 전체 점수와 6대 강점영역</div>
-          <div class="tz-teaser-item">관계에서 잘 맞는 사람과 불편한 사람</div>
-        </div>
-        <p class="tz-invite">전체 해석은 <b>럽리브 코칭센터</b>에서 확인하세요</p>
-      </section>
-
-      <p class="result-note">${resultNote}</p>
-
-      ${buildResultActionsHTML()}
-
-      <div class="rs-cta-bar" id="rsCtaBar">
-        <button type="button" class="btn btn-primary" id="btnCta">${ctaLabel}</button>
-      </div>
-    `;
-
-    document.getElementById("btnRetry").addEventListener("click", resetApp);
-    bindResultCta(scores, ranked);
-  }
-
   function renderResult(scores) {
     const ranked = getRanked(scores);
     const top1 = ranked[0];
@@ -540,14 +457,6 @@
         13개 컬러 전체 프로파일과 상세 해석은<br/>아래 PDF 리포트에서 확인하실 수 있습니다.`;
 
     const ctaLabel = APP_VARIANT === "v2" ? "센터 방문 안내 보기" : "상세 결과 PDF 다운로드";
-
-    // v2 is the center-visit variant: it reveals the single top strength color
-    // and nothing else. No scores, no radar, no TOP2/TOP3, no complement, no
-    // interpretation paragraph — those are what the center session is for.
-    if (APP_VARIANT === "v2") {
-      renderTeaserResult(scores, ranked, comp, resultNote, ctaLabel);
-      return;
-    }
 
     const html = `
       <div class="result-doc-title">CCT 컬러성격강점검사 분석 결과</div>
@@ -809,7 +718,7 @@
   // reframed here for how it can feel in a relationship rather than personal growth.
   // Takes the full ranked list: the fit columns are driven by TOP1/TOP2, but
   // the closing "내 강점이 상대에게 닿는 방식" cards cover all three.
-  function buildRelationshipFitHTML(ranked) {
+  function buildRelationshipFitHTML(ranked, opts) {
     const top1 = ranked[0];
     const top2 = ranked[1];
     const domainOf = (key) => CCT_DOMAINS.find((d) => d.colors.includes(key));
@@ -970,7 +879,10 @@
       `
       : "";
 
-    return `
+    // Optionally returned in two page-sized pieces: as one block this section
+    // measured 306mm against a 261mm usable page — the worst overflow in the
+    // report — and its closing cards were clipped off the sheet entirely.
+    const partOne = `
       <div class="fit-block">
         <div class="fit-col fit-good">
           <div class="fit-label">잘 맞을 수 있는 사람 (해당 컬러가 강점인 사람)</div>
@@ -983,9 +895,13 @@
       </div>
       ${bothBlock}
       ${bringBlock}
-      ${diffBlock}
-      ${myEffectBlock}
     `;
+    const partTwo = `${diffBlock}${myEffectBlock}`;
+
+    const part = opts && opts.part;
+    if (part === 1) return partOne;
+    if (part === 2) return partTwo;
+    return partOne + partTwo;
   }
 
   // Side-by-side "at a glance" comparison of the reader's single strongest
@@ -1355,7 +1271,22 @@
     ].filter(Boolean);
     const missionItems = missionCandidates.map((m) => `<li>${escapeHtml(m)}</li>`).join("");
 
-    return `
+    return buildActionGuideBlocks(topActionsHtml, warnCards, checkItems, missionItems).join("");
+  }
+
+  // Same content as buildActionGuideHTML, handed back as two page-sized pieces.
+  // One combined block measured 275mm against a 261mm usable page, so its tail
+  // (이번 주 실천 미션) was being clipped off the sheet.
+  function buildActionGuidePartsHTML(ranked, comp, scores) {
+    const html = buildActionGuideHTML(ranked, comp, scores);
+    const marker = '<div class="ag-block">';
+    const pieces = html.split(marker).filter((x) => x.trim()).map((x) => marker + x);
+    if (pieces.length < 4) return [html, ""];
+    return [pieces.slice(0, 2).join(""), pieces.slice(2).join("")];
+  }
+
+  function buildActionGuideBlocks(topActionsHtml, warnCards, checkItems, missionItems) {
+    return [`
       <div class="ag-block">
         <div class="section-subtitle">TOP 3 강점 활용법</div>
         <p class="section-desc">각 강점이 실제로 힘을 발휘하는 구체적인 장면입니다.</p>
@@ -1375,7 +1306,7 @@
         <div class="section-subtitle">이번 주 실천 미션</div>
         <div class="ag-mission"><ul>${missionItems}</ul></div>
       </div>
-    `;
+    `];
   }
 
   // Extra, personalized context for the TOP3 comparison page: where the trio
@@ -1530,20 +1461,14 @@
 
     const top1 = ranked[0];
     const comp = getComplement(top1.key, scores, ranked);
-    const dateStr = new Date().toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const dateStr = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
     rigid(`
       <div class="rp-cover">
         <div class="rp-kicker">CCT COLOR CHARACTER STRENGTHS TEST</div>
         <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}컬러 성격강점 결과 리포트</div>
+        <div class="rp-date">${dateStr} 생성</div>
         <div class="rp-swatchbar">${CCT_COLORS.map((c) => `<span style="background:${c.hex}"></span>`).join("")}</div>
-        <div class="rp-date">검사 일시 · ${dateStr}</div>
       </div>
     `);
 
@@ -1563,9 +1488,11 @@
     // TOP3 comparison (Enneagram-style comparative summary): compares the top 3
     // strength colors side by side, plus additional context (collective axis
     // tilt, scenarios where the combo shines) to make good use of the page.
-    rigid(
-      `<div class="section-title">TOP 3 강점 컬러 비교</div>${buildTop3CompareHTML(ranked)}${buildTop3SynergyHTML(ranked)}${buildTop3PersonaHTML(ranked)}`
-    );
+    // Split rather than one monolith: with longer per-color text this section
+    // grew past a single page (measured 285mm against a 261mm usable height) and
+    // its tail was clipped. Two rigid halves each fit comfortably.
+    rigid(`<div class="section-title">TOP 3 강점 컬러 비교</div>${buildTop3CompareHTML(ranked)}${buildTop3SynergyHTML(ranked)}`);
+    rigid(buildTop3PersonaHTML(ranked));
 
     // The complement color gets its own growth-focused deep dive (healthy/overuse,
     // example usage, growth question) — reusing the same intro/detail split as
@@ -1578,18 +1505,23 @@
     // leaving the card cut off right after its "이 강점이 드러나는 모습"
     // heading. The Venn diagram that used to sit here moved to the synergy
     // section below, which is what freed the vertical room for this to fit.
+    // Two halves again — as one block this measured 285mm on longer profiles.
+    const [compIntroPart, compDetailPart] = buildColorSectionPdfParts(comp.chosen, "보완 컬러 · 성장 자원");
     rigidBreak(
       `<div class="section-title">보완 컬러 심층 분석</div>${buildComplementRationaleHTML(
         top1,
         comp.chosen
-      )}${buildColorSectionWholeHTML(comp.chosen, "보완 컬러 · 성장 자원")}`
+      )}${compIntroPart}`
     );
+    rigid(compDetailPart);
 
     // Concrete, actionable guidance: how to use the TOP3 strengths, warning signs
     // of overuse, and a short weekly practice checklist.
     // Each of these three owns a full page from here on, per the report layout:
     // 실전 지침 → 시너지 → 관계 → 6대 강점영역 → 점수 부록.
-    rigidBreak(`<div class="section-title">실전 지침</div>${buildActionGuideHTML(ranked, comp, scores)}`);
+    const actionParts = buildActionGuidePartsHTML(ranked, comp, scores);
+    rigidBreak(`<div class="section-title">실전 지침</div>${actionParts[0]}`);
+    rigid(actionParts[1]);
 
     // ---- Flexible supplementary section (domains / axes) ----
     // Split into small chunks so generatePdf() can slot them into whatever
@@ -1681,8 +1613,8 @@
       <p class="section-desc">가장 뚜렷한 강점 컬러와, 그와 심리적으로 대비되는 보완 컬러를 나란히 비교하고 두 컬러가 함께 작동할 때 만들어지는 효과를 정리했습니다.</p>
       ${buildSynergyVennHTML(top1, comp.chosen)}
       ${buildColorCompareTableHTML(ranked[0], comp.chosen)}
-      ${buildStrengthBalanceHTML(ranked[0], comp.chosen)}
     `);
+    rigid(buildStrengthBalanceHTML(ranked[0], comp.chosen));
 
     if (ranked.length >= 2) {
       // These boxes are about OTHER PEOPLE — whoever has those colors as their
@@ -1690,8 +1622,9 @@
       rigidBreak(`
         <div class="section-title">관계에서 만나는 컬러</div>
         <p class="section-desc">내 TOP 컬러를 기준으로, 그 컬러가 강점인 사람들과 어떤 관계를 맺기 쉬운지 정리했습니다. 사람 자체의 좋고 나쁨이 아니라 성향의 결이 얼마나 비슷한지를 뜻합니다.</p>
-        ${buildRelationshipFitHTML(ranked)}
+        ${buildRelationshipFitHTML(ranked, { part: 1 })}
       `);
+      rigid(buildRelationshipFitHTML(ranked, { part: 2 }));
     }
 
     // 6대 강점영역 + the meaning of each domain, as a page of its own directly
@@ -1789,9 +1722,25 @@
       let isFirstOnPage = true;
       const queue = rendered.slice();
 
+      const USABLE_H = PDF_PAGE_H - PDF_MARGIN_TOP - PDF_MARGIN_BOTTOM;
+
       const place = (block) => {
-        doc.addImage(block.imgData, "JPEG", PDF_MARGIN_X, cursorY, PDF_CONTENT_W, block.imgH);
-        cursorY += block.imgH + PDF_BLOCK_GAP;
+        // Safety net. The branch below places a block unconditionally when it is
+        // first on a fresh page, which for a block TALLER than the page meant it
+        // was drawn past the bottom edge and silently clipped — text ran under
+        // the footer and off the sheet. Any block that cannot fit is scaled down
+        // to the usable height instead (and re-centred horizontally, since it
+        // then becomes narrower than the text column). Shrinking a section a few
+        // percent is always preferable to losing its last lines.
+        let w = PDF_CONTENT_W;
+        let h = block.imgH;
+        if (h > USABLE_H) {
+          w = PDF_CONTENT_W * (USABLE_H / h);
+          h = USABLE_H;
+        }
+        const x = PDF_MARGIN_X + (PDF_CONTENT_W - w) / 2;
+        doc.addImage(block.imgData, "JPEG", x, cursorY, w, h);
+        cursorY += h + PDF_BLOCK_GAP;
         isFirstOnPage = false;
       };
 
@@ -1830,38 +1779,6 @@
           cursorY = PDF_MARGIN_TOP;
           isFirstOnPage = true;
         }
-      }
-
-      // ---- Page footers ----
-      // Drawn as images, not doc.text(): jsPDF's built-in fonts have no Hangul
-      // glyphs, so "럽리브 코칭센터" would come out as garbage. Rendering after
-      // pagination is what makes "n / total" possible at all — the total isn't
-      // known until every block has been placed.
-      const totalPages = doc.getNumberOfPages();
-      const footerW = PDF_CONTENT_W;
-      for (let pageNo = 1; pageNo <= totalPages; pageNo++) {
-        container.innerHTML = `
-          <div class="rp-pagefoot">
-            <span class="rp-pagefoot-name">럽리브 코칭센터</span>
-            <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
-          </div>`;
-        await new Promise((r) => setTimeout(r, 10));
-        const fCanvas = await html2canvas(container, {
-          scale: 2,
-          backgroundColor: "#ffffff",
-          useCORS: true,
-          windowWidth: container.scrollWidth,
-        });
-        const footerH = (fCanvas.height * footerW) / fCanvas.width;
-        doc.setPage(pageNo);
-        doc.addImage(
-          fCanvas.toDataURL("image/jpeg", 0.82),
-          "JPEG",
-          PDF_MARGIN_X,
-          PDF_PAGE_H - PDF_MARGIN_BOTTOM + 4,
-          footerW,
-          footerH
-        );
       }
 
       const fileName = `CCT_결과리포트${userName ? "_" + userName : ""}.pdf`;
