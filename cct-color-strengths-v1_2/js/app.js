@@ -369,38 +369,111 @@
   // admin can always look up who took the test and see their exact result,
   // even in the v2 variant where the end user themselves never sees a
   // download button.
+  // ---- Result logging: two phases, on purpose ----
+  // The detailed PDF now runs to 8 pages, each rendered through html2canvas,
+  // plus a footer pass per page. On a phone — especially inside the KakaoTalk
+  // webview — that build takes tens of seconds. The old code awaited the whole
+  // PDF and only THEN sent anything, so if the reader closed the screen, handed
+  // off to another browser, or the webview was memory-killed mid-build, the
+  // result was never recorded at all and there was no trace of why.
+  //
+  // Phase 1 fires immediately with everything except the PDF, via sendBeacon so
+  // it survives the page being unloaded. Phase 2 sends the PDF afterwards and
+  // fills the same row in. A failed PDF now costs the PDF link only — never
+  // the record that the test happened.
+  const PDF_LOG_MAX_BYTES = 7 * 1024 * 1024; // Apps Script rejects very large POST bodies
+
+  function newResultId() {
+    return "R" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  // Fire-and-forget POST, but readable when the browser lets us read it.
+  //
+  // `beacon` uses navigator.sendBeacon, which the browser completes even after
+  // the page goes away — but it caps the body at ~64KB, so only the small
+  // phase-1 payload may use it.
+  //
+  // Otherwise we first try an ordinary (readable) request: text/plain keeps it a
+  // "simple" CORS request, so no preflight, and Apps Script's redirect target
+  // does send Access-Control-Allow-Origin. When that works we can see the
+  // status and the script's own reply in the console — which is the only way
+  // a silent logging failure ever becomes visible. If reading is blocked we
+  // re-send with mode:"no-cors" (write-only). A re-send is safe because the
+  // Apps Script keys every write on resultId and ignores repeats.
+  async function postToWebhook(payload, opts) {
+    const body = JSON.stringify(payload);
+    const headers = { "Content-Type": "text/plain;charset=utf-8" };
+    const label = `[CCT] 결과 기록 (${payload.phase || "?"})`;
+
+    if (opts && opts.beacon && navigator.sendBeacon) {
+      try {
+        const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+        if (navigator.sendBeacon(GS_WEBHOOK_URL, blob)) {
+          console.info(`${label} — sendBeacon 전소 (${body.length}B)`);
+          return;
+        }
+      } catch (e) {
+        /* fall through */
+      }
+    }
+
+    try {
+      const res = await fetch(GS_WEBHOOK_URL, { method: "POST", headers, body, redirect: "follow" });
+      const text = await res.text();
+      console.info(`${label} — HTTP ${res.status}: ${text.slice(0, 200)}`);
+      if (res.ok) return;
+    } catch (err) {
+      console.warn(`${label} — 응답을 읽지 못함, 재전소합니다:`, err && err.message);
+    }
+    fetch(GS_WEBHOOK_URL, { method: "POST", mode: "no-cors", headers, body }).catch(() => {});
+  }
+
   async function autoLogResult(scores, ranked, comp) {
     if (!GS_WEBHOOK_URL) return; // logging disabled
     if (resultLogged) return;
     resultLogged = true;
+
+    const resultId = newResultId();
+    const meta = {
+      resultId,
+      phase: "meta",
+      name: userName || "",
+      completedAt: new Date().toISOString(),
+      appVariant: APP_VARIANT,
+      top1: `${ranked[0].ko}(${ranked[0].en})`,
+      top2: `${ranked[1].ko}(${ranked[1].en})`,
+      top3: `${ranked[2].ko}(${ranked[2].en})`,
+      complement: `${comp.chosen.ko}(${comp.chosen.en})`,
+      scores: CCT_COLORS.reduce((obj, c) => {
+        obj[c.key] = scores[c.key];
+        return obj;
+      }, {}),
+    };
+    // Phase 1 — the row itself. Sent before the PDF build starts.
+    postToWebhook(meta, { beacon: true });
+
+    // Phase 2 — the PDF, attached to the row created above.
     try {
       const { pdfBase64 } = await getPdfDoc(scores, ranked);
-      const payload = {
-        name: userName || "",
-        completedAt: new Date().toISOString(),
-        appVariant: APP_VARIANT,
-        top1: `${ranked[0].ko}(${ranked[0].en})`,
-        top2: `${ranked[1].ko}(${ranked[1].en})`,
-        top3: `${ranked[2].ko}(${ranked[2].en})`,
-        complement: `${comp.chosen.ko}(${comp.chosen.en})`,
-        scores: CCT_COLORS.reduce((obj, c) => {
-          obj[c.key] = scores[c.key];
-          return obj;
-        }, {}),
-        pdfBase64, // data URI ("data:application/pdf;base64,...") — Apps Script saves this to Drive
-      };
-      // mode:"no-cors" + text/plain avoids a CORS preflight, which a simple
-      // Apps Script Web App deployment doesn't handle. We never read the
-      // response — this is fire-and-forget and must never block or break
-      // the result screen if the network/webhook is unavailable.
-      fetch(GS_WEBHOOK_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload),
-      }).catch(() => {});
+      const bytes = Math.round((pdfBase64.length * 3) / 4);
+      if (bytes > PDF_LOG_MAX_BYTES) {
+        postToWebhook({
+          resultId,
+          phase: "pdf",
+          name: meta.name,
+          pdfError: `PDF 용량 초과 (${(bytes / 1048576).toFixed(1)}MB)`,
+        });
+        return;
+      }
+      postToWebhook({ resultId, phase: "pdf", name: meta.name, pdfBytes: bytes, pdfBase64 });
     } catch (err) {
-      console.warn("결과 기록 전송 실패:", err);
+      console.warn("결과 PDF 전송 실패:", err);
+      postToWebhook({
+        resultId,
+        phase: "pdf",
+        name: meta.name,
+        pdfError: String((err && err.message) || err).slice(0, 200),
+      });
     }
   }
 
@@ -1461,14 +1534,20 @@
 
     const top1 = ranked[0];
     const comp = getComplement(top1.key, scores, ranked);
-    const dateStr = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+    const dateStr = new Date().toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     rigid(`
       <div class="rp-cover">
         <div class="rp-kicker">CCT COLOR CHARACTER STRENGTHS TEST</div>
         <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}컬러 성격강점 결과 리포트</div>
-        <div class="rp-date">${dateStr} 생성</div>
         <div class="rp-swatchbar">${CCT_COLORS.map((c) => `<span style="background:${c.hex}"></span>`).join("")}</div>
+        <div class="rp-date">검사 일시 · ${dateStr}</div>
       </div>
     `);
 
@@ -1779,6 +1858,38 @@
           cursorY = PDF_MARGIN_TOP;
           isFirstOnPage = true;
         }
+      }
+
+      // ---- Page footers ----
+      // Drawn as images, not doc.text(): jsPDF's built-in fonts have no Hangul
+      // glyphs, so "럽리뷔 코칭진튰" would come out as garbage. Rendering after
+      // pagination is what makes "n / total" possible at all — the total isn't
+      // known until every block has been placed.
+      const totalPages = doc.getNumberOfPages();
+      const footerW = PDF_CONTENT_W;
+      for (let pageNo = 1; pageNo <= totalPages; pageNo++) {
+        container.innerHTML = `
+          <div class="rp-pagefoot">
+            <span class="rp-pagefoot-name">럽리뷔 코칭센터</span>
+            <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
+          </div>`;
+        await new Promise((r) => setTimeout(r, 10));
+        const fCanvas = await html2canvas(container, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          windowWidth: container.scrollWidth,
+        });
+        const footerH = (fCanvas.height * footerW) / fCanvas.width;
+        doc.setPage(pageNo);
+        doc.addImage(
+          fCanvas.toDataURL("image/jpeg", 0.82),
+          "JPEG",
+          PDF_MARGIN_X,
+          PDF_PAGE_H - PDF_MARGIN_BOTTOM + 4,
+          footerW,
+          footerH
+        );
       }
 
       const fileName = `CCT_결과리포트${userName ? "_" + userName : ""}.pdf`;

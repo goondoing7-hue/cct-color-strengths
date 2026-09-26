@@ -659,7 +659,7 @@ img, svg { display: block; }
 .pdf-report .rp-cover { text-align: center; padding-bottom: 34px; border-bottom: 1px solid var(--line); margin-bottom: 34px; }
 .pdf-report .rp-kicker { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--ink-300); margin-bottom: 14px; }
 .pdf-report .rp-title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
-.pdf-report .rp-date { font-size: 12.5px; color: var(--ink-500); }
+.pdf-report .rp-date { font-size: 11.5px; color: var(--ink-300); text-align: right; margin-top: 12px; }
 .pdf-report .rp-swatchbar { display: flex; justify-content: center; gap: 6px; margin-top: 22px; }
 .pdf-report .rp-swatchbar span { width: 22px; height: 22px; border-radius: 6px; display: inline-block; }
 
@@ -1227,3 +1227,12 @@ img, svg { display: block; }
   .result-hero h1 { font-size: 29px; }
   .result-doc-title { font-size: 19.5px; padding-top: 48px; }
 }
+
+/* Per-page footer strip, stamped onto every page after pagination. */
+.pdf-report .rp-pagefoot {
+  display: flex; align-items: baseline; justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding: 7px 2px 3px;
+}
+.pdf-report .rp-pagefoot-name { font-size: 10.5px; font-weight: 700; color: var(--ink-500); letter-spacing: .01em; }
+.pdf-report .rp-pagefoot-num { font-size: 10.5px; font-weight: 700; color: var(--ink-300); }
