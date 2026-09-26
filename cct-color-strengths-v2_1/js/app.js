@@ -369,39 +369,195 @@
   // admin can always look up who took the test and see their exact result,
   // even in the v2 variant where the end user themselves never sees a
   // download button.
+  // ---- Result logging: two phases, on purpose ----
+  // The detailed PDF now runs to 8 pages, each rendered through html2canvas,
+  // plus a footer pass per page. On a phone — especially inside the KakaoTalk
+  // webview — that build takes tens of seconds. The old code awaited the whole
+  // PDF and only THEN sent anything, so if the reader closed the screen, handed
+  // off to another browser, or the webview was memory-killed mid-build, the
+  // result was never recorded at all and there was no trace of why.
+  //
+  // Phase 1 fires immediately with everything except the PDF, via sendBeacon so
+  // it survives the page being unloaded. Phase 2 sends the PDF afterwards and
+  // fills the same row in. A failed PDF now costs the PDF link only — never
+  // the record that the test happened.
+  const PDF_LOG_MAX_BYTES = 7 * 1024 * 1024; // Apps Script rejects very large POST bodies
+
+  function newResultId() {
+    return "R" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  // Fire-and-forget POST, but readable when the browser lets us read it.
+  //
+  // `beacon` uses navigator.sendBeacon, which the browser completes even after
+  // the page goes away — but it caps the body at ~64KB, so only the small
+  // phase-1 payload may use it.
+  //
+  // Otherwise we first try an ordinary (readable) request: text/plain keeps it a
+  // "simple" CORS request, so no preflight, and Apps Script's redirect target
+  // does send Access-Control-Allow-Origin. When that works we can see the
+  // status and the script's own reply in the console — which is the only way
+  // a silent logging failure ever becomes visible. If reading is blocked we
+  // re-send with mode:"no-cors" (write-only). A re-send is safe because the
+  // Apps Script keys every write on resultId and ignores repeats.
+  async function postToWebhook(payload, opts) {
+    const body = JSON.stringify(payload);
+    const headers = { "Content-Type": "text/plain;charset=utf-8" };
+    const label = `[CCT] 결과 기록 (${payload.phase || "?"})`;
+
+    if (opts && opts.beacon && navigator.sendBeacon) {
+      try {
+        const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+        if (navigator.sendBeacon(GS_WEBHOOK_URL, blob)) {
+          console.info(`${label} — sendBeacon 전소 (${body.length}B)`);
+          return;
+        }
+      } catch (e) {
+        /* fall through */
+      }
+    }
+
+    try {
+      const res = await fetch(GS_WEBHOOK_URL, { method: "POST", headers, body, redirect: "follow" });
+      const text = await res.text();
+      console.info(`${label} — HTTP ${res.status}: ${text.slice(0, 200)}`);
+      if (res.ok) return;
+    } catch (err) {
+      console.warn(`${label} — 응답을 읽지 못함, 재전소합니다:`, err && err.message);
+    }
+    fetch(GS_WEBHOOK_URL, { method: "POST", mode: "no-cors", headers, body }).catch(() => {});
+  }
+
   async function autoLogResult(scores, ranked, comp) {
     if (!GS_WEBHOOK_URL) return; // logging disabled
     if (resultLogged) return;
     resultLogged = true;
+
+    const resultId = newResultId();
+    const meta = {
+      resultId,
+      phase: "meta",
+      name: userName || "",
+      completedAt: new Date().toISOString(),
+      appVariant: APP_VARIANT,
+      top1: `${ranked[0].ko}(${ranked[0].en})`,
+      top2: `${ranked[1].ko}(${ranked[1].en})`,
+      top3: `${ranked[2].ko}(${ranked[2].en})`,
+      complement: `${comp.chosen.ko}(${comp.chosen.en})`,
+      scores: CCT_COLORS.reduce((obj, c) => {
+        obj[c.key] = scores[c.key];
+        return obj;
+      }, {}),
+    };
+    // Phase 1 — the row itself. Sent before the PDF build starts.
+    postToWebhook(meta, { beacon: true });
+
+    // Phase 2 — the PDF, attached to the row created above.
     try {
       const { pdfBase64 } = await getPdfDoc(scores, ranked);
-      const payload = {
-        name: userName || "",
-        completedAt: new Date().toISOString(),
-        appVariant: APP_VARIANT,
-        top1: `${ranked[0].ko}(${ranked[0].en})`,
-        top2: `${ranked[1].ko}(${ranked[1].en})`,
-        top3: `${ranked[2].ko}(${ranked[2].en})`,
-        complement: `${comp.chosen.ko}(${comp.chosen.en})`,
-        scores: CCT_COLORS.reduce((obj, c) => {
-          obj[c.key] = scores[c.key];
-          return obj;
-        }, {}),
-        pdfBase64, // data URI ("data:application/pdf;base64,...") — Apps Script saves this to Drive
-      };
-      // mode:"no-cors" + text/plain avoids a CORS preflight, which a simple
-      // Apps Script Web App deployment doesn't handle. We never read the
-      // response — this is fire-and-forget and must never block or break
-      // the result screen if the network/webhook is unavailable.
-      fetch(GS_WEBHOOK_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload),
-      }).catch(() => {});
+      const bytes = Math.round((pdfBase64.length * 3) / 4);
+      if (bytes > PDF_LOG_MAX_BYTES) {
+        postToWebhook({
+          resultId,
+          phase: "pdf",
+          name: meta.name,
+          pdfError: `PDF 용량 초과 (${(bytes / 1048576).toFixed(1)}MB)`,
+        });
+        return;
+      }
+      postToWebhook({ resultId, phase: "pdf", name: meta.name, pdfBytes: bytes, pdfBase64 });
     } catch (err) {
-      console.warn("결과 기록 전송 실패:", err);
+      console.warn("결과 PDF 전송 실패:", err);
+      postToWebhook({
+        resultId,
+        phase: "pdf",
+        name: meta.name,
+        pdfError: String((err && err.message) || err).slice(0, 200),
+      });
     }
+  }
+
+  // Only the opening sentence of a color's summary. Two of the 13 summaries
+  // (코랄, 터콰이즈) compare themselves to another color by name further in —
+  // printing those on the teaser screen would give away a color this variant is
+  // meant to withhold. The first sentence is self-contained for all 13.
+  function firstSentence(text) {
+    const t = String(text || "").trim();
+    const end = t.indexOf(". ");
+    return end === -1 ? t : t.slice(0, end + 1);
+  }
+
+  // ---------- v2 result screen (center-visit variant) ----------
+  // Deliberately withholds almost everything. The reader sees which color came
+  // out on top and a short, plain-language note on what that color means —
+  // enough to feel recognised, not enough to self-interpret. The other two
+  // strengths and the complement stay locked, because unpacking them is the
+  // point of the center session. No score is printed anywhere on this screen.
+  function renderTeaserResult(scores, ranked, comp, resultNote, ctaLabel) {
+    const top1 = ranked[0];
+    const textColor = getContrastText(top1.hex);
+    const overlay = textColor === "#ffffff" ? "rgba(255,255,255,.22)" : "rgba(23,22,29,.10)";
+    const nameLabel = userName ? `${escapeHtml(userName)}님의` : "나의";
+
+    // The two withheld strengths + the complement, shown as covered cards so
+    // the reader can see HOW MUCH is left without learning any of it.
+    const lockedCards = [
+      { label: "강점 TOP2" },
+      { label: "강점 TOP3" },
+      { label: "보완 컬러" },
+    ]
+      .map(
+        ({ label }) => `
+        <div class="tz-locked-card">
+          <div class="tz-locked-label">${label}</div>
+          <div class="tz-locked-dot">?</div>
+          <div class="tz-locked-bar"></div>
+        </div>`
+      )
+      .join("");
+
+    resultWrap.innerHTML = `
+      <div class="result-doc-title">CCT 컬러성격강점검사 분석 결과</div>
+
+      <div class="result-hero">
+        <p class="lead">${nameLabel} 가장 뚜렷한 강점 컬러는</p>
+        <h1 style="color:${top1.hex}">${escapeHtml(top1.ko)}</h1>
+        <p class="strength-name">${escapeHtml(top1.strength)} · ${escapeHtml(top1.en)}</p>
+      </div>
+
+      <section class="rs-block">
+        <div class="tz-hero" style="background:${top1.hex};color:${textColor}">
+          <span class="tz-tag" style="background:${overlay};color:${textColor}">나의 대표 강점 컬러</span>
+          <div class="tz-word">${escapeHtml(top1.strength)}</div>
+          <p class="tz-core">${escapeHtml(top1.core)}</p>
+        </div>
+        <p class="tz-summary">${escapeHtml(firstSentence(top1.summary))}</p>
+      </section>
+
+      <section class="rs-block">
+        <h2 class="rs-title">나머지 컬러도 궁금하신가요?</h2>
+        <p class="rs-note">13개 컬러 중 지금 보신 건 단 하나입니다. 나를 함께 움직이는 두 번째·세 번째 강점 컬러와, 앞으로 더 꺼내 쓰면 좋을 보완 컬러는 아직 열리지 않았어요.</p>
+        <div class="tz-locked-grid">${lockedCards}</div>
+        <div class="tz-teaser-list">
+          <div class="tz-teaser-item">두 번째·세 번째 강점 컬러와 조합 해석</div>
+          <div class="tz-teaser-item">나와 대비되는 보완 컬러와 활용법</div>
+          <div class="tz-teaser-item">13개 컬러 전체 점수와 6대 강점영역</div>
+          <div class="tz-teaser-item">관계에서 잘 맞는 사람과 불편한 사람</div>
+        </div>
+        <p class="tz-invite">전체 해석은 <b>럽리브 코칭센터</b>에서 확인하세요</p>
+      </section>
+
+      <p class="result-note">${resultNote}</p>
+
+      ${buildResultActionsHTML()}
+
+      <div class="rs-cta-bar" id="rsCtaBar">
+        <button type="button" class="btn btn-primary" id="btnCta">${ctaLabel}</button>
+      </div>
+    `;
+
+    document.getElementById("btnRetry").addEventListener("click", resetApp);
+    bindResultCta(scores, ranked);
   }
 
   function buildResultActionsHTML() {
@@ -457,6 +613,14 @@
         13개 컬러 전체 프로파일과 상세 해석은<br/>아래 PDF 리포트에서 확인하실 수 있습니다.`;
 
     const ctaLabel = APP_VARIANT === "v2" ? "센터 방문 안내 보기" : "상세 결과 PDF 다운로드";
+
+    // v2 is the center-visit variant: it reveals the single top strength color
+    // and nothing else. No scores, no radar, no TOP2/TOP3, no complement, no
+    // interpretation paragraph — those are what the center session is for.
+    if (APP_VARIANT === "v2") {
+      renderTeaserResult(scores, ranked, comp, resultNote, ctaLabel);
+      return;
+    }
 
     const html = `
       <div class="result-doc-title">CCT 컬러성격강점검사 분석 결과</div>
@@ -1461,14 +1625,20 @@
 
     const top1 = ranked[0];
     const comp = getComplement(top1.key, scores, ranked);
-    const dateStr = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+    const dateStr = new Date().toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     rigid(`
       <div class="rp-cover">
         <div class="rp-kicker">CCT COLOR CHARACTER STRENGTHS TEST</div>
         <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}컬러 성격강점 결과 리포트</div>
-        <div class="rp-date">${dateStr} 생성</div>
         <div class="rp-swatchbar">${CCT_COLORS.map((c) => `<span style="background:${c.hex}"></span>`).join("")}</div>
+        <div class="rp-date">검사 일시 · ${dateStr}</div>
       </div>
     `);
 
@@ -1779,6 +1949,38 @@
           cursorY = PDF_MARGIN_TOP;
           isFirstOnPage = true;
         }
+      }
+
+      // ---- Page footers ----
+      // Drawn as images, not doc.text(): jsPDF's built-in fonts have no Hangul
+      // glyphs, so "럽리뷔 코칭진튰" would come out as garbage. Rendering after
+      // pagination is what makes "n / total" possible at all — the total isn't
+      // known until every block has been placed.
+      const totalPages = doc.getNumberOfPages();
+      const footerW = PDF_CONTENT_W;
+      for (let pageNo = 1; pageNo <= totalPages; pageNo++) {
+        container.innerHTML = `
+          <div class="rp-pagefoot">
+            <span class="rp-pagefoot-name">럽리뷔 코칭센터</span>
+            <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
+          </div>`;
+        await new Promise((r) => setTimeout(r, 10));
+        const fCanvas = await html2canvas(container, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          windowWidth: container.scrollWidth,
+        });
+        const footerH = (fCanvas.height * footerW) / fCanvas.width;
+        doc.setPage(pageNo);
+        doc.addImage(
+          fCanvas.toDataURL("image/jpeg", 0.82),
+          "JPEG",
+          PDF_MARGIN_X,
+          PDF_PAGE_H - PDF_MARGIN_BOTTOM + 4,
+          footerW,
+          footerH
+        );
       }
 
       const fileName = `CCT_결과리포트${userName ? "_" + userName : ""}.pdf`;
