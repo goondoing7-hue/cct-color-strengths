@@ -1694,3 +1694,34 @@ img, svg { display: block; }
 .pdf-report .cr-br--past .cr-br-line, .pdf-report .cr-br--future .cr-br-line, .pdf-report .cr-br--fifth .cr-br-line { margin-top: 5px; margin-bottom: 3px; }
 .pdf-report .cr-br--present .cr-br-line { margin-top: 3px; }
 .pdf-report .cr-msg { margin-top: 10px; }
+
+/* ===== v3_27 결과 카드 4장 (과거 1·2 / 현재 2·3 / 앞으로 3·4 / 꺼내지 못한 마음 5) ===== */
+.cr-cb-row { display: flex; justify-content: center; align-items: flex-end; gap: 4px; margin: 8px 0 0; }
+.cr-cb { display: flex; flex-direction: column; align-items: center; width: 92px; }
+.cr-cb-bottle { line-height: 0; }
+.cr-cb-bottle .cr-bottle-svg { display: block; }
+.cr-cb-num { margin-top: 7px; font-size: 11px; font-weight: 800; color: var(--ink-500); line-height: 1.2; }
+.cr-cb-name { font-size: 15px; font-weight: 800; color: var(--ink-900); letter-spacing: -0.02em; line-height: 1.35; }
+.cr-cb-arrow { align-self: center; margin-bottom: 34px; font-size: 22px; font-weight: 700; color: rgba(23,22,29,.28); line-height: 1; }
+.cr-card--read .cr-card-body { padding: 16px 20px 8px; }
+.cr-card--read .cr-card-title { font-size: 17px; }
+.cr-card-voice { margin: 12px 0 12px; padding: 11px 13px 12px; border-radius: 14px; background: rgba(23,22,29,.04); font-size: 14px; font-weight: 700; line-height: 1.55; color: var(--ink-900); word-break: keep-all; text-align: center; }
+.cr-card-voice span { display: block; margin-top: 4px; font-size: 12px; font-weight: 500; color: var(--ink-500); }
+.cr-card-means { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
+.cr-cm { display: flex; gap: 8px; align-items: flex-start; }
+.cr-cm i { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; box-sizing: border-box; }
+.cr-cm p { margin: 0; font-size: 12.8px; line-height: 1.6; color: var(--ink-700); word-break: keep-all; }
+.cr-cm b { color: var(--ink-900); font-weight: 800; margin-right: 2px; }
+.cr-card-flow { margin: 0 0 6px; padding-top: 10px; border-top: 1px solid rgba(23,22,29,.06); font-size: 13.5px; line-height: 1.75; color: var(--ink-700); word-break: keep-all; }
+.cr-card--export .cr-cm i { margin-top: 9.5px; }
+
+/* ① 컬러 카드 ↔ ② 종합 결과 단계 표시 */
+.cr-views { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 14px auto 6px; }
+.cr-view-tab { appearance: none; -webkit-appearance: none; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px 8px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-1); color: var(--ink-500); font-size: 13px; font-weight: 700; line-height: 1; transition: background .2s, color .2s; }
+.cr-view-tab b { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--ink-100); color: var(--ink-500); font-size: 11px; font-weight: 800; }
+.cr-view-tab.is-on { background: var(--ink-900); border-color: var(--ink-900); color: #fff; }
+.cr-view-tab.is-on b { background: #fff; color: var(--ink-900); }
+.cr-view-arrow { color: var(--ink-300); font-size: 16px; font-weight: 700; }
+.cr-section [hidden] { display: none !important; }
+.cr-full-back { text-align: center; margin: 20px 0 4px; }
+.cr-back-btn { appearance: none; -webkit-appearance: none; cursor: pointer; font: inherit; padding: 11px 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-1); color: var(--ink-700); font-size: 13.5px; font-weight: 700; }
