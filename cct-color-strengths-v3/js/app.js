@@ -1822,7 +1822,7 @@
         <div class="rp-cover">
           <div class="rp-kicker">LOVELIVE COLOR INSIGHT · 4-BOTTLE COLOR READING</div>
           <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}4병 컬러리딩 결과 리포트</div>
-          <div class="rp-swatchbar">${window.CR.colors.map((c) => `<span style="background:${c.hex}${c.key === "W" ? ";box-shadow:inset 0 0 0 1px #ccc" : ""}"></span>`).join("")}</div>
+          <div class="rp-swatchbar">${window.CR.colors.map((c) => `<span style="${window.CR.swatchBg(c.key)}"></span>`).join("")}</div>
           <div class="rp-date">검사 일시 · ${dateStr}</div>
         </div>`,
       flexible: false, pageBreakBefore: false,
