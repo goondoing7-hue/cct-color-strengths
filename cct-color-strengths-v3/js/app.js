@@ -1,5 +1,5 @@
 /* ==========================================================
-   CCT 컬러성격강점검사 — App Logic (v3 · 강의용: 4병 컬러리딩 + CCT)
+   CCT 컬러성격강점검사 — App Logic (v3 · 강의용: 컬러 심리리딩 + CCT)
    ========================================================== */
 
 (function () {
@@ -44,7 +44,7 @@
   // 컬러리딩 데이터·엔진·화면은 js/colorreading*.js (window.CR) 에 있습니다.
   const LECTURE_EDITION = !!(window.CR && window.CR.enabled);
   // 강의용은 입장 후 검사 방식을 고릅니다.
-  //   "cr"   : 4병 컬러리딩만
+  //   "cr"   : 컬러 심리리딩만
   //   "cct"  : CCT 컬러성격강점검사만 (v1과 동일)
   //   "both" : 컬러리딩 → CCT, 결과를 한 화면·한 PDF로
   let mode = "both";
@@ -286,7 +286,7 @@
 
   // 카드를 눌러 고르고(다시 고를 수 있음) → [선택 완료]로 시작합니다.
   let pendingMode = null;
-  const MODE_NAMES = { cr: "4병 컬러리딩", cct: "CCT 컬러성격강점검사", both: "컬러리딩 + CCT" };
+  const MODE_NAMES = { cr: "컬러 심리리딩", cct: "CCT 컬러성격강점검사", both: "컬러리딩 + CCT" };
   function setPendingMode(m) {
     pendingMode = m;
     if (!screenMode) return;
@@ -1822,8 +1822,8 @@
     const blocks = [{
       html: `
         <div class="rp-cover">
-          <div class="rp-kicker">LOVELIVE COLOR INSIGHT · 4-BOTTLE COLOR READING</div>
-          <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}4병 컬러리딩 결과 리포트</div>
+          <div class="rp-kicker">LOVELIVE COLOR INSIGHT · COLOR PSYCHOLOGY READING</div>
+          <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}컬러 심리리딩 결과 리포트</div>
           <div class="rp-swatchbar">${window.CR.colors.map((c) => `<span style="${window.CR.swatchBg(c.key)}"></span>`).join("")}</div>
           <div class="rp-date">검사 일시 · ${dateStr}</div>
         </div>`,

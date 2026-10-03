@@ -1859,3 +1859,30 @@ img, svg { display: block; }
 .pdf-report .section-title { padding-left: 0; }
 .pdf-report .section-title::before { display: none; }
 .pdf-report .section-desc { padding-left: 0; margin-top: 2px; }
+/* 9가지 흐름: 한 페이지에 3개씩 들어가도록 */
+.pdf-report .ra-asps { display: flex; flex-direction: column; gap: 12px; }
+.pdf-report .ra-asp { margin-bottom: 0; padding: 15px 22px 15px; }
+.pdf-report .ra-an { font-size: 20px; }
+.pdf-report .ra-at { font-size: 17px; }
+.pdf-report .ra-alead { margin: 9px 0 8px; font-size: 14px; line-height: 1.6; padding: 9px 14px 11px; }
+.pdf-report .ra-ap { margin: 0 0 5px; font-size: 13.2px; line-height: 1.72; }
+.pdf-report .ra-alist { gap: 3px; margin: 0 0 7px; }
+.pdf-report .ra-alist div { font-size: 13px; }
+.pdf-report .ra-ask { margin-top: 8px; padding-top: 8px; font-size: 13.5px; line-height: 1.6; }
+.pdf-report .ra-q { margin-top: 6px; font-size: 13.5px; line-height: 1.6; }
+.pdf-report .ra-lines i { height: 24px; }
+.pdf-report .ra-desc { margin-bottom: 12px; }
+.pdf-report .ra-asps + .ra-note { margin-top: 14px; }
+.pdf-report .ra-asps { gap: 16px; }
+.pdf-report .ra-asp { padding: 18px 24px 18px; }
+.pdf-report .ra-alead { margin: 11px 0 10px; font-size: 14.3px; line-height: 1.65; padding: 11px 15px 13px; }
+.pdf-report .ra-ap { margin: 0 0 6px; font-size: 13.6px; line-height: 1.8; }
+.pdf-report .ra-ask { margin-top: 10px; padding-top: 10px; font-size: 14px; }
+.pdf-report .ra-lines i { height: 27px; }
+.pdf-report .ra-q em { font-style: normal; display: inline-block; font-size: 11.5px; font-weight: 800; color: #8a8794; margin-right: 8px; }
+/* 카드 속마음: 문장마다 한 줄 */
+.cr-card-voice .cr-vl { display: block; white-space: nowrap; overflow: hidden; }
+.cr-card-voice--multi { text-wrap: nowrap; }
+.cr-card-voice .cr-vt { text-wrap: balance; }
+.cr-card-voice .cr-vl, .cr-card-voice .cr-vt { font-size: inherit; font-weight: inherit; color: inherit; margin: 0; }
+.cr-card-voice .cr-vt { display: inline; }
