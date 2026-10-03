@@ -1777,3 +1777,85 @@ img, svg { display: block; }
 .cr-sum-title { margin-top: 2px; font-size: 14.5px; font-weight: 800; color: var(--ink-900); letter-spacing: -0.02em; line-height: 1.4; word-break: keep-all; }
 .cr-sum-voice { margin-top: 3px; font-size: 12.5px; color: var(--ink-500); line-height: 1.5; word-break: keep-all; }
 .cr-deck-track { position: relative; }
+
+/* ===================== PDF · A 정돈 리포트형 (v3_31) ===================== */
+.pdf-report .rp-cover { display: grid; grid-template-columns: 1fr auto; align-items: center; text-align: left; padding-bottom: 20px; margin-bottom: 30px; border-bottom: 1.6px solid var(--ink-900); }
+.pdf-report .rp-kicker { grid-column: 1 / -1; font-size: 11px; letter-spacing: .2em; font-weight: 800; color: #a9a6b2; margin-bottom: 8px; }
+.pdf-report .rp-title { grid-column: 1 / -1; font-size: 28px; margin-bottom: 14px; }
+.pdf-report .rp-swatchbar { justify-content: flex-start; gap: 5px; margin-top: 0; }
+.pdf-report .rp-swatchbar span { width: 18px; height: 18px; border-radius: 50%; }
+.pdf-report .rp-date { margin-top: 0; font-size: 12px; color: #8a8794; }
+
+.pdf-report .ra-part { font-size: 12px; font-weight: 800; letter-spacing: .14em; color: #a9a6b2; margin-bottom: 10px; }
+.pdf-report .ra-sec { display: flex; align-items: baseline; gap: 12px; margin: 0 0 10px; }
+.pdf-report .ra-sec b { font-size: 13px; font-weight: 800; letter-spacing: .08em; color: #a9a6b2; }
+.pdf-report .ra-sec span { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink-900); }
+.pdf-report .ra-desc { font-size: 13px; line-height: 1.75; color: var(--ink-500); margin: 0 0 14px; }
+.pdf-report .cr-pdf-row { margin: 4px 0 26px; }
+
+.pdf-report .ra-msg { border-top: 1px solid #e7e5ea; padding: 18px 0 20px; }
+.pdf-report .ra-mh { display: flex; justify-content: space-between; align-items: center; }
+.pdf-report .ra-ml { font-size: 13px; font-weight: 800; color: var(--ink-500); }
+.pdf-report .ra-ml b { color: var(--ink-900); margin-right: 8px; }
+.pdf-report .ra-mc { font-size: 12.5px; font-weight: 700; color: var(--ink-700); }
+.pdf-report .ra-mc em { font-style: normal; color: #a9a6b2; margin-left: 8px; }
+.pdf-report .ra-arrow { color: #b9b7bf; margin: 0 6px; }
+.pdf-report .ra-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; position: relative; top: 4px; box-sizing: border-box; }
+.pdf-report .ra-mt { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 8px 0 11px; color: var(--ink-900); line-height: 1.4; }
+.pdf-report .ra-mq { font-size: 15px; font-weight: 700; line-height: 1.65; background: #f5f4f1; border-radius: 12px; padding: 12px 16px 14px; color: var(--ink-900); }
+.pdf-report .ra-mq small { display: block; font-size: 12.5px; color: #8a8794; font-weight: 500; margin-top: 3px; }
+.pdf-report .ra-mg { display: grid; grid-template-columns: 250px 1fr; gap: 24px; margin-top: 14px; }
+.pdf-report .ra-h6 { font-size: 11.5px; font-weight: 800; letter-spacing: .08em; color: #a9a6b2; margin-bottom: 6px; }
+.pdf-report .ra-mm { font-size: 13px; line-height: 1.65; color: var(--ink-700); margin-bottom: 4px; word-break: keep-all; }
+.pdf-report .ra-mm b { color: var(--ink-900); margin-right: 3px; }
+.pdf-report .ra-mg p { margin: 0; font-size: 13.8px; line-height: 1.8; color: var(--ink-700); word-break: keep-all; }
+
+.pdf-report .ra-heal { display: flex; gap: 16px; align-items: center; border: 1px solid #e7e5ea; border-radius: 14px; padding: 16px 20px 18px; margin-top: 8px; }
+.pdf-report .ra-heal-b { flex: 0 0 auto; line-height: 0; }
+.pdf-report .ra-heal-t { font-size: 15px; font-weight: 800; color: var(--ink-900); }
+.pdf-report .ra-heal p { margin: 5px 0 0; font-size: 13.5px; line-height: 1.75; color: var(--ink-700); word-break: keep-all; }
+.pdf-report .ra-sum { background: #f3f1f7; border-radius: 16px; padding: 20px 24px 22px; margin-top: 16px; }
+.pdf-report .ra-sum-k { font-size: 12px; font-weight: 800; letter-spacing: .1em; color: #6a56a8; margin-bottom: 10px; }
+.pdf-report .ra-sum-i { display: grid; grid-template-columns: 112px 1fr; gap: 14px; padding: 9px 0; border-top: 1px solid rgba(106,86,168,.14); }
+.pdf-report .ra-sum-i:first-of-type { border-top: 0; padding-top: 0; }
+.pdf-report .ra-sum-i b { font-size: 13px; font-weight: 800; color: #4b3d86; line-height: 1.8; }
+.pdf-report .ra-sum-i p { margin: 0; font-size: 13.8px; line-height: 1.8; color: var(--ink-900); word-break: keep-all; }
+
+.pdf-report .ra-asp { border: 1px solid #e7e5ea; border-radius: 16px; padding: 20px 24px 22px; margin-bottom: 16px; }
+.pdf-report .ra-ah { display: flex; align-items: center; gap: 10px; }
+.pdf-report .ra-an { font-size: 22px; font-weight: 800; color: #c9c6d1; letter-spacing: -0.02em; }
+.pdf-report .ra-at { font-size: 18px; font-weight: 800; color: var(--ink-900); letter-spacing: -0.02em; }
+.pdf-report .ra-adots { margin-left: auto; }
+.pdf-report .ra-adots .ra-dot { margin: 0 0 0 4px; top: 0; }
+.pdf-report .ra-alead { margin: 12px 0 10px; font-size: 14.5px; font-weight: 700; line-height: 1.7; color: var(--ink-900); background: #f5f4f1; border-radius: 12px; padding: 12px 16px 14px; word-break: keep-all; }
+.pdf-report .ra-aq { font-size: 14.5px; font-weight: 700; color: #3f3480; margin: 0 0 8px; }
+.pdf-report .ra-alist { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 10px; }
+.pdf-report .ra-alist div { font-size: 13.5px; color: var(--ink-700); }
+.pdf-report .ra-alist b { color: var(--ink-900); margin-right: 8px; }
+.pdf-report .ra-say { font-weight: 700; color: var(--ink-900); margin-right: 8px; }
+.pdf-report .ra-tail { color: #8a8794; }
+.pdf-report .ra-ap { margin: 0 0 8px; font-size: 13.8px; line-height: 1.85; color: var(--ink-700); word-break: keep-all; }
+.pdf-report .ra-ask { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #dcd9e1; font-size: 14px; font-weight: 700; color: var(--ink-900); line-height: 1.7; word-break: keep-all; }
+.pdf-report .ra-ask span { display: block; font-size: 11.5px; font-weight: 800; letter-spacing: .08em; color: #6a56a8; margin-bottom: 3px; }
+.pdf-report .ra-qs { margin-top: 4px; }
+.pdf-report .ra-q { display: flex; gap: 10px; font-size: 14px; font-weight: 700; line-height: 1.7; color: var(--ink-900); margin-top: 12px; }
+.pdf-report .ra-q b { color: #6a56a8; flex: 0 0 auto; }
+.pdf-report .ra-lines { margin-top: 6px; }
+.pdf-report .ra-lines i { display: block; height: 28px; border-bottom: 1px solid #e3e1e7; }
+.pdf-report .ra-note { font-size: 12px; color: #8a8794; text-align: center; line-height: 1.75; margin: 10px 30px 0; }
+/* PDF 2쪽(앞으로·꺼내지 못한 마음·필요한 컬러·종합)이 한 쪽에 들어가도록 간격 정리 */
+.pdf-report .ra-msg { padding: 14px 0 15px; }
+.pdf-report .ra-mt { margin: 6px 0 9px; font-size: 19px; }
+.pdf-report .ra-mq { font-size: 14.5px; padding: 10px 15px 12px; }
+.pdf-report .ra-mg { margin-top: 11px; }
+.pdf-report .ra-mg p, .pdf-report .ra-mm { line-height: 1.7; }
+.pdf-report .ra-heal { padding: 12px 18px 14px; margin-top: 4px; }
+.pdf-report .ra-heal p { line-height: 1.7; }
+.pdf-report .ra-sum { padding: 16px 22px 16px; margin-top: 12px; }
+.pdf-report .ra-sum-k { margin-bottom: 6px; }
+.pdf-report .ra-sum-i { grid-template-columns: 128px 1fr; padding: 7px 0; }
+.pdf-report .ra-sum-i b, .pdf-report .ra-sum-i p { font-size: 13.4px; line-height: 1.72; }
+/* PDF 공통 섹션 제목도 A 스타일로 (왼쪽 세로 막대 없이) */
+.pdf-report .section-title { padding-left: 0; }
+.pdf-report .section-title::before { display: none; }
+.pdf-report .section-desc { padding-left: 0; margin-top: 2px; }
