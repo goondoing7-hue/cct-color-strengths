@@ -162,70 +162,26 @@
     renderPick();
   }
 
-  // ---------- 해석 엔진 ----------
-  // 전체 흐름: 1·2번째(과거 쪽)와 3·4번째(미래 쪽)의 에너지 차이, 색 계열의 쏠림,
-  // 깊은 색(블랙·브라운·인디고)이 놓인 위치, 5번째와 1번째의 보색 관계를 함께 봅니다.
-  function analyzeFlow(sel) {
-    const [k1, k2, k3, k4, k5] = sel;
-    const e = [k1, k2, k3, k4].map((k) => c(k).energy);
-    const delta = e[2] + e[3] - (e[0] + e[1]);
-    const fam = { warm: 0, cool: 0, nature: 0, base: 0 };
-    [k1, k2, k3, k4].forEach((k) => { fam[c(k).family]++; });
-
-    let shape, shapeText;
-    if (delta >= 3) {
-      shape = "rising";
-      shapeText = "앞쪽의 차분하고 깊은 색에서 뒤쪽의 밝고 활기찬 색으로 옮겨가는, 안에서 밖으로 열려 가는 흐름입니다. 안으로 모아 두었던 힘이 점점 바깥으로 표현되려는 시기로 볼 수 있습니다.";
-    } else if (delta <= -3) {
-      shape = "settling";
-      shapeText = "앞쪽의 밝고 활기찬 색에서 뒤쪽의 차분하고 깊은 색으로 옮겨가는, 밖에서 안으로 모여드는 흐름입니다. 바깥으로 쏟던 에너지를 거두어 정리하고 다지려는 시기로 볼 수 있습니다.";
-    } else {
-      shape = "steady";
-      shapeText = "앞뒤 색의 온도가 크게 달라지지 않는, 비슷한 결의 에너지가 이어지는 흐름입니다. 지금 가고 있는 방향을 일관되게 다져 가려는 마음으로 볼 수 있습니다.";
-    }
-
-    let famText = "";
-    if (fam.warm >= 3) famText = "고른 색 가운데 따뜻한 색이 많아, 사람·감정·행동처럼 바깥을 향한 에너지가 크게 움직이고 있습니다.";
-    else if (fam.cool >= 3) famText = "고른 색 가운데 차가운 색이 많아, 생각·내면·정리처럼 안쪽을 향한 에너지가 크게 움직이고 있습니다.";
-    else if (fam.nature >= 2) famText = "자연의 색이 두 개 이상 함께 있어, 무엇보다 균형과 회복, 편안한 관계를 원하는 마음이 큽니다.";
-    else if (fam.base >= 2) famText = "무채색과 대지의 색이 두 개 이상 함께 있어, 삶의 한 단락을 정리하고 새로운 시작을 준비하는 전환의 시기로 읽힙니다.";
-    else famText = "따뜻한 색과 차가운 색이 고루 섞여 있어, 행동과 생각, 관계와 나 사이를 오가며 균형을 찾아가는 모습입니다.";
-
-    const deep = ["Bk", "Br", "In"];
-    let depthText = "";
-    const deepFront = [k1, k2].some((k) => deep.includes(k));
-    const deepBack = [k3, k4].some((k) => deep.includes(k));
-    if (deepFront && !deepBack) depthText = "깊고 어두운 색이 과거 쪽에 놓여 있어, 힘든 시간을 지나 빛으로 나아가고 있는 모습도 함께 보입니다.";
-    else if (deepBack && !deepFront) depthText = "깊은 색이 미래 쪽에 놓여 있어, 서두르기보다 먼저 정리와 회복의 시간을 거치려는 마음으로 볼 수 있습니다.";
-
-    let compText = "";
-    if (CR_COMPLEMENT[k1] && CR_COMPLEMENT[k1] === k5) {
-      compText = `5번째 ${c(k5).ko}${hasBatchim(c(k5).ko) ? "은" : "는"} 가장 먼저 끌린 ${j(c(k1).ko, "과", "와")} 마주 보는 보완색입니다. 평소 자주 쓰는 방식과 정반대의 힘을 미뤄두고 있어서, 그 힘을 조금씩 들여올수록 마음의 균형이 잡힐 수 있습니다.`;
-    }
-
-    const shapeLabel = { rising: "안에서 밖으로 열리는 흐름", settling: "밖에서 안으로 모이는 흐름", steady: "한결같이 이어지는 흐름" }[shape];
-    return { shape, shapeLabel, shapeText, famText, depthText, compText };
-  }
-
-  // ---------- 3페이지: 흐름으로 읽는 9개 항목 ----------
-  const FAM_LABEL = { warm: "따뜻한", cool: "차가운", nature: "자연", base: "무채색·대지" };
-  const FAM_COLOR = { warm: "따뜻한 색", cool: "차가운 색", nature: "자연의 색", base: "무채색·대지의 색" };
-  // 같은 계열이 이어질 때 반복되는 마음 / 그 계열이 향하는 곳
-  const FAM_THEME = {
-    warm: { power: "따뜻함을 밖으로 꺼내 쓰는 힘", dir: "사람과 감정, 행동처럼 바깥을 향한", lean: "마음을 밖으로 꺼내 표현하고 나누려는 마음" },
-    cool: { power: "생각을 안으로 모으고 정리하는 힘", dir: "생각과 내면, 정리처럼 안쪽을 향한", lean: "안으로 생각을 모으고 정리하려는 마음" },
-    nature: { power: "균형과 회복을 찾는 마음", dir: "쉼과 균형, 편안함을 향한", lean: "균형을 찾고 편안하게 회복하려는 마음" },
-    base: { power: "정리하고 새로 시작하려는 마음", dir: "정리와 새로운 시작을 향한", lean: "한 단락을 정리하고 새로 시작하려는 마음" },
-  };
-
+  // ---------- 해석 원칙 (프로젝트 문서 「컬러리딩_해석원칙.md」 — 최우선) ----------
+  // 근거는 ① 각 컬러의 기본 의미 ② 선택 순서 ③ 1·2/2·3/3·4 겹침 ④ 1→4 변화 ⑤ 5번째와 앞 네 컬러의 차이뿐.
+  // 따뜻한/차가운 색, 보색, 에너지 높낮이는 심리적 근거로 쓰지 않는다 (데이터의 family/energy/CR_COMPLEMENT 미사용).
+  // 3·4번은 미래 예측이 아니라 "앞으로 바라는 나" — 소망·지향으로만 쓴다.
   // 조사만 돌려준다 (‘따옴표’ 뒤에 붙일 때)
   function pp(word, withB, withoutB) { return hasBatchim(word) ? withB : withoutB; }
   function ppEuro(word) { return hasBatchim(word) && !jongIsRieul(word) ? "으로" : "로"; }
+  // 조합 메시지의 첫 문장만 (결과지에는 핵심 한 문장만 싣는다)
+  function firstSentence(t) {
+    const i = String(t).indexOf(". ");
+    return i === -1 ? String(t) : String(t).slice(0, i + 1);
+  }
 
-  function buildAspects(sel, flow) {
+  // 3페이지 「다섯 컬러의 흐름으로 읽는 나의 마음」 9개 항목
+  function eunC(w) { return j(w, "은", "는"); }
+
+  function buildAspects(sel) {
     const [k1, k2, k3, k4, k5] = sel;
     const C1 = c(k1), C2 = c(k2), C3 = c(k3), C4 = c(k4), C5 = c(k5);
-    const N = pair(k2, k3), F = pair(k3, k4), E = pair(k1, k4);
+    const P = pair(k1, k2), N = pair(k2, k3), F = pair(k3, k4), E = pair(k1, k4);
     const kw = (C, i) => C.keywords[i] || C.keywords[0];
     const eun = (w) => j(w, "은", "는");
     const four = [C1, C2, C3, C4];
@@ -237,107 +193,65 @@
       `과거에는 그 곁에 ${C1.ko}의 ‘${kw(C1, 0)}·${kw(C1, 1)}’${pp(kw(C1, 1), "이", "가")} 있었다면, 지금은 ${C3.ko}의 ‘${kw(C3, 0)}·${kw(C3, 1)}’${pp(kw(C3, 1), "이", "가")} 새롭게 더해졌습니다. ` +
       `${C1.ns}에서 ${C3.ns} 쪽으로 마음의 무게가 옮겨 가고 있을 가능성을 살펴볼 수 있습니다.`;
 
-    // 2. 지금 가장 크게 드러나는 마음 : 2·3번의 공통점
-    let famLine, lean;
-    if (C2.family === C3.family) {
-      famLine = `현재를 나타내는 ${C2.ko}${pp(C3.ko, "과", "와")}`;
-      famLine = `현재를 나타내는 ${j(C2.ko, "과", "와")} ${eun(C3.ko)} 모두 ${FAM_LABEL[C2.family]} 계열로, ${FAM_THEME[C2.family].dir} 마음과 닿아 있습니다.`;
-      lean = FAM_THEME[C2.family].lean;
-    } else {
-      famLine = `현재를 나타내는 ${eun(C2.ko)} ${FAM_LABEL[C2.family]} 계열, ${eun(C3.ko)} ${FAM_LABEL[C3.family]} 계열로, 결이 다른 두 색이 한자리에 있습니다.`;
-      lean = `${C2.ko}의 ‘${kw(C2, 0)}’${pp(kw(C2, 0), "과", "와")} ${C3.ko}의 ‘${kw(C3, 0)}’${pp(kw(C3, 0), "을", "를")} 함께 아우르려는 마음`;
-    }
+    // 2. 지금 가장 크게 드러나는 마음 : 2·3번이 함께 놓인 자리의 메시지
     const a2 =
-      `${famLine} 이 조합이 전하는 메시지는 ‘${N[0]}’입니다. ` +
-      `지금은 ${j(lean, "이", "가")} 크게 드러나 있을 가능성을 살펴볼 수 있습니다.`;
+      `현재를 나타내는 ${j(C2.ko, "과", "와")} ${j(C3.ko, "이", "가")} 함께 놓인 자리의 메시지는 ‘${N[0]}’입니다. ` +
+      `${C2.ko}의 ‘${kw(C2, 0)}’${pp(kw(C2, 0), "과", "와")} ${C3.ko}의 ‘${kw(C3, 0)}’${pp(kw(C3, 0), "이", "가")} 이 메시지 안에서 만나며, ` +
+      `지금은 두 마음이 함께 향하는 곳에 관심이 크게 모여 있을 가능성을 살펴볼 수 있습니다.`;
 
-    // 3. 현재를 이루는 두 가지 마음 : 2번 vs 3번
-    const de = C3.energy - C2.energy;
-    let contrast;
-    if (de >= 1) contrast = `${j(C2.ko, "이", "가")} 조금 더 안쪽에 머무는 마음이라면, ${eun(C3.ko)} 바깥으로 펼쳐지는 마음에 가깝습니다.`;
-    else if (de <= -1) contrast = `${j(C2.ko, "이", "가")} 바깥으로 펼쳐지는 마음이라면, ${eun(C3.ko)} 조금 더 안쪽으로 모이는 마음에 가깝습니다.`;
-    else contrast = `두 색은 에너지의 결이 비슷하지만, 바라보는 곳이 조금 다른 두 마음입니다.`;
+    // 3. 현재를 이루는 두 가지 마음 : 2번(과거와 겹침) / 3번(앞으로 바라는 나와 겹침)
     const a3 =
       `2번 ${eun(C2.ko)} ‘${C2.need}’${pp("마음", "을", "를")}, 3번 ${eun(C3.ko)} ‘${C3.need}’${pp("마음", "을", "를")} 보여줍니다. ` +
-      `${contrast} ` +
-      `지금은 ${j(C2.ns, "과", "와")} ${j(C3.ns, "이", "가")} 함께 나타납니다. 두 마음이 서로를 받쳐 주고 있는지, 아니면 한쪽이 더 앞서 있는지 살펴볼 수 있습니다.`;
+      `${eun(C2.ko)} 과거에서부터 이어져 온 마음이고, ${eun(C3.ko)} 앞으로 바라는 방향으로도 이어지는 마음입니다. ` +
+      `지금은 지켜 온 마음과 새로 펼치고 싶은 마음이 함께 나타나며, 두 마음이 서로를 받쳐 주고 있는지 아니면 한쪽이 더 앞서 있는지 살펴볼 수 있습니다.`;
 
-    // 4. 현재 → 미래 : 3번이 겹치는 자리
+    // 4. 현재 → 앞으로 바라는 나 : 3번이 겹치는 자리
     const kw4 = `${kw(C4, 0)}·${kw(C4, 1)}·${kw(C4, 2)}`;
     const a4 =
-      `현재(${C2.ko}·${C3.ko})와 미래(${C3.ko}·${C4.ko})에는 ${j(C3.ko, "이", "가")} 함께 들어 있습니다. ` +
-      `${C3.ko}의 ‘${C3.ns}’${pp("마음", "은", "는")} 앞으로도 이어지고, ${C2.ko}의 ‘${kw(C2, 0)}’${pp(kw(C2, 0), "이", "가")} 있던 자리에는 ${C4.ko}의 ‘${kw4}’${pp(kw(C4, 2), "이", "가")} 들어옵니다. ` +
-      `현재 선택한 컬러의 흐름에서는 ‘${kw(C2, 0)}’의 마음 곁으로 ‘${kw(C4, 0)}’의 마음이 점점 앞으로 나올 가능성을 살펴볼 수 있습니다.`;
+      `현재(${C2.ko}·${C3.ko})와 앞으로 바라는 나(${C3.ko}·${C4.ko})에는 ${j(C3.ko, "이", "가")} 함께 들어 있습니다. ` +
+      `${j(C3.ns, "은", "는")} 앞으로도 이어가고 싶은 마음으로 나타나고, ${C2.ko}의 ‘${kw(C2, 0)}’${pp(kw(C2, 0), "이", "가")} 있던 자리에는 ${C4.ko}의 ‘${kw4}’${pp(kw(C4, 2), "이", "가")} 들어옵니다. ` +
+      `지금 소중히 여기는 ‘${kw(C2, 0)}’의 마음 곁에서, 앞으로는 ‘${kw(C4, 0)}’${pp(kw(C4, 0), "을", "를")} 더 키워가고 싶은 방향으로 마음이 움직이고 있습니다.`;
 
-    // 5. 앞으로 더 중요해지는 마음 : 3·4번
+    // 5. 앞으로 더 중요하게 여기고 싶은 마음 : 3·4번
     const a5 =
-      `미래를 나타내는 ${j(C3.ko, "과", "와")} ${j(C4.ko, "이", "가")} 전하는 메시지는 ‘${F[0]}’입니다. ` +
-      `앞으로는 ${C3.ko}의 ‘${kw(C3, 0)}’${pp(kw(C3, 0), "이", "가")} ${C4.ko}의 ‘${kw(C4, 0)}’${ppEuro(kw(C4, 0))} 이어지는 방향이 중요해질 수 있습니다. ` +
-      `특히 마지막 자리의 ${eun(C4.ko)} ‘${C4.need}’${pp("마음", "과", "와")} 닿아 있어, 이 마음을 앞으로 더 중요하게 여기게 될 가능성을 살펴볼 수 있습니다.`;
+      `${j(C3.ko, "과", "와")} ${j(C4.ko, "이", "가")} 전하는 메시지는 ‘${F[0]}’입니다. ` +
+      `앞으로 ${C3.ko}의 ‘${kw(C3, 0)}’${pp(kw(C3, 0), "을", "를")} 이어가면서 ${C4.ko}의 ‘${kw(C4, 0)}’${pp(kw(C4, 0), "을", "를")} 삶에서 더 키워가고 싶은 마음이 나타납니다. ` +
+      `특히 마지막 자리의 ${eun(C4.ko)} ‘${C4.need}’${pp("마음", "과", "와")} 닿아 있어, 이 마음을 앞으로 더 중요하게 여기고 싶은 방향으로 볼 수 있습니다.`;
 
     // 6. 처음(1번)과 마지막(4번)
-    let change;
-    if (CR_COMPLEMENT[k1] === k4) change = "두 색은 서로 마주 보는 보색이어서, 처음과는 반대쪽의 마음을 향해 가는 큰 전환으로 볼 수 있습니다.";
-    else if (C1.family === C4.family) change = `두 색은 같은 ${FAM_LABEL[C1.family]} 계열에 있어, 처음 중요했던 마음이 결을 유지한 채 모습을 바꿔 가는 흐름으로 볼 수 있습니다.`;
-    else if (C4.energy - C1.energy >= 2) change = "차분하고 깊은 색에서 밝은 색으로, 안에 모아 둔 마음이 바깥으로 열려 가는 변화로 볼 수 있습니다.";
-    else if (C1.energy - C4.energy >= 2) change = "밝은 색에서 차분하고 깊은 색으로, 바깥으로 쏟던 마음을 안으로 모아 가는 변화로 볼 수 있습니다.";
-    else change = "결이 다른 두 색이 처음과 끝에 놓여, 처음 중요했던 마음 위에 새로운 마음을 더해 가는 변화로 볼 수 있습니다.";
     const a6 =
       `처음 고른 ${eun(C1.ko)} ‘${C1.need}’${pp("마음", "과", "와")}, 마지막 ${eun(C4.ko)} ‘${C4.ns}’${pp("마음", "과", "와")} 닿아 있습니다. ` +
-      `${change} 두 색을 이어 보면 ‘${E[0]}’의 메시지가 읽힙니다.`;
+      `처음에는 ‘${kw(C1, 0)}’의 마음이 중요했다면, 앞으로는 ‘${kw(C4, 0)}’의 마음을 향하고 싶은 흐름으로 볼 수 있습니다. ` +
+      `두 색을 이어 보면 ‘${E[0]}’의 메시지가 읽힙니다.`;
 
-    // 7. 1~4번 전체에서 반복되는 메시지
-    const famCount = {};
-    four.forEach((C) => { famCount[C.family] = (famCount[C.family] || 0) + 1; });
-    const top = Object.keys(famCount).sort((x, y) => famCount[y] - famCount[x])[0];
-    const nameList = four.map((C) => C.ko).join("·");
+    // 7. 1~4번 전체에서 반복되는 메시지 : 키워드·세 시기 메시지·마음의 동사
     const chain = four.map((C) => kw(C, 0)).join(" → ");
-    const energyLine = { rising: "뒤로 갈수록 에너지가 밝아지는 흐름입니다", settling: "뒤로 갈수록 에너지가 차분해지는 흐름입니다", steady: "에너지의 높낮이도 크게 달라지지 않습니다" }[flow.shape];
-    let a7;
-    if (famCount[top] >= 3) {
-      const famPhrase = famCount[top] === 4 ? `네 컬러가 모두 ${FAM_LABEL[top]} 계열이고` : `네 컬러 가운데 세 개가 ${FAM_LABEL[top]} 계열이고`;
-      a7 =
-        `${nameList}, ${famPhrase} ${energyLine}. ` +
-        `네 자리에서 ‘${FAM_THEME[top].power}’${pp("힘", "이", "가")} 반복되고, 키워드로는 ${chain}${pp(kw(C4, 0), "이", "가")} 이어집니다. ` +
-        `지금은 ${FAM_THEME[top].dir} 에너지가 과거에서 미래까지 이어지고 있을 가능성을 살펴볼 수 있습니다.`;
-    } else {
-      const fams = Object.keys(famCount).map((f) => FAM_COLOR[f]).join(", ");
-      a7 =
-        `${nameList}에는 ${fams}${pp("색", "이", "가")} 고루 섞여 있고, ${energyLine}. ` +
-        `키워드로는 ${chain}${pp(kw(C4, 0), "이", "가")} 이어집니다. ` +
-        `지금은 서로 다른 결의 마음을 오가며 그 사이의 균형을 찾아가고 있을 가능성을 살펴볼 수 있습니다.`;
-    }
+    const verbs = four.map((C) => C.verb).join(", ");
+    const a7 =
+      `네 컬러의 첫 키워드를 이어 보면 ${chain}입니다. ` +
+      `세 시기의 메시지도 ‘${P[0]}’ → ‘${N[0]}’ → ‘${F[0]}’${ppEuro(F[0])} 이어집니다. ` +
+      `이 흐름에서는 ${verbs} 싶은 마음이 한 방향으로 이어지고 있는 것으로 볼 수 있습니다.`;
 
-    // 8. 5번째 — 아직 충분히 꺼내지 못한 마음 (문제·부족이 아닌 자원)
-    const fams4 = four.map((C) => C.family);
-    const parts8 = [];
-    if (!fams4.includes(C5.family)) parts8.push(`5번째 ${eun(C5.ko)} 다섯 컬러 가운데 유일한 ${FAM_LABEL[C5.family]} 계열의 색입니다.`);
-    else parts8.push(`5번째 ${eun(C5.ko)} 앞의 네 컬러와 같은 ${FAM_LABEL[C5.family]} 계열이지만, 가장 마지막에 놓인 색입니다.`);
-    parts8.push(`${eun(C5.ko)} ‘${C5.need}’${pp("마음", "과", "와")} 닿아 있습니다.`);
-    if (famCount[top] >= 3 && C5.family !== top) parts8.push(`${FAM_THEME[top].dir} 에너지를 쓰는 동안, ${j(C5.ns, "은", "는")} 뒤로 밀려 있을 수 있습니다.`);
-    const compIdx = [k1, k2, k3, k4].findIndex((k) => CR_COMPLEMENT[k] === k5);
-    if (compIdx !== -1) {
-      const Cc = four[compIdx];
-      parts8.push(`또 ${eun(C5.ko)} ${compIdx + 1}번 ${j(Cc.ko, "과", "와")} 마주 보는 보색입니다. ${Cc.ko}의 ‘${kw(Cc, 0)}’ 곁에서 ${C5.ko}의 ‘${kw(C5, 0)}’${pp(kw(C5, 0), "이", "가")} 함께 필요하다고 느끼고 있을 가능성을 살펴볼 수 있습니다.`);
-    }
-    parts8.push(compIdx !== -1
-      ? `마음 한편에서 꺼내 쓰이기를 기다리고 있는 하나의 자원으로 볼 수 있습니다.`
-      : `지금 마음속에서는 필요성을 느끼면서도 아직 충분히 꺼내 쓰지 못한, 하나의 자원으로 볼 수 있습니다.`);
-    const a8 = parts8.join(" ");
+    // 8. 5번째 — 앞 네 컬러와의 차이, 아직 꺼내 쓰지 못한 자원
+    const lastKw = kw(C4, 0);
+    const kw5 = `${kw(C5, 0)}·${kw(C5, 1)}·${kw(C5, 2)}`;
+    const a8 =
+      `앞의 네 컬러가 ${four.map((C) => kw(C, 0)).join("·")}${ppEuro(lastKw)} 이어졌다면, 5번째 ${eun(C5.ko)} ‘${kw5}’${pp(kw(C5, 2), "과", "와")} 닿아 있습니다. ` +
+      `${eun(C5.ko)} ‘${C5.need}’${pp("마음", "을", "를")} 보여 주며, 이 마음이 필요하다고 느끼면서도 아직 충분히 꺼내 쓰지 못하고 있을 가능성을 살펴볼 수 있습니다. ` +
+      `앞의 흐름 속에서 잠시 뒤로 놓인, 꺼내 쓸 수 있는 하나의 자원으로 볼 수 있습니다.`;
 
-    // 9. 지금 나에게 던져볼 질문 (1개)
-    // 5번째 질문 앞에 지금의 흐름을 붙여 한 문장으로 ("지금, 지금…" 겹침은 피한다)
+    // 9. 지금 나에게 던져볼 질문 (1개) — "지금, 지금…" 겹침은 피한다
     let ask = C5.ask, when = "지금";
     if (/^지금 /.test(ask)) ask = ask.slice(3);
     else if (/^지금/.test(ask)) when = "요즘";
-    const a9 = `‘${F[0]}’${ppEuro(F[0])} 나아가고 있는 ${when}, ${ask}`;
+    const a9 = `‘${F[0]}’${pp(F[0], "을", "를")} 바라고 있는 ${when}, ${ask}`;
 
     return [
       { t: "과거에서 현재로 이어지는 흐름", d: a1, keys: [k1, k2, k3] },
       { t: "지금 가장 크게 드러나는 마음", d: a2, keys: [k2, k3] },
       { t: "현재를 이루는 두 가지 마음", d: a3, keys: [k2, k3] },
-      { t: "현재에서 미래로 이어지는 변화", d: a4, keys: [k2, k3, k4] },
-      { t: "앞으로 더 중요해지는 마음", d: a5, keys: [k3, k4] },
+      { t: "현재에서 바라는 방향으로 이어지는 흐름", d: a4, keys: [k2, k3, k4] },
+      { t: "앞으로 더 중요하게 여기고 싶은 마음", d: a5, keys: [k3, k4] },
       { t: "처음과 마지막 컬러가 보여주는 변화", d: a6, keys: [k1, k4] },
       { t: "전체 컬러에서 반복되는 메시지", d: a7, chips: [k1, k2, k3, k4].map((k) => ({ key: k, word: kw(c(k), 0) })) },
       { t: "아직 충분히 꺼내지 못한 마음", d: a8, keys: [k5] },
@@ -351,55 +265,54 @@
     const C1 = c(k1), C2 = c(k2), C3 = c(k3), C4 = c(k4), C5 = c(k5);
     const who = name ? `${name}님` : "당신";
     const P = pair(k1, k2), N = pair(k2, k3), F = pair(k3, k4);
-    const flow = analyzeFlow(sel);
 
+    // 1·2번 — 지금까지 중요하게 사용해 온 마음
     const past = {
       label: "과거의 나", sub: "과거의 나에게 보내는 메시지", keys: [k1, k2], theme: P[0],
       text:
-        `${C1.ko}에서 ${euro(C2.ko)} 이어지는 지나온 시간에는 ${q(P[0], "이라는", "라는")} 메시지가 담겨 있습니다. ${P[1]} ` +
-        `이 시간 동안 다져 온 ${j(C1.gs, "이", "가")} 지금의 나를 받쳐 주는 바탕이 되었을 수 있습니다.`,
+        `${C1.ko}에서 ${euro(C2.ko)} 이어지는 지나온 시간에는 ${q(P[0], "이라는", "라는")} 메시지가 담겨 있습니다. ${firstSentence(P[1])} ` +
+        `지금까지는 ${C1.ko}의 ‘${C1.ns}’${pp("마음", "과", "와")} ${C2.ko}의 ‘${C2.ns}’${pp("마음", "을", "를")} 중요하게 사용해 온 것으로 읽힙니다.`,
     };
+    // 2·3번 — 지금 가장 크게 작동하는 마음
     const present = {
       label: "현재의 나", sub: "현재의 나에게 보내는 메시지", keys: [k2, k3], theme: N[0],
       text:
-        `지금의 나에게 건네는 메시지는 ‘${N[0]}’입니다. ${N[1]} ` +
-        `요즘은 ${j(C2.ns, "과", "와")} ${j(C3.ns, "이", "가")} 함께 움직이고 있는 시기로 볼 수 있습니다.`,
+        `지금의 나에게 건네는 메시지는 ‘${N[0]}’입니다. ${firstSentence(N[1])} ` +
+        `요즘은 ${C2.ko}의 ‘${C2.ns}’${pp("마음", "과", "와")} ${C3.ko}의 ‘${C3.ns}’${pp("마음", "이", "가")} 크게 움직이고 있는 흐름으로 볼 수 있습니다.`,
     };
+    // 3·4번 — 앞으로 바라는 나 (예측이 아닌 소망·지향)
+    let fs = firstSentence(F[1]);
+    if (/싶은 마음이 (함께 )?나타납니다\.$/.test(fs)) fs = "앞으로 " + fs;
     const future = {
-      label: "미래의 나", sub: "미래의 나에게 보내는 메시지", keys: [k3, k4], theme: F[0],
+      label: "앞으로 바라는 나", sub: "앞으로 바라는 나에게 보내는 메시지", keys: [k3, k4], theme: F[0],
       text:
-        `앞으로의 나에게 건네는 메시지는 ‘${F[0]}’입니다. ${F[1]} ` +
-        `마지막 자리에 ${j(C4.ko, "이", "가")} 놓인 만큼, ${C4.future}`,
+        `앞으로 바라는 나에게 건네는 메시지는 ‘${F[0]}’입니다. ${fs} ` +
+        `마지막 자리에 ${j(C4.ko, "이", "가")} 놓인 만큼, ‘${C4.need}’${pp("마음", "을", "를")} 삶에서 더 키워가고 싶은 방향으로 볼 수 있습니다.`,
     };
+    // 5번째 — 원하지만 아직 충분히 꺼내 쓰지 못한 마음 (부족·문제가 아닌 자원)
     const postponed = {
-      label: "원하지만 미뤄지고 있는 부분", sub: "5번째 컬러", keys: [k5],
+      label: "원하지만 아직 충분히 꺼내 쓰지 못한 마음", sub: "5번째 컬러", keys: [k5],
       theme: `${C5.ko} · ${C5.tag}`,
       text:
-        `${C5.postponed} ` +
-        `가장 마음에 들지 않는 색이라고 해서 부정적인 의미는 아닙니다. 지금은 손이 잘 가지 않지만, 마음 깊은 곳에서는 ${C5.ko}의 ${q(C5.keywords[0], "이", "가")} 필요하다는 신호로 볼 수 있습니다.`,
+        `${eunC(C5.ko)} ‘${C5.held}’${pp("바람", "과", "와")} 닿아 있습니다. ${C5.held2} ` +
+        `가장 마음에 들지 않는 색이라고 해서 부정적인 의미는 아닙니다. 아직 손이 잘 가지 않을 뿐, ${C5.ko}의 ‘${C5.keywords[0]}’${pp(C5.keywords[0], "을", "를")} 꺼내 쓰고 싶은 마음이 내 안에 있다는 신호로 볼 수 있습니다.`,
     };
 
-    // 3페이지 「다섯 컬러의 흐름으로 읽는 나의 마음」 — 9개 항목.
-    // 성격·대인관계·스트레스 같은 성향 추정은 하지 않고, 컬러리딩 구조
-    // (1·2 과거 / 2·3 현재 / 3·4 미래 / 5 아직 꺼내 쓰지 못한 마음) 안에서
-    // 순서·겹치는 컬러·1→4 변화·5번째와의 관계만 읽습니다. 단정 대신 "~가능성을 살펴볼 수 있습니다".
-    const aspects = buildAspects(sel, flow);
-    const extra = [flow.famText, flow.depthText, flow.compText].filter(Boolean).join(" ");
+    const aspects = buildAspects(sel);
+
     const summary =
-      `${who}의 다섯 컬러는 ${C1.ko}에서 시작해 ${C2.ko}, ${j(C3.ko, "을", "를")} 지나 ${euro(C4.ko)} 이어지고, 마지막에 ${j(C5.ko, "이", "가")} 놓였습니다. ` +
-      `지나온 시간에는 ‘${P[0]}’의 흐름 속에서 ${j(C1.gs, "을", "를")} 바탕 삼아 살아왔을 수 있습니다. ` +
-      `지금은 ‘${N[0]}’의 시기로, ${j(C2.ns, "과", "와")} ${j(C3.ns, "이", "가")} 함께 자리하고 있습니다. ` +
-      `앞으로는 ‘${F[0]}’의 방향으로, ${C4.ko}의 ${j(C4.keywords[0], "과", "와")} ${j(C4.keywords[1], "을", "를")} 향해 나아가려는 마음이 보입니다. ` +
-      `한편 마지막에 놓인 ${C5.ko}${hasBatchim(C5.ko) ? "은" : "는"} ${j(C5.ns, "을", "를")} 아직 미뤄두고 있음을 알려줍니다. ` +
-      (extra ? extra + " " : "") +
-      `${C5.ko}의 ${j(C5.prescription, "을", "를")} 일상에 조금씩 들여 보면, 지금의 흐름이 한결 균형 있게 이어질 수 있습니다.`;
+      `${who}의 다섯 컬러는 ${C1.ko}에서 시작해 ${C2.ko}, ${j(C3.ko, "을", "를")} 지나 ${euro(C4.ko)} 이어지고, 5번째에 ${j(C5.ko, "이", "가")} 놓였습니다. ` +
+      `지나온 시간에는 ‘${P[0]}’의 흐름 속에서, ${j(C1.ns, "과", "와")} ${j(C2.ns, "을", "를")} 함께 지켜 왔을 수 있습니다. ` +
+      `지금은 ‘${N[0]}’의 시기로, ${j(C2.ns, "과", "와")} ${j(C3.ns, "이", "가")} 함께 나타납니다. ` +
+      `앞으로는 ‘${F[0]}’${pp(F[0], "을", "를")} 바라며, ${C3.ko}의 ‘${C3.keywords[0]}’${pp(C3.keywords[0], "을", "를")} 이어가면서 ${C4.ko}의 ‘${C4.keywords[0]}’${pp(C4.keywords[0], "을", "를")} 삶에서 더 키워가고 싶은 마음이 보입니다. ` +
+      `한편 5번째 ${eunC(C5.ko)} ${j(C5.ns, "이", "가")} 아직 충분히 꺼내지지 않았을 가능성을 보여줍니다.`;
 
     const healing = {
       key: k5,
-      text: `${C5.ko}${hasBatchim(C5.ko) ? "은" : "는"} 지금의 나에게 ${j(C5.prescription, "을", "를")} 채워주는 색입니다. 옷이나 소품, 음식, 공간 속에서 이 색을 가볍게 가까이해 보세요. 싫어하는 색도 조금씩 생활에 들여올 때 마음의 균형이 넓어집니다.`,
+      text: `${eunC(C5.ko)} ‘${C5.prescription}’${pp(C5.prescription, "과", "와")} 닿아 있는 색입니다. 옷이나 소품, 공간 속에서 이 색을 가볍게 가까이해 보며, 아직 꺼내 쓰지 못한 마음을 떠올려 볼 수 있습니다.`,
     };
 
-    return { sel, who, past, present, future, postponed, aspects, flow, summary, healing };
+    return { sel, who, past, present, future, postponed, aspects, summary, healing };
   }
 
   // ---------- 결과 HTML ----------
@@ -423,7 +336,7 @@
         </div>
       </div>
       <div class="cr-row-legend">
-        <span><i class="cr-arc"></i>1·2 과거</span><span><i class="cr-arc"></i>2·3 현재</span><span><i class="cr-arc"></i>3·4 미래</span><span><i class="cr-arc cr-arc--5"></i>5 미뤄진 마음</span>
+        <span><i class="cr-arc"></i>1·2 과거</span><span><i class="cr-arc"></i>2·3 현재</span><span><i class="cr-arc"></i>3·4 바라는 나</span><span><i class="cr-arc cr-arc--5"></i>5 꺼내지 못한 마음</span>
       </div>`;
   }
 
@@ -463,7 +376,7 @@
     const h = c(R.healing.key);
     return `
       <div class="cr-summary">
-        <div class="cr-summary-kicker">종합 컬러리딩 · ${esc(R.flow.shapeLabel)}</div>
+        <div class="cr-summary-kicker">종합 컬러리딩</div>
         <p>${esc(R.summary)}</p>
       </div>
       <div class="cr-healing">
@@ -485,7 +398,7 @@
       <section class="cr-section ${solo ? "cr-section--solo" : ""}" id="crSection">
         ${solo ? "" : `<div class="cr-part-kicker">PART 1</div>
         <h2 class="cr-part-title">4병 컬러리딩</h2>`}
-        <p class="cr-part-desc">직감으로 고른 다섯 컬러가 과거·현재·미래의 나에게 보내는 메시지입니다.</p>
+        <p class="cr-part-desc">직감으로 고른 다섯 컬러가 과거·현재·앞으로 바라는 나에게 보내는 메시지입니다.</p>
         ${bottleRowHTML(R.sel)}
         ${msgHTML(R.past, 1)}
         ${msgHTML(R.present, 2)}
@@ -509,7 +422,7 @@
     const solo = !!(opts && opts.standalone);
     return [
       `<div class="section-title">${solo ? "" : "PART 1 · "}4병 컬러리딩</div>
-       <div class="section-desc">직감으로 고른 다섯 컬러가 과거·현재·미래의 나에게 보내는 메시지입니다. 1·2번째는 과거, 2·3번째는 현재, 3·4번째는 미래, 5번째는 원하지만 미뤄지고 있는 마음을 보여줍니다.</div>
+       <div class="section-desc">직감으로 고른 다섯 컬러가 과거·현재·앞으로 바라는 나에게 보내는 메시지입니다. 1·2번째는 과거, 2·3번째는 현재, 3·4번째는 앞으로 바라는 나, 5번째는 원하지만 아직 충분히 꺼내 쓰지 못한 마음을 보여줍니다.</div>
        <div class="cr-pdf-row">${bottleRowHTML(R.sel, 54)}</div>
        ${msgHTML(R.past, 1)}
        ${msgHTML(R.present, 2)}`,

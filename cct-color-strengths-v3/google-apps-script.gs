@@ -19,6 +19,9 @@
  * v3는 "컬러리딩 선택" 열이 추가로 채워지고, PDF에도 컬러리딩이 함께 담깁니다.
  * (2026-10 개정) 모든 버전에서 "순위(점수)"·"동점·보완 처리" 열이 함께 채워집니다.
  *   점수 열은 원점수 그대로 — 동점이어도 점수는 바꾸지 않고 순위만 따로 기록합니다.
+ * (2026-10 개정) PDF는 "CCT 검사 결과 PDF" 폴더 안의 버전별 하위 폴더에 저장됩니다.
+ *   기본_version1 (v1) / 센터용_version2 (v2) / 강의용_version3 (v3) — 폴더는 처음 저장할 때 자동 생성.
+ *   예전에 쌓인 PDF는 sortExistingPdfs() 를 한 번 실행하면 같은 규칙으로 옮겨집니다.
  *
  * ※ 코드를 수정한 뒤에는 반드시 [배포 > 배포 관리 > (기존 배포) 수정 >
  *    버전: 새 버전 > 배포]로 "같은 배포"를 업데이트하세요. "새 배포"를
@@ -27,6 +30,14 @@
 
 var SHEET_NAME = "응답";
 var FOLDER_NAME = "CCT 검사 결과 PDF";
+// 버전별 하위 폴더 (위 폴더 안에 자동으로 만들어집니다). "버전" 열 값의 앞부분으로 구분합니다.
+//   v1 → 기본_version1 / v2 → 센터용_version2 / v3·컬러리딩·v3·CCT·v3·통합 → 강의용_version3
+var VERSION_FOLDERS = [
+  { prefix: "v1", name: "기본_version1" },
+  { prefix: "v2", name: "센터용_version2" },
+  { prefix: "v3", name: "강의용_version3" }
+];
+var VERSION_HEADER = "버전";
 var ID_HEADER = "결과ID";
 var CR_HEADER = "컬러리딩 선택";   // 강의용(v3)만 채워집니다. 예) 1.레드 2.코랄 3.블루 4.그린 / 5.퍼플
 var PDF_HEADER = "상세 PDF";
@@ -71,7 +82,7 @@ function handleMeta_(sheet, data, alsoSavePdf) {
   if (existing > 0) return json_({ ok: true, phase: "meta", duplicate: true, row: existing });
 
   var pdfCell = "생성 중…";
-  if (alsoSavePdf && data.pdfBase64) pdfCell = savePdf_(data); // 구버전 앱 호환
+  if (alsoSavePdf && data.pdfBase64) pdfCell = savePdf_(data, data.appVariant); // 구버전 앱 호환
 
   var scoreRow = COLOR_ORDER.map(function (key) {
     return data.scores && data.scores[key] != null ? data.scores[key] : "";
@@ -123,7 +134,11 @@ function handlePdf_(sheet, data) {
     }
   }
 
-  var cell = data.pdfError ? ("PDF 실패: " + data.pdfError) : savePdf_(data);
+  // 이 결과가 어느 버전에서 왔는지는 1차로 기록된 줄의 "버전" 열에서 읽는다.
+  var variant = data.appVariant || "";
+  var verCol = headers.indexOf(VERSION_HEADER) + 1;
+  if (!variant && rowNo > 0 && verCol > 0) variant = String(sheet.getRange(rowNo, verCol).getValue());
+  var cell = data.pdfError ? ("PDF 실패: " + data.pdfError) : savePdf_(data, variant);
 
   if (rowNo > 0 && pdfCol > 0) {
     sheet.getRange(rowNo, pdfCol).setValue(cell);
@@ -139,9 +154,9 @@ function handlePdf_(sheet, data) {
 }
 
 /* ---------- Drive 저장 ---------- */
-function savePdf_(data) {
+function savePdf_(data, variant) {
   try {
-    var folder = getOrCreateFolder_(FOLDER_NAME);
+    var folder = folderForVariant_(variant);
     var base64 = String(data.pdfBase64).split(",")[1] || data.pdfBase64;
     var bytes = Utilities.base64Decode(base64);
     var safeName = (data.name || "무명").replace(/[\\/:*?"<>|]/g, "_");
@@ -201,6 +216,51 @@ function findRowByResultId_(sheet, resultId) {
     if (String(ids[i][0]) === String(resultId)) return i + 2;
   }
   return -1;
+}
+
+// 버전에 맞는 하위 폴더. 버전을 알 수 없으면 상위 폴더("CCT 검사 결과 PDF")에 그대로 저장.
+function folderForVariant_(variant) {
+  var root = getOrCreateFolder_(FOLDER_NAME);
+  var v = String(variant || "").trim();
+  for (var i = 0; i < VERSION_FOLDERS.length; i++) {
+    if (v.indexOf(VERSION_FOLDERS[i].prefix) === 0) return getOrCreateSubfolder_(root, VERSION_FOLDERS[i].name);
+  }
+  return root;
+}
+
+function getOrCreateSubfolder_(parent, name) {
+  var it = parent.getFoldersByName(name);
+  if (it.hasNext()) return it.next();
+  return parent.createFolder(name);
+}
+
+/**
+ * (한 번만 실행) 지금까지 쌓인 PDF를 버전별 폴더로 옮깁니다.
+ * Apps Script 편집기 위쪽에서 함수 "sortExistingPdfs"를 고르고 [실행]을 누르세요.
+ * 시트의 "버전" 열과 "상세 PDF" 링크를 보고 옮기며, 링크는 바뀌지 않습니다.
+ */
+function sortExistingPdfs() {
+  var sheet = getSheet_();
+  var headers = headerRow_(sheet);
+  var verCol = headers.indexOf(VERSION_HEADER);
+  var pdfCol = headers.indexOf(PDF_HEADER);
+  if (verCol < 0 || pdfCol < 0 || sheet.getLastRow() < 2) return;
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  var moved = 0, skipped = 0;
+  rows.forEach(function (r) {
+    var url = String(r[pdfCol]);
+    var m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (!m) { skipped++; return; }
+    try {
+      var target = folderForVariant_(r[verCol]);
+      var file = DriveApp.getFileById(m[1]);
+      var parents = file.getParents();
+      var already = false;
+      while (parents.hasNext()) { if (parents.next().getId() === target.getId()) already = true; }
+      if (!already) { file.moveTo(target); moved++; }
+    } catch (err) { skipped++; }
+  });
+  Logger.log("옮긴 PDF: " + moved + "개 / 건너뜀: " + skipped + "개");
 }
 
 function getOrCreateFolder_(name) {
