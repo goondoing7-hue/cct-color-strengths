@@ -17,6 +17,8 @@
  * v1(자가 다운로드) / v2(센터 방문 안내) / v3(강의용: 컬러리딩+CCT) 앱 어느 쪽이든
  * 동일하게 동작하며, 어느 버전에서 제출됐는지는 "버전" 열에 표시됩니다.
  * v3는 "컬러리딩 선택" 열이 추가로 채워지고, PDF에도 컬러리딩이 함께 담깁니다.
+ * (2026-10 개정) 모든 버전에서 "순위(점수)"·"동점·보완 처리" 열이 함께 채워집니다.
+ *   점수 열은 원점수 그대로 — 동점이어도 점수는 바꾸지 않고 순위만 따로 기록합니다.
  *
  * ※ 코드를 수정한 뒤에는 반드시 [배포 > 배포 관리 > (기존 배포) 수정 >
  *    버전: 새 버전 > 배포]로 "같은 배포"를 업데이트하세요. "새 배포"를
@@ -28,6 +30,8 @@ var FOLDER_NAME = "CCT 검사 결과 PDF";
 var ID_HEADER = "결과ID";
 var CR_HEADER = "컬러리딩 선택";   // 강의용(v3)만 채워집니다. 예) 1.레드 2.코랄 3.블루 4.그린 / 5.퍼플
 var PDF_HEADER = "상세 PDF";
+var RANK_HEADER = "순위(점수)";        // 예) 1.골드 5.0 · 2.빨강 5.0 · 3.주황 4.0 … — 점수는 원점수 그대로, 순위만 별도
+var TIE_HEADER = "동점·보완 처리";     // 동점 순위를 정한 기준, 보완컬러를 고른 근거
 
 var COLOR_ORDER = [
   "RED", "ORANGE", "YELLOW", "LIME", "GREEN", "BLUE",
@@ -91,6 +95,16 @@ function handleMeta_(sheet, data, alsoSavePdf) {
   if (data.colorReading) {
     var crCol = ensureColumn_(sheet, CR_HEADER);
     sheet.getRange(sheet.getLastRow(), crCol).setValue(data.colorReading);
+  }
+  // 순위·동점 처리 (2026-10 CCT 개정). 점수 열(빨강~터콰이즈)은 원점수 그대로 두고,
+  // 순위와 그 근거는 별도 열에 남긴다. 열이 없으면 맨 뒤에 자동으로 추가된다.
+  if (data.rankText) {
+    var rankCol = ensureColumn_(sheet, RANK_HEADER);
+    sheet.getRange(sheet.getLastRow(), rankCol).setValue(data.rankText);
+  }
+  if (data.tieNote) {
+    var tieCol = ensureColumn_(sheet, TIE_HEADER);
+    sheet.getRange(sheet.getLastRow(), tieCol).setValue(data.tieNote);
   }
   return json_({ ok: true, phase: "meta", resultId: data.resultId || "" });
 }

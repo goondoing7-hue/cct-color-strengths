@@ -1480,3 +1480,59 @@ img, svg { display: block; }
 .mode-desc b { color: var(--ink-900); font-weight: 800; }
 .screen--intro .intro-sub, .screen--intro .intro-fineprint, .duo-desc { word-break: keep-all; text-wrap: balance; }
 .mode-desc, .mode-sub { word-break: keep-all; }
+
+/* ---------- 동점 처리: 강제선택 화면 (cct-rank.js) ---------- */
+.screen--tiebreak { background: var(--surface-0); padding: 0 0 48px; }
+.tb-wrap { max-width: 520px; margin: 0 auto; padding: 48px 20px 0; }
+.tb-kicker { font-size: 11.5px; font-weight: 800; letter-spacing: .12em; color: var(--ink-300); }
+.tb-title { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.45; color: var(--ink-900); margin-top: 8px; word-break: keep-all; }
+.tb-sub { font-size: 13.5px; line-height: 1.7; color: var(--ink-500); margin: 10px 0 22px; word-break: keep-all; }
+.tb-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.tb-option {
+  appearance: none; font-family: inherit; text-align: left; cursor: pointer; width: 100%;
+  display: flex; align-items: flex-start; gap: 14px;
+  background: var(--surface-1); border: 1.5px solid var(--line); border-radius: var(--radius-md);
+  padding: 16px 16px; box-shadow: var(--shadow-sm); color: var(--ink-900);
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.tb-option:hover { border-color: var(--ink-300); }
+.tb-option.is-selected { border-color: var(--ink-900); box-shadow: 0 0 0 2px var(--ink-900), var(--shadow-md); }
+.tb-letter {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; background: var(--surface-2); color: var(--ink-700, #4a4953);
+}
+.tb-option.is-selected .tb-letter { background: var(--ink-900); color: #fff; }
+.tb-text { font-size: 15px; line-height: 1.6; font-weight: 600; word-break: keep-all; padding-top: 2px; }
+.tb-confirm { width: 100%; }
+.tb-confirm:disabled { opacity: .35; cursor: default; box-shadow: none; }
+
+/* 동점·보완 선택 근거 안내 */
+.tie-note { margin-top: 12px; }
+.tie-note p { font-size: 12.5px; line-height: 1.65; color: var(--ink-500); word-break: keep-all; }
+.rs-note--sub { margin-top: -4px; font-size: 12.5px; color: var(--ink-500); }
+.comp-rationale-reason { font-size: 12.5px !important; color: var(--ink-500) !important; margin-top: 8px; }
+
+/* 3페이지 「다섯 컬러의 흐름으로 읽는 나의 마음」 — 본문이 길어져 한 페이지에 맞도록 조금 촘촘하게 (v3_10) */
+.pdf-report .cr-aspects--pdf { gap: 8px; }
+.pdf-report .cr-aspect { padding: 12px 15px 13px; }
+.pdf-report .cr-aspect-d { font-size: 12.2px; line-height: 1.68; margin-top: 5px; }
+.pdf-report .cr-aspect-chips { margin-top: 6px; }
+/* 3페이지 항목 제목 옆 컬러 표시 (v3_12) */
+.cr-aspect-dots { display: inline-flex; gap: 4px; margin-left: 2px; flex-shrink: 0; }
+.cr-aspect-dots i { display: block; width: 11px; height: 11px; border-radius: 50%; }
+.pdf-report .cr-aspect-dots i { width: 12px; height: 12px; position: relative; top: 4.5px; }
+
+/* 1·2페이지 메시지 카드 — 왼쪽 세로 줄 없이, 글자를 키워 읽기 쉽게 (v3_14) */
+.cr-msg::before { display: none; }
+.cr-msg-text, .cr-summary p, .cr-healing p, .cr-msg-theme { word-break: keep-all; }
+.pdf-report .cr-msg { padding: 22px 26px 24px; margin-top: 14px; }
+.pdf-report .cr-msg-label { font-size: 14px; color: var(--ink-500); }
+.pdf-report .cr-msg-theme { font-size: 21px; margin: 10px 0 10px; line-height: 1.4; }
+.pdf-report .cr-msg-text { font-size: 15.5px; line-height: 1.9; color: var(--ink-700); }
+.pdf-report .cr-summary { padding: 26px 28px 28px; margin-top: 18px; }
+.pdf-report .cr-summary-kicker { font-size: 13px; margin-bottom: 10px; }
+.pdf-report .cr-summary p { font-size: 15.5px; line-height: 1.95; }
+.pdf-report .cr-healing { padding: 20px 24px; margin-top: 14px; }
+.pdf-report .cr-healing-t { font-size: 15.5px; margin-bottom: 6px; }
+.pdf-report .cr-healing p { font-size: 14.5px; line-height: 1.85; }
