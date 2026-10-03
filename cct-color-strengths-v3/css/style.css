@@ -1725,3 +1725,54 @@ img, svg { display: block; }
 .cr-section [hidden] { display: none !important; }
 .cr-full-back { text-align: center; margin: 20px 0 4px; }
 .cr-back-btn { appearance: none; -webkit-appearance: none; cursor: pointer; font: inherit; padding: 11px 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-1); color: var(--ink-700); font-size: 13.5px; font-weight: 700; }
+
+/* ===== v3_28 카드 화면 한 화면에 · 종합 결과 간결하게 ===== */
+/* 컬러 고르기 칸: 보틀+번호를 칸 정가운데로 */
+.cr-slot { height: 80px; justify-content: center; padding: 0; gap: 3px; }
+.cr-slot-num { margin-top: 0; line-height: 1.1; }
+
+/* 카드 화면에서는 카드만 (다른 결과·PDF·다시 검사하기 숨김) */
+.result-wrap:has(.cr-section.is-deck) > :not(.result-doc-title):not(.cr-section) { display: none !important; }
+.screen--result:has(.cr-section.is-deck) { padding-bottom: 0; }
+.result-wrap:has(.cr-section.is-deck) .result-doc-title { padding-top: 22px; font-size: 18px; }
+.result-wrap:has(.cr-section.is-deck) .result-doc-title::after { display: none; }
+.cr-section.is-deck .cr-part-kicker, .cr-section.is-deck .cr-part-title { display: none; }
+.cr-part-desc--one { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; margin: 4px 0 10px; }
+.cr-section.is-full .cr-part-desc--one { display: none; }
+
+/* 카드: 화면 폭에 맞춰 조금 넓게, 바닥 문구는 이미지 저장에만 */
+.cr-deck { margin: 0 -24px 0; }
+.cr-slide { flex: 0 0 min(320px, calc(100vw - 56px)); }
+.cr-deck-track { padding-left: calc(50% - min(160px, calc(50vw - 28px))); padding-right: calc(50% - min(160px, calc(50vw - 28px))); padding-top: 4px; padding-bottom: 12px; }
+.cr-card--read:not(.cr-card--export) .cr-card-foot { display: none; }
+.cr-card--read { min-height: 0; }
+.cr-card--read .cr-card-top { padding: 12px 16px 10px; }
+.cr-card--read .cr-cb-row { margin-top: 2px; }
+.cr-card--read .cr-cb-num { margin-top: 5px; }
+.cr-card--read .cr-cb-name { font-size: 14px; }
+.cr-card--read .cr-card-body { padding: 13px 18px 14px; }
+.cr-card-title { white-space: nowrap; overflow: hidden; }
+.cr-fit { display: inline-block; white-space: nowrap; }
+.cr-card--read .cr-card-title { font-size: 17px; text-align: center; }
+.cr-card-voice { margin: 10px 0 10px; padding: 10px 12px; font-size: 13.5px; }
+.cr-card-means { gap: 4px; margin-bottom: 9px; }
+.cr-cm p { font-size: 12.5px; line-height: 1.55; }
+.cr-card-flow { font-size: 13px; line-height: 1.7; padding-top: 9px; margin: 0; }
+.cr-card--export.cr-card--read .cr-card-body { padding-bottom: 8px; }
+.cr-deck-nav { padding-top: 0; }
+.cr-deck-tools { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; }
+.cr-deck-tools .cr-deck-count { font-size: 12px; font-weight: 700; color: var(--ink-300); }
+.cr-save-cur { appearance: none; -webkit-appearance: none; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-1); color: var(--ink-700); font-size: 12.5px; font-weight: 700; }
+.cr-save-cur[hidden] { display: none; }
+.cr-save-cur:disabled { opacity: .6; }
+
+/* 종합 결과(화면) — 네 메시지 한눈에 */
+.cr-section.is-full .cr-views { margin-top: 6px; }
+.cr-sums { display: flex; flex-direction: column; gap: 8px; margin: 16px 0 4px; }
+.cr-sum { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 16px; background: var(--surface-1); border: 1px solid var(--line); }
+.cr-sum-bottles { flex: 0 0 46px; display: flex; justify-content: center; gap: 2px; line-height: 0; }
+.cr-sum-body { min-width: 0; flex: 1; }
+.cr-sum-label { font-size: 11.5px; font-weight: 800; color: var(--ink-500); }
+.cr-sum-label span { font-weight: 700; color: var(--ink-300); margin-left: 3px; }
+.cr-sum-title { margin-top: 2px; font-size: 14.5px; font-weight: 800; color: var(--ink-900); letter-spacing: -0.02em; line-height: 1.4; word-break: keep-all; }
+.cr-sum-voice { margin-top: 3px; font-size: 12.5px; color: var(--ink-500); line-height: 1.5; word-break: keep-all; }

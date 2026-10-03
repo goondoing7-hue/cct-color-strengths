@@ -301,7 +301,7 @@
     const voice = pr[1], line = SLOT_LINE[slot];
     const mean = meanLine(a, b, slot), flow = flowLine(a, b, slot, pr[2]);
     const body = `${mean} ${flow}`;
-    return { theme: pr[0], voice, line, mean, flow, body, text: `“${voice}” ${line} ${body}` };
+    return { theme: pr[0], short: pr[5] || pr[0], voice, line, mean, flow, body, text: `“${voice}” ${line} ${body}` };
   }
   // "해내고, 아끼고, 표현하고, 누리" + 끝말
   function stemList(cs, last) {
@@ -366,7 +366,7 @@
     const pBody = `${pMean} ${pFlow}`;
     const postponed = {
       label: "원하지만 아직 충분히 꺼내 쓰지 못한 마음", sub: "5번째 컬러", keys: [k5],
-      theme: C5.t5, voice: C5.v5, line: pLine, mean: pMean, flow: pFlow, body: pBody,
+      theme: C5.t5, short: C5.t5s || C5.t5, voice: C5.v5, line: pLine, mean: pMean, flow: pFlow, body: pBody,
       text: `“${C5.v5}” ${pLine} ${pBody}`,
     };
 
@@ -507,8 +507,8 @@
           <div class="cr-cb-row${keys.length === 1 ? " cr-cb-row--one" : ""}">${bottles}</div>
         </div>
         <div class="cr-card-body">
-          <div class="cr-card-title">${esc(m.theme)}</div>
-          <div class="cr-card-voice">“${esc(m.voice)}”<span>${esc(m.line)}</span></div>
+          <div class="cr-card-title"><span class="cr-fit">${esc(m.short)}</span></div>
+          <div class="cr-card-voice">“${esc(m.voice)}”</div>
           <div class="cr-card-means">${means}</div>
           <p class="cr-card-flow">${esc(m.flow)}</p>
         </div>
@@ -523,7 +523,6 @@
     const slides = CARDS.map((_, i) => `
       <div class="cr-slide" data-i="${i}">
         ${colorCardHTML(R, i)}
-        <button type="button" class="cr-card-save" data-save="${i}">${ICON_DL}이 카드 이미지로 저장</button>
       </div>`).join("");
     const minis = R.sel.map((k, i) => `
       <div class="cr-end-bottle${i === 4 ? " is-fifth" : ""}">${bottleSVG(c(k).hex, { w: 34 })}<span>${i + 1}</span></div>`).join("");
@@ -540,15 +539,15 @@
     const dots = Array.from({ length: N_CARDS + 1 }, (_, i) => `<button type="button" class="cr-dot${i === 0 ? " is-on" : ""}" data-go="${i}" aria-label="${i + 1}번째 카드"></button>`).join("");
     return `
       <div class="cr-deck" id="crDeck">
-        <div class="cr-deck-head">
-          <span class="cr-deck-hint">옆으로 넘겨 한 장씩 살펴보세요</span>
-          <span class="cr-deck-count" id="crDeckCount">1 / ${N_CARDS + 1}</span>
-        </div>
         <div class="cr-deck-track" id="crDeckTrack">${slides}${last}</div>
         <div class="cr-deck-nav">
           <button type="button" class="cr-nav-btn" id="crPrev" aria-label="이전 카드">‹</button>
           <div class="cr-dots">${dots}</div>
           <button type="button" class="cr-nav-btn" id="crNext2" aria-label="다음 카드">›</button>
+        </div>
+        <div class="cr-deck-tools">
+          <span class="cr-deck-count" id="crDeckCount">1 / ${N_CARDS + 1}</span>
+          <button type="button" class="cr-save-cur" id="crSaveCur">${ICON_DL}이 카드 저장</button>
         </div>
       </div>`;
   }
@@ -575,6 +574,7 @@
     document.body.appendChild(box);
     try {
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      fitTitles(box);
       await new Promise((r) => setTimeout(r, 40));
       const canvas = await window.html2canvas(box.firstElementChild, { scale: 3, backgroundColor: "#ffffff", useCORS: true });
       return await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("이미지를 만들지 못했어요"))), "image/png"));
@@ -632,6 +632,17 @@
     }
   }
 
+  // 카드 제목을 항상 한 줄로: 넘치면 글자를 조금씩 줄임
+  function fitTitles(scope) {
+    scope.querySelectorAll(".cr-fit").forEach((el) => {
+      const box = el.parentElement;
+      el.style.fontSize = "";
+      let size = parseFloat(getComputedStyle(el).fontSize) || 17;
+      let n = 0;
+      while (el.scrollWidth > box.clientWidth && size > 12 && n++ < 30) { size -= 0.5; el.style.fontSize = size + "px"; }
+    });
+  }
+
   // 결과 화면에 넣은 뒤 호출 — 카드 넘기기·점·저장, ① 컬러 카드 ↔ ② 종합 결과 화면 전환
   function bindScreen(root) {
     const scope = root || document;
@@ -652,6 +663,8 @@
       if (count) count.textContent = `${i + 1} / ${slides.length}`;
       deck.querySelector("#crPrev").disabled = i === 0;
       deck.querySelector("#crNext2").disabled = i === slides.length - 1;
+      const sc = deck.querySelector("#crSaveCur");
+      if (sc) sc.hidden = i >= N_CARDS;
     };
     const go = (i, instant) => {
       const s = slides[Math.max(0, Math.min(slides.length - 1, i))];
@@ -675,24 +688,61 @@
       const v = b.dataset.save;
       saveCards(R, v === "all" ? CARDS.map((_, n) => n) : [Number(v)], b);
     }));
+    const saveCur = deck.querySelector("#crSaveCur");
+    if (saveCur) saveCur.addEventListener("click", () => { if (cur < N_CARDS) saveCards(R, [cur], saveCur); });
 
-    // 화면 전환
+    // 카드 화면은 스크롤 없이 한 화면에: 카드가 화면보다 크면 카드 전체를 조금 줄임
+    const cards = slides.map((sl) => sl.querySelector(".cr-card"));
+    const fitDeck = () => {
+      if (deckView.hidden) return;
+      fitTitles(deck);
+      cards.forEach((cd) => { cd.style.zoom = ""; });
+      const H = Math.max(...cards.map((cd) => cd.getBoundingClientRect().height));
+      const below = deck.querySelector(".cr-deck-nav").offsetHeight + deck.querySelector(".cr-deck-tools").offsetHeight + 26;
+      const top = track.getBoundingClientRect().top + window.scrollY;
+      const avail = window.innerHeight - top - below;
+      const z = Math.max(0.7, Math.min(1, avail / H));
+      if (z < 0.995) cards.forEach((cd) => { cd.style.zoom = String(z); });
+    };
+
+    // 화면 전환: 카드 화면(is-deck)에서는 카드만, 종합 결과에서는 나머지 결과·버튼까지
     const tabs = Array.from(sec.querySelectorAll(".cr-view-tab"));
-    const show = (view) => {
+    const show = (view, first) => {
       const isFull = view === "full";
       deckView.hidden = isFull;
       full.hidden = !isFull;
       tabs.forEach((t) => { const on = t.dataset.view === view; t.classList.toggle("is-on", on); t.setAttribute("aria-selected", on ? "true" : "false"); });
       sec.classList.toggle("is-full", isFull);
-      const y = sec.getBoundingClientRect().top + window.scrollY - 12;
-      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
-      if (!isFull) requestAnimationFrame(() => go(cur, true));
+      sec.classList.toggle("is-deck", !isFull);
+      window.scrollTo({ top: 0, behavior: first ? "auto" : "smooth" });
+      if (!isFull) requestAnimationFrame(() => { fitDeck(); go(cur, true); });
     };
+    let rz = 0;
+    window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(fitDeck, 120); });
     sec.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => {
       if (b.dataset.view === "deck" && b.dataset.go != null) cur = Number(b.dataset.go);
       show(b.dataset.view);
     }));
     setCur(0);
+    show("deck", true);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitDeck);
+  }
+
+  // 종합 결과(화면용) — 네 메시지를 한눈에: 보틀 + 자리 + 짧은 제목 + 속마음
+  function sumRowsHTML(R) {
+    return `<div class="cr-sums">${CARDS.map((D) => {
+      const m = R[D.msg];
+      const keys = D.idx.map((n) => R.sel[n]);
+      return `
+        <div class="cr-sum">
+          <div class="cr-sum-bottles">${keys.map((k) => bottleSVG(c(k).hex, { w: 20 })).join("")}</div>
+          <div class="cr-sum-body">
+            <div class="cr-sum-label">${esc(D.label)} <span>${esc(D.tag.replace(" 컬러", ""))}</span></div>
+            <div class="cr-sum-title">${esc(m.short)}</div>
+            <div class="cr-sum-voice">“${esc(m.voice)}”</div>
+          </div>
+        </div>`;
+    }).join("")}</div>`;
   }
 
   // opts.standalone: 컬러리딩만 진행한 경우 — PART 표시와 CCT 구분선을 뺍니다.
@@ -701,21 +751,16 @@
     lastR = R;
     const solo = !!(opts && opts.standalone);
     return `
-      <section class="cr-section ${solo ? "cr-section--solo" : ""}" id="crSection">
+      <section class="cr-section is-deck ${solo ? "cr-section--solo" : ""}" id="crSection">
         ${solo ? "" : `<div class="cr-part-kicker">PART 1</div>
         <h2 class="cr-part-title">4병 컬러리딩</h2>`}
-        <p class="cr-part-desc">직감으로 고른 다섯 컬러가 과거·현재·앞으로 바라는 나에게 보내는 메시지예요.</p>
-        ${viewTabsHTML()}
+        <p class="cr-part-desc cr-part-desc--one">다섯 컬러가 지금의 나에게 보내는 메시지예요</p>
         <div class="cr-deck-view" id="crDeckView">${deckHTML(R)}</div>
         <div class="cr-full" id="crFull" hidden>
+        ${viewTabsHTML()}
         <div class="cr-full-kicker">종합 컬러리딩 결과</div>
         ${bottleRowHTML(R.sel)}
-        ${msgHTML(R.past, 1)}
-        ${msgHTML(R.present, 2)}
-        ${msgHTML(R.future, 3)}
-        ${msgHTML(R.postponed, 5)}
-        <h3 class="cr-sub-title">다섯 컬러의 흐름으로 읽는 나의 마음</h3>
-        <div class="cr-aspects">${aspectsHTML(R)}</div>
+        ${sumRowsHTML(R)}
         ${summaryHTML(R)}
         <p class="cr-note">${esc(NOTE)}</p>
         <div class="cr-full-back">
