@@ -841,7 +841,7 @@
     const reading = window.CR.buildReading(window.CR.getSelection(), userName);
     autoLogReading();
     resultWrap.innerHTML = `
-      <div class="result-doc-title">4병 컬러리딩 결과</div>
+      <div class="result-doc-title">컬러리딩 결과</div>
       ${window.CR.buildScreenHTML(reading, { standalone: true })}
       <p class="result-note">
         컬러리딩은 진단이 아닌, 지금의 마음을 함께 읽어보는 대화의 도구입니다.<br/>

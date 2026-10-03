@@ -556,7 +556,7 @@
   function viewTabsHTML() {
     return `
       <div class="cr-views" role="tablist" aria-label="컬러리딩 결과 보기">
-        <button type="button" class="cr-view-tab is-on" data-view="deck" role="tab" aria-selected="true"><b>1</b>컬러 카드</button>
+        <button type="button" class="cr-view-tab is-on" data-view="deck" data-go="0" role="tab" aria-selected="true"><b>1</b>컬러 카드</button>
         <span class="cr-view-arrow" aria-hidden="true">›</span>
         <button type="button" class="cr-view-tab" data-view="full" role="tab" aria-selected="false"><b>2</b>종합 결과</button>
       </div>`;
@@ -666,9 +666,14 @@
       const sc = deck.querySelector("#crSaveCur");
       if (sc) sc.hidden = i >= N_CARDS;
     };
+    // 카드 가운데 위치를 track 기준으로 계산 (offsetLeft는 화면 폭에 따라 기준이 달라져 순서가 어긋남)
+    const centerOf = (s) => {
+      const tr = track.getBoundingClientRect(), r = s.getBoundingClientRect();
+      return r.left - tr.left + track.scrollLeft + r.width / 2;
+    };
     const go = (i, instant) => {
       const s = slides[Math.max(0, Math.min(slides.length - 1, i))];
-      track.scrollTo({ left: s.offsetLeft - (track.clientWidth - s.clientWidth) / 2, behavior: instant ? "auto" : "smooth" });
+      track.scrollTo({ left: centerOf(s) - track.clientWidth / 2, behavior: instant ? "auto" : "smooth" });
     };
     let raf = 0;
     track.addEventListener("scroll", () => {
@@ -676,7 +681,7 @@
       raf = requestAnimationFrame(() => {
         const mid = track.scrollLeft + track.clientWidth / 2;
         let best = 0, bd = 1e9;
-        slides.forEach((s, n) => { const d = Math.abs(s.offsetLeft + s.clientWidth / 2 - mid); if (d < bd) { bd = d; best = n; } });
+        slides.forEach((s, n) => { const d = Math.abs(centerOf(s) - mid); if (d < bd) { bd = d; best = n; } });
         if (best !== cur) setCur(best);
       });
     }, { passive: true });
@@ -715,7 +720,7 @@
       sec.classList.toggle("is-full", isFull);
       sec.classList.toggle("is-deck", !isFull);
       window.scrollTo({ top: 0, behavior: first ? "auto" : "smooth" });
-      if (!isFull) requestAnimationFrame(() => { fitDeck(); go(cur, true); });
+      if (!isFull) requestAnimationFrame(() => { fitDeck(); go(cur, true); setCur(cur); });
     };
     let rz = 0;
     window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(fitDeck, 120); });

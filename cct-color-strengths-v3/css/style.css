@@ -1776,3 +1776,4 @@ img, svg { display: block; }
 .cr-sum-label span { font-weight: 700; color: var(--ink-300); margin-left: 3px; }
 .cr-sum-title { margin-top: 2px; font-size: 14.5px; font-weight: 800; color: var(--ink-900); letter-spacing: -0.02em; line-height: 1.4; word-break: keep-all; }
 .cr-sum-voice { margin-top: 3px; font-size: 12.5px; color: var(--ink-500); line-height: 1.5; word-break: keep-all; }
+.cr-deck-track { position: relative; }
