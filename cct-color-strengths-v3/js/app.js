@@ -278,11 +278,30 @@
     showScreen(screenColorPick);
   }
 
+  // 카드를 눌러 고르고(다시 고를 수 있음) → [선택 완료]로 시작합니다.
+  let pendingMode = null;
+  const MODE_NAMES = { cr: "4병 컬러리딩", cct: "CCT 컬러성격강점검사", both: "컬러리딩 + CCT" };
+  function setPendingMode(m) {
+    pendingMode = m;
+    if (!screenMode) return;
+    screenMode.querySelectorAll("[data-mode]").forEach((btn) => {
+      const on = btn.dataset.mode === m;
+      btn.classList.toggle("is-selected", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    const confirm = document.getElementById("btnModeConfirm");
+    if (confirm) confirm.disabled = !m;
+    const hint = document.getElementById("modeHint");
+    if (hint) hint.textContent = m ? `선택한 검사 · ${MODE_NAMES[m]}` : "검사를 선택해주세요";
+  }
+
   function bindModeScreen() {
     if (!screenMode) return;
     screenMode.querySelectorAll("[data-mode]").forEach((btn) => {
-      btn.addEventListener("click", () => chooseMode(btn.dataset.mode));
+      btn.addEventListener("click", () => setPendingMode(btn.dataset.mode));
     });
+    const confirm = document.getElementById("btnModeConfirm");
+    if (confirm) confirm.addEventListener("click", () => { if (pendingMode) chooseMode(pendingMode); });
     const back = document.getElementById("btnModeBack");
     if (back) back.addEventListener("click", () => showScreen(screenIntro));
   }
@@ -2315,7 +2334,7 @@
   }
 
   function resetApp() {
-    if (LECTURE_EDITION) { window.CR.reset(); mode = "both"; }
+    if (LECTURE_EDITION) { window.CR.reset(); mode = "both"; setPendingMode(null); }
     answers = [];
     currentIndex = 0;
     // Drop ?r= so a reload after retaking doesn't resurrect the handed-over
