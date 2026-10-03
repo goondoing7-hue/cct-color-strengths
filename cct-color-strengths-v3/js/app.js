@@ -37,7 +37,15 @@
   // 컬러테라피」 4병 컬러리딩을 진행하고, 두 결과를 한 화면·한 PDF로 보여줍니다.
   // 컬러리딩 데이터·엔진·화면은 js/colorreading*.js (window.CR) 에 있습니다.
   const LECTURE_EDITION = !!(window.CR && window.CR.enabled);
-  const EDITION_LABEL = LECTURE_EDITION ? "v3" : APP_VARIANT;
+  // 강의용은 입장 후 검사 방식을 고릅니다.
+  //   "cr"   : 4병 컬러리딩만
+  //   "cct"  : CCT 컬러성격강점검사만 (v1과 동일)
+  //   "both" : 컬러리딩 → CCT, 결과를 한 화면·한 PDF로
+  let mode = "both";
+  const MODE_LABEL = { cr: "v3·컬러리딩", cct: "v3·CCT", both: "v3·통합" };
+  function editionLabel() { return LECTURE_EDITION ? MODE_LABEL[mode] : APP_VARIANT; }
+  // 이번 결과에 컬러리딩이 포함되는지 (선택이 끝난 경우에만)
+  function hasReading() { return LECTURE_EDITION && mode !== "cct" && !!window.CR.getSelection(); }
 
   const CENTER_LOCATIONS = [
     { name: "럽리브 남양주점", url: "https://naver.me/GubsO7BA" },
@@ -49,6 +57,7 @@
   const screenQuiz = document.getElementById("screen-quiz");
   const screenResult = document.getElementById("screen-result");
   const screenColorPick = document.getElementById("screen-colorpick");
+  const screenMode = document.getElementById("screen-mode");
 
   const btnStart = document.getElementById("btnStart");
   const btnBack = document.getElementById("btnBack");
@@ -96,7 +105,7 @@
   }
 
   function showScreen(el) {
-    [screenIntro, screenColorPick, screenQuiz, screenResult].forEach((s) => s && s.classList.remove("is-active"));
+    [screenIntro, screenMode, screenColorPick, screenQuiz, screenResult].forEach((s) => s && s.classList.remove("is-active"));
     el.classList.add("is-active");
     window.scrollTo(0, 0);
   }
@@ -247,13 +256,44 @@
   // 강의용: 이름·코드 확인 → 컬러 5개 선택 → CCT 65문항 → 통합 결과
   function beginFlow() {
     if (!verified) return;
-    if (LECTURE_EDITION && screenColorPick) {
-      window.CR.openPick(() => startQuiz());
-      showScreen(screenColorPick);
-      window.scrollTo(0, 0);
+    if (LECTURE_EDITION && screenMode) {
+      showScreen(screenMode);
       return;
     }
     startQuiz();
+  }
+
+  // 검사 방식 선택 화면에서 고른 방식으로 시작합니다.
+  function chooseMode(m) {
+    mode = m;
+    window.CR.reset();
+    if (m === "cct") {
+      startQuiz();
+      return;
+    }
+    window.CR.openPick(
+      () => (mode === "cr" ? finishReadingOnly() : startQuiz()),
+      { finishLabel: mode === "cr" ? "컬러리딩 결과 보기" : "CCT 검사 시작하기" }
+    );
+    showScreen(screenColorPick);
+  }
+
+  function bindModeScreen() {
+    if (!screenMode) return;
+    screenMode.querySelectorAll("[data-mode]").forEach((btn) => {
+      btn.addEventListener("click", () => chooseMode(btn.dataset.mode));
+    });
+    const back = document.getElementById("btnModeBack");
+    if (back) back.addEventListener("click", () => showScreen(screenIntro));
+  }
+
+  // 컬러리딩만 진행한 경우: CCT 없이 바로 결과로 갑니다.
+  function finishReadingOnly() {
+    userName = (userNameInput.value || "").trim().slice(0, 12);
+    resultLogged = false;
+    pdfDocPromise = null;
+    renderReadingResult();
+    showScreen(screenResult);
   }
 
   function startQuiz() {
@@ -459,8 +499,8 @@
       phase: "meta",
       name: userName || "",
       completedAt: new Date().toISOString(),
-      appVariant: EDITION_LABEL,
-      colorReading: LECTURE_EDITION ? window.CR.logText(window.CR.getSelection()) : "",
+      appVariant: editionLabel(),
+      colorReading: hasReading() ? window.CR.logText(window.CR.getSelection()) : "",
       top1: `${ranked[0].ko}(${ranked[0].en})`,
       top2: `${ranked[1].ko}(${ranked[1].en})`,
       top3: `${ranked[2].ko}(${ranked[2].en})`,
@@ -548,7 +588,7 @@
       APP_VARIANT === "v2"
         ? `본 결과는 자기보고 기반 성격강점 프로파일이며<br/>정신건강·성격장애를 진단하는 임상 도구가 아닙니다.`
         : `본 결과는 자기보고 기반 성격강점 프로파일이며<br/>정신건강·성격장애를 진단하는 임상 도구가 아닙니다.<br/>
-        ${LECTURE_EDITION ? "컬러리딩과 " : ""}13개 컬러 전체 프로파일·상세 해석은<br/>아래 PDF 리포트에서 확인하실 수 있습니다.`;
+        ${hasReading() ? "컬러리딩과 " : ""}13개 컬러 전체 프로파일·상세 해석은<br/>아래 PDF 리포트에서 확인하실 수 있습니다.`;
 
     const ctaLabel = APP_VARIANT === "v2" ? "센터 방문 안내 보기" : "상세 결과 PDF 다운로드";
 
@@ -606,7 +646,7 @@
 
     resultWrap.innerHTML = html;
 
-    if (LECTURE_EDITION) {
+    if (hasReading()) {
       const reading = window.CR.buildReading(window.CR.getSelection(), userName);
       const titleEl = resultWrap.querySelector(".result-doc-title");
       if (reading && titleEl) titleEl.insertAdjacentHTML("afterend", window.CR.buildScreenHTML(reading));
@@ -623,6 +663,61 @@
     if (!renderResult._resizeBound) {
       renderResult._resizeBound = true;
       window.addEventListener("resize", () => fitRadarToWidth(resultWrap));
+    }
+  }
+
+  // ---------- 컬러리딩 단독 결과 ----------
+  function renderReadingResult() {
+    const reading = window.CR.buildReading(window.CR.getSelection(), userName);
+    autoLogReading();
+    resultWrap.innerHTML = `
+      <div class="result-doc-title">4병 컬러리딩 결과</div>
+      ${window.CR.buildScreenHTML(reading, { standalone: true })}
+      <p class="result-note">
+        컬러리딩은 진단이 아닌, 지금의 마음을 함께 읽어보는 대화의 도구입니다.<br/>
+        전체 리딩은 아래 PDF 리포트로 받아보실 수 있습니다.
+      </p>
+      ${buildResultActionsHTML()}
+      <div class="rs-cta-bar" id="rsCtaBar">
+        <button type="button" class="btn btn-primary" id="btnCta">컬러리딩 PDF 다운로드</button>
+      </div>
+    `;
+    const pdfBtn = document.getElementById("btnPdf");
+    if (pdfBtn) {
+      pdfBtn.lastChild.textContent = " 컬러리딩 PDF 다운로드";
+      pdfBtn.addEventListener("click", (e) => downloadPdf(null, null, e.currentTarget));
+    }
+    document.getElementById("btnRetry").addEventListener("click", resetApp);
+    bindResultCta(null, null);
+  }
+
+  async function autoLogReading() {
+    if (!GS_WEBHOOK_URL) return;
+    if (resultLogged) return;
+    resultLogged = true;
+    const resultId = newResultId();
+    const meta = {
+      resultId,
+      phase: "meta",
+      name: userName || "",
+      completedAt: new Date().toISOString(),
+      appVariant: editionLabel(),
+      colorReading: window.CR.logText(window.CR.getSelection()),
+      top1: "", top2: "", top3: "", complement: "",
+      scores: {},
+    };
+    postToWebhook(meta, { beacon: true });
+    try {
+      const { pdfBase64 } = await getPdfDoc(null, null);
+      const bytes = Math.round((pdfBase64.length * 3) / 4);
+      if (bytes > PDF_LOG_MAX_BYTES) {
+        postToWebhook({ resultId, phase: "pdf", name: meta.name, pdfError: `PDF 용량 초과 (${(bytes / 1048576).toFixed(1)}MB)` });
+        return;
+      }
+      postToWebhook({ resultId, phase: "pdf", name: meta.name, pdfBytes: bytes, pdfBase64 });
+    } catch (err) {
+      console.warn("컬러리딩 PDF 전송 실패:", err);
+      postToWebhook({ resultId, phase: "pdf", name: meta.name, pdfError: String((err && err.message) || err).slice(0, 200) });
     }
   }
 
@@ -1550,7 +1645,30 @@
   // page gap so pages don't end with large blank space. "flexible: false" (rigid)
   // blocks — the cover, the overview, each of the 13 color profile cards, the combo
   // read, and the disclaimer — always stay in their original relative order.
+  // 컬러리딩 단독 PDF: 표지 + 컬러리딩 페이지
+  function buildReadingOnlyBlocks(name) {
+    const dateStr = new Date().toLocaleString("ko-KR", {
+      year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    const reading = window.CR.buildReading(window.CR.getSelection(), name);
+    const blocks = [{
+      html: `
+        <div class="rp-cover">
+          <div class="rp-kicker">LOVELIVE COLOR INSIGHT · 4-BOTTLE COLOR READING</div>
+          <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}4병 컬러리딩 결과 리포트</div>
+          <div class="rp-swatchbar">${window.CR.colors.map((c) => `<span style="background:${c.hex}${c.key === "W" ? ";box-shadow:inset 0 0 0 1px #ccc" : ""}"></span>`).join("")}</div>
+          <div class="rp-date">검사 일시 · ${dateStr}</div>
+        </div>`,
+      flexible: false, pageBreakBefore: false,
+    }];
+    window.CR.buildPdfBlocks(reading, { standalone: true }).forEach((html, i) => {
+      blocks.push({ html, flexible: false, pageBreakBefore: i > 0 });
+    });
+    return blocks;
+  }
+
   function buildReportBlocks(scores, ranked, name) {
+    if (LECTURE_EDITION && mode === "cr") return buildReadingOnlyBlocks(name);
     const blocks = [];
     const rigid = (html) => blocks.push({ html, flexible: false, pageBreakBefore: false });
     // Like rigid(), but forces a fresh page before this block even if the
@@ -1571,8 +1689,8 @@
 
     rigid(`
       <div class="rp-cover">
-        <div class="rp-kicker">CCT COLOR CHARACTER STRENGTHS TEST</div>
-        <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}${LECTURE_EDITION ? "컬러리딩 · " : ""}컬러 성격강점 결과 리포트</div>
+        <div class="rp-kicker">${hasReading() ? "LOVELIVE COLOR INSIGHT · 나를 읽는 두 가지 컬러" : "CCT COLOR CHARACTER STRENGTHS TEST"}</div>
+        <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}${hasReading() ? "컬러리딩 · " : ""}컬러 성격강점 결과 리포트</div>
         <div class="rp-swatchbar">${CCT_COLORS.map((c) => `<span style="background:${c.hex}"></span>`).join("")}</div>
         <div class="rp-date">검사 일시 · ${dateStr}</div>
       </div>
@@ -1581,7 +1699,7 @@
     // 강의용: 표지 바로 아래에서 컬러리딩(PART 1)이 시작되고, CCT(PART 2)는
     // 새 페이지에서 시작합니다.
     let crBlocks = [];
-    if (LECTURE_EDITION) {
+    if (hasReading()) {
       const reading = window.CR.buildReading(window.CR.getSelection(), name);
       crBlocks = window.CR.buildPdfBlocks(reading);
       crBlocks.forEach((html, i) => (i === 0 ? rigid(html) : rigidBreak(html)));
@@ -1929,7 +2047,7 @@
         );
       }
 
-      const fileName = `CCT_결과리포트${userName ? "_" + userName : ""}.pdf`;
+      const fileName = `${LECTURE_EDITION && mode === "cr" ? "컬러리딩_결과리포트" : "CCT_결과리포트"}${userName ? "_" + userName : ""}.pdf`;
       const pdfBase64 = doc.output("datauristring"); // "data:application/pdf;base64,...."
       return { doc, fileName, pdfBase64 };
     } finally {
@@ -1958,11 +2076,10 @@
 
   function encodeResultParam(scores, name) {
     try {
-      const payload = {
-        n: name || "",
-        s: CCT_COLORS.map((c) => Math.round((scores[c.key] || 0) * 10)),
-      };
-      if (LECTURE_EDITION) {
+      const payload = { n: name || "" };
+      if (LECTURE_EDITION) payload.m = mode;
+      if (scores) payload.s = CCT_COLORS.map((c) => Math.round((scores[c.key] || 0) * 10));
+      if (LECTURE_EDITION && mode !== "cct") {
         const sel = window.CR.getSelection();
         if (sel) payload.c = sel.join(",");
       }
@@ -1981,7 +2098,12 @@
       const bin = atob(b64 + "===".slice((b64.length + 3) % 4));
       const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
       const payload = JSON.parse(new TextDecoder().decode(bytes));
-      if (!payload || !Array.isArray(payload.s) || payload.s.length !== CCT_COLORS.length) return null;
+      if (!payload) return null;
+      const picks = typeof payload.c === "string" ? payload.c.split(",") : null;
+      const name = typeof payload.n === "string" ? payload.n.slice(0, 12) : "";
+      // 컬러리딩 단독 결과는 CCT 점수 없이 선택한 색만 담겨 옵니다.
+      if (payload.m === "cr") return picks ? { mode: "cr", scores: null, picks, name } : null;
+      if (!Array.isArray(payload.s) || payload.s.length !== CCT_COLORS.length) return null;
 
       const scores = {};
       for (let i = 0; i < CCT_COLORS.length; i++) {
@@ -1989,8 +2111,7 @@
         if (!isFinite(v) || v < 1 || v > 5) return null;
         scores[CCT_COLORS[i].key] = v;
       }
-      const picks = typeof payload.c === "string" ? payload.c.split(",") : null;
-      return { scores, picks, name: typeof payload.n === "string" ? payload.n.slice(0, 12) : "" };
+      return { mode: payload.m === "cct" ? "cct" : picks ? "both" : "cct", scores, picks, name };
     } catch (e) {
       return null;
     }
@@ -2013,11 +2134,16 @@
     if (!restored) return false;
 
     userName = restored.name;
-    if (LECTURE_EDITION && restored.picks) window.CR.setSelection(restored.picks);
+    if (LECTURE_EDITION) {
+      mode = restored.mode;
+      window.CR.reset();
+      if (restored.picks && !window.CR.setSelection(restored.picks) && mode === "cr") return false;
+    }
     // resultLogged guard: this result was already logged to the sheet when it
     // was originally completed — restoring it must not create a duplicate row.
     resultLogged = true;
-    renderResult(restored.scores);
+    if (LECTURE_EDITION && mode === "cr") renderReadingResult();
+    else renderResult(restored.scores);
     showScreen(screenResult);
     return true;
   }
@@ -2189,7 +2315,7 @@
   }
 
   function resetApp() {
-    if (LECTURE_EDITION) window.CR.reset();
+    if (LECTURE_EDITION) { window.CR.reset(); mode = "both"; }
     answers = [];
     currentIndex = 0;
     // Drop ?r= so a reload after retaking doesn't resurrect the handed-over
@@ -2246,5 +2372,6 @@
 
   buildColorRing();
   bindAccessCode();
+  bindModeScreen();
   restoreResultFromUrl();
 })();

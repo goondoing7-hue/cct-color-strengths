@@ -59,6 +59,7 @@
   let fifth = null;    // 가장 마음에 들지 않는 색
   let step = 1;        // 1: 4색 선택, 2: 5번째 선택
   let onDoneCb = null;
+  let finishLabel = "CCT 검사 시작하기";
 
   function getSelection() {
     return picks.length === 4 && fifth ? picks.concat([fifth]) : null;
@@ -119,7 +120,7 @@
       <div class="cr-pick-actions">
         <button type="button" class="btn btn-secondary" id="crBack">${isStep1 ? "다시 고르기" : "이전으로"}</button>
         <button type="button" class="btn btn-primary" id="crNext" ${ready ? "" : "disabled"}>
-          ${isStep1 ? "다음" : "CCT 검사 시작하기"}
+          ${isStep1 ? "다음" : esc(finishLabel)}
         </button>
       </div>`;
 
@@ -154,8 +155,9 @@
     });
   }
 
-  function openPick(onDone) {
+  function openPick(onDone, opts) {
     onDoneCb = onDone;
+    finishLabel = (opts && opts.finishLabel) || "CCT 검사 시작하기";
     reset();
     renderPick();
   }
@@ -366,12 +368,14 @@
 
   const NOTE = "컬러리딩은 지금 이 순간 직감으로 고른 색을 통해 마음의 흐름을 읽어보는 대화의 도구입니다. 심리검사나 진단이 아니며, 고른 색에 좋고 나쁨은 없습니다. 그때의 마음에 따라 선택하는 색은 달라질 수 있습니다.";
 
-  function buildScreenHTML(R) {
+  // opts.standalone: 컬러리딩만 진행한 경우 — PART 표시와 CCT 구분선을 뺍니다.
+  function buildScreenHTML(R, opts) {
     if (!R) return "";
+    const solo = !!(opts && opts.standalone);
     return `
-      <section class="cr-section" id="crSection">
-        <div class="cr-part-kicker">PART 1</div>
-        <h2 class="cr-part-title">4병 컬러리딩</h2>
+      <section class="cr-section ${solo ? "cr-section--solo" : ""}" id="crSection">
+        ${solo ? "" : `<div class="cr-part-kicker">PART 1</div>
+        <h2 class="cr-part-title">4병 컬러리딩</h2>`}
         <p class="cr-part-desc">직감으로 고른 다섯 컬러가 과거·현재·미래의 나에게 보내는 메시지입니다.</p>
         ${bottleRowHTML(R.sel)}
         ${msgHTML(R.past, 1)}
@@ -383,18 +387,19 @@
         ${summaryHTML(R)}
         <p class="cr-note">${esc(NOTE)}</p>
       </section>
-      <div class="cr-part-divider">
+      ${solo ? "" : `<div class="cr-part-divider">
         <div class="cr-part-kicker">PART 2</div>
         <div class="cr-part-title cr-part-title--sm">CCT 컬러성격강점 결과</div>
         <p class="cr-part-desc">65문항 자기보고로 살펴본, 내가 일상에서 자주 쓰는 성격강점입니다.</p>
-      </div>`;
+      </div>`}`;
   }
 
   // PDF용 블록 — 각 블록이 한 페이지(가용 높이 261mm) 안에 들어가도록 나눕니다.
-  function buildPdfBlocks(R) {
+  function buildPdfBlocks(R, opts) {
     if (!R) return [];
+    const solo = !!(opts && opts.standalone);
     return [
-      `<div class="section-title">PART 1 · 4병 컬러리딩</div>
+      `<div class="section-title">${solo ? "" : "PART 1 · "}4병 컬러리딩</div>
        <div class="section-desc">직감으로 고른 다섯 컬러가 과거·현재·미래의 나에게 보내는 메시지입니다. 1·2번째는 과거, 2·3번째는 현재, 3·4번째는 미래, 5번째는 원하지만 미뤄지고 있는 마음을 보여줍니다.</div>
        <div class="cr-pdf-row">${bottleRowHTML(R.sel, 54)}</div>
        ${msgHTML(R.past, 1)}
