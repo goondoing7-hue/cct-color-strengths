@@ -1536,3 +1536,161 @@ img, svg { display: block; }
 .pdf-report .cr-healing { padding: 20px 24px; margin-top: 14px; }
 .pdf-report .cr-healing-t { font-size: 15.5px; margin-bottom: 6px; }
 .pdf-report .cr-healing p { font-size: 14.5px; line-height: 1.85; }
+
+/* ---------- 컬러리딩 0단계: 10초 호흡 (v3_20) ---------- */
+.cr-calm { text-align: center; padding: 8px 0 24px; }
+.cr-calm-title { font-size: 21px; font-weight: 800; line-height: 1.45; letter-spacing: -0.02em; color: var(--ink-900); margin: 6px 0 14px; word-break: keep-all; }
+.cr-calm-steps { text-align: left; max-width: 360px; margin: 0 auto 26px; padding: 14px 18px 14px 36px; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); font-size: 14.5px; line-height: 1.9; color: var(--ink-700); }
+.cr-calm-steps b { color: var(--ink-900); }
+.cr-calm-circle {
+  width: 190px; height: 190px; margin: 0 auto 26px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: radial-gradient(circle at 50% 40%, #f3effa 0%, #e3dcf2 70%, #d6cdeb 100%);
+  box-shadow: 0 0 0 10px rgba(127, 107, 181, .08), 0 0 0 22px rgba(127, 107, 181, .05);
+  transform: scale(.88); transition: transform .4s ease;
+}
+.cr-calm-circle.is-running { animation: cr-breathe 10s ease-in-out forwards; }
+.cr-calm-circle.is-done { transform: scale(.95); background: radial-gradient(circle at 50% 40%, #f4f1fb 0%, #e8e2f5 100%); }
+@keyframes cr-breathe {
+  0% { transform: scale(.82); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(.86); }
+}
+.cr-calm-num { font-size: 54px; font-weight: 800; color: #3f3480; line-height: 1; font-variant-numeric: tabular-nums; }
+.cr-calm-label { font-size: 13.5px; font-weight: 700; color: #5d5296; padding: 0 18px; word-break: keep-all; }
+.cr-calm-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.cr-calm-start { min-width: 220px; }
+.cr-calm-skip { appearance: none; background: none; border: 0; font: inherit; font-size: 13px; color: var(--ink-500); text-decoration: underline; cursor: pointer; padding: 4px; }
+.cr-calm-running { font-size: 15px; font-weight: 700; color: var(--ink-700); padding: 12px 0; }
+.cr-calm-after { font-size: 15.5px; line-height: 1.7; color: var(--ink-900); font-weight: 700; word-break: keep-all; }
+@media (prefers-reduced-motion: reduce) { .cr-calm-circle.is-running { animation: none; transform: scale(1); } }
+
+/* ---------- 컬러 카드 덱 (v3_21) ---------- */
+.cr-deck { margin: 18px -20px 8px; }
+.cr-deck-head { display: flex; justify-content: space-between; align-items: center; padding: 0 22px 10px; }
+.cr-deck-hint { font-size: 12.5px; color: var(--ink-500); }
+.cr-deck-count { font-size: 12.5px; font-weight: 800; color: var(--ink-700); font-variant-numeric: tabular-nums; }
+.cr-deck-track {
+  display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  padding: 4px calc(50% - 150px) 14px; scrollbar-width: none; overscroll-behavior-x: contain;
+}
+.cr-deck-track::-webkit-scrollbar { display: none; }
+.cr-slide { flex: 0 0 300px; scroll-snap-align: center; display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.cr-card {
+  background: #fff; border-radius: 26px; overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: 0 2px 6px rgba(23,22,29,.05), 0 18px 40px rgba(23,22,29,.10); border: 1px solid rgba(23,22,29,.06);
+  min-height: 430px;
+}
+.cr-card-top { position: relative; padding: 16px 18px 14px; text-align: center; }
+.cr-card-meta { display: flex; justify-content: space-between; align-items: center; }
+.cr-card-no {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--cr-accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;
+}
+.cr-card-pos { font-size: 11.5px; font-weight: 800; color: var(--ink-700); background: rgba(255,255,255,.75); padding: 5px 10px; border-radius: 999px; letter-spacing: -0.01em; }
+.cr-card-bottle { margin: 8px 0 4px; line-height: 0; filter: drop-shadow(0 8px 12px rgba(23,22,29,.12)); }
+.cr-card-name { font-size: 24px; font-weight: 800; color: var(--ink-900); letter-spacing: -0.02em; }
+.cr-card-name span { display: block; font-size: 10.5px; letter-spacing: .24em; color: var(--cr-accent); margin-top: 2px; font-weight: 800; }
+.cr-card-body { padding: 14px 20px 6px; flex: 1; }
+.cr-card-title { font-size: 18px; font-weight: 800; color: var(--ink-900); line-height: 1.4; letter-spacing: -0.02em; word-break: keep-all; text-align: center; }
+.cr-card-quote { margin: 10px auto 12px; font-size: 14.5px; font-weight: 700; color: var(--cr-accent); text-align: center; word-break: keep-all; }
+.cr-card-text { font-size: 13.8px; line-height: 1.75; color: var(--ink-700); word-break: keep-all; margin: 0 0 6px; }
+.cr-card-text--pos { color: var(--ink-500); font-size: 13px; }
+.cr-card-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0 4px; }
+.cr-card-chips span { font-size: 12px; font-weight: 700; color: var(--ink-700); background: var(--surface-2); padding: 5px 10px; border-radius: 999px; }
+.cr-card-foot { display: flex; justify-content: space-between; gap: 8px; padding: 10px 20px 14px; font-size: 10.5px; font-weight: 700; color: var(--ink-500); border-top: 1px dashed rgba(23,22,29,.10); margin-top: 6px; }
+.cr-card-foot span { letter-spacing: .08em; color: var(--ink-300); }
+.cr-card-save {
+  appearance: none; font: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--surface-1); border: 1px solid var(--line); border-radius: 999px; padding: 10px 14px;
+  font-size: 13px; font-weight: 700; color: var(--ink-700);
+}
+.cr-card-save:disabled { opacity: .6; }
+.cr-card--end { padding: 26px 20px 22px; text-align: center; justify-content: center; gap: 4px; }
+.cr-end-kicker { font-size: 13px; font-weight: 800; color: var(--ink-500); letter-spacing: .02em; }
+.cr-end-bottles { display: flex; justify-content: center; gap: 6px; margin: 14px 0 12px; }
+.cr-end-bottle { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 0; }
+.cr-end-bottle span { font-size: 11px; font-weight: 800; color: var(--ink-500); line-height: 1.4; }
+.cr-end-bottle.is-fifth { margin-left: 8px; padding-left: 10px; border-left: 1px dashed var(--line); }
+.cr-end-text { font-size: 15px; line-height: 1.7; font-weight: 700; color: var(--ink-900); word-break: keep-all; margin: 6px 0 18px; }
+.cr-end-go { width: 100%; }
+.cr-end-saveall { appearance: none; background: none; border: 0; font: inherit; cursor: pointer; margin-top: 12px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--ink-500); text-decoration: underline; }
+.cr-deck-nav { display: flex; align-items: center; justify-content: center; gap: 14px; padding-top: 4px; }
+.cr-nav-btn { appearance: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-1); font-size: 20px; line-height: 1; color: var(--ink-700); cursor: pointer; }
+.cr-nav-btn:disabled { opacity: .35; cursor: default; }
+.cr-dots { display: flex; gap: 7px; }
+.cr-dot { appearance: none; width: 8px; height: 8px; border-radius: 999px; border: 0; padding: 0; background: var(--ink-300); opacity: .45; cursor: pointer; transition: width .2s ease, opacity .2s ease; }
+.cr-dot.is-on { width: 22px; opacity: 1; background: var(--ink-900); }
+.cr-full-kicker { margin: 26px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .1em; color: var(--ink-300); text-align: center; }
+/* 이미지 저장용 (화면 밖에서 그림) */
+.cr-export-box { position: fixed; left: -10000px; top: 0; width: 360px; background: #fff; }
+.cr-card--export { border-radius: 0; box-shadow: none; border: 0; min-height: 450px; }
+/* 인앱 브라우저: 길게 눌러 저장 */
+.cr-imgsheet { position: fixed; inset: 0; background: rgba(23,22,29,.55); z-index: 9999; display: flex; align-items: flex-end; justify-content: center; }
+.cr-imgsheet-panel { background: var(--surface-0); width: 100%; max-width: 520px; max-height: 88vh; border-radius: 22px 22px 0 0; display: flex; flex-direction: column; }
+.cr-imgsheet-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; font-size: 14.5px; }
+.cr-imgsheet-close { appearance: none; border: 0; background: var(--surface-2); width: 32px; height: 32px; border-radius: 50%; font-size: 14px; cursor: pointer; }
+.cr-imgsheet-list { overflow-y: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+.cr-imgsheet-list img { width: 100%; border-radius: 14px; box-shadow: var(--shadow-sm); }
+
+/* v3_21 card polish */
+.cr-card-bottle { display: flex; justify-content: center; }
+.cr-slide--end .cr-card--end { flex: 1; }
+.cr-card-foot { flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+.cr-card-foot span { font-size: 9.5px; }
+.cr-card-no { display: flex; align-items: center; justify-content: center; line-height: 1; padding: 0; box-sizing: border-box; }
+.cr-card-pos { display: inline-flex; align-items: center; justify-content: center; height: 26px; padding: 2px 12px 0; line-height: 1; box-sizing: border-box; white-space: nowrap; }
+.cr-card-chips span { display: inline-block; padding: 0.5px 10.5px 0 11.5px; height: 24px; line-height: 23.5px; box-sizing: border-box; }
+/* html2canvas는 글자를 약간 아래로 그리므로, 이미지용 카드에서만 위로 보정 */
+/* 이미지(PNG) 저장용: html2canvas가 글자를 약 5px 아래로 그려서, 줄 높이를 줄여 정가운데로 보정 (픽셀 측정으로 맞춤) */
+.cr-card--export .cr-card-no { display: block; height: 30px; line-height: 20px; text-align: center; padding: 0; }
+.cr-card--export .cr-card-pos { display: inline-block; height: 26px; line-height: 16px; padding: 0 12px; }
+.cr-card--export .cr-card-chips span { display: inline-block; height: 24px; line-height: 15.5px; padding: 0 10.5px 0 11.5px; }
+
+/* v3_21 메시지 3단 구조: ① 속마음 + 자리 문장 / ②③ 의미와 이어진 해석 */
+.cr-msg-voice { margin: 10px 0 10px; padding: 11px 14px 12px; border-radius: 14px; background: rgba(23,22,29,.035); font-size: 15px; font-weight: 700; color: var(--ink-900); line-height: 1.6; word-break: keep-all; letter-spacing: -0.01em; }
+.cr-msg-voice span { display: block; margin-top: 4px; font-size: 12.8px; font-weight: 500; color: var(--ink-500); letter-spacing: 0; }
+.pdf-report .cr-msg-voice { font-size: 16.5px; padding: 13px 16px 14px; margin: 10px 0 12px; }
+.pdf-report .cr-msg-voice span { font-size: 14px; margin-top: 5px; }
+.cr-slide > .cr-card { flex: 1; }
+
+/* v3_24 다섯 병 관계 표시 (bottleRowHTML) */
+.cr-rel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) 18px minmax(0, 1fr); grid-template-rows: auto auto auto; max-width: 380px; margin: 4px auto 0; align-items: end; }
+.cr-rel .cr-row-item { width: auto; grid-row: 2; padding: 6px 0 0; }
+.cr-rel-sep { grid-column: 5; grid-row: 1 / 4; justify-self: center; width: 0; border-left: 1px dashed var(--ink-100, #d9d7de); margin: 4px 0; align-self: stretch; }
+.cr-br { display: flex; flex-direction: column; align-items: stretch; text-align: center; }
+.cr-br-line { display: block; height: 9px; margin: 0 25%; border: 1.6px solid currentColor; box-sizing: border-box; }
+.cr-br-t { display: block; font-size: 11.5px; font-weight: 600; color: var(--ink-700); line-height: 1.35; word-break: keep-all; padding: 0 2px; }
+.cr-br-t b { font-weight: 800; color: var(--brc); margin-right: 1px; }
+/* 위쪽: 2·3 현재 — 글자 위, 괄호 끝이 아래(병)를 향함 */
+.cr-br--present { grid-row: 1; flex-direction: column-reverse; color: #7f6bb5; --brc: #6a56a8; }
+.cr-br--present .cr-br-line { border-bottom: 0; border-radius: 8px 8px 0 0; margin-top: 4px; }
+/* 아래쪽: 1·2 과거 / 3·4 앞으로 / 5 — 괄호 끝이 위(병)를 향함, 글자 아래 */
+.cr-br--past, .cr-br--future, .cr-br--fifth { grid-row: 3; align-self: start; }
+.cr-br--past .cr-br-line, .cr-br--future .cr-br-line, .cr-br--fifth .cr-br-line { border-top: 0; border-radius: 0 0 8px 8px; margin-top: 7px; margin-bottom: 4px; }
+.cr-br--past { color: #a58bc9; --brc: #8e72b8; }
+.cr-br--future { color: #3f3480; --brc: #3f3480; }
+.cr-br--fifth { color: #a3a1ab; --brc: #8a8892; }
+.cr-br--fifth .cr-br-line { margin-left: 34%; margin-right: 34%; }
+.pdf-report .cr-rel { max-width: 520px; }
+.pdf-report .cr-br-t { font-size: 13px; }
+.pdf-report .cr-br-line { height: 11px; }
+/* PDF 1쪽에 다섯 병 관계도 + 과거·현재 메시지가 함께 들어가도록 간격 조정 */
+.pdf-report .cr-rel .cr-row-item { padding-top: 3px; }
+.pdf-report .cr-rel .cr-row-num { margin-top: 2px; }
+.pdf-report .cr-msg { padding: 18px 26px 20px; margin-top: 12px; }
+.pdf-report .cr-msg-voice { margin: 8px 0 10px; }
+.pdf-report .cr-msg-theme { margin: 8px 0 6px; }
+/* v3_26 관계도: 네 괄호 모두 선·숫자·글자 한 가지 색(연한 회색), 글자 작게 */
+.cr-br, .cr-br--present, .cr-br--past, .cr-br--future, .cr-br--fifth { color: #a9a7b1; }
+.cr-br-t { font-size: 10px; font-weight: 600; color: currentColor; line-height: 1.3; }
+.cr-br-t b { font-weight: 700; color: inherit; }
+.cr-br-line { border-width: 1.3px; height: 8px; }
+.pdf-report .cr-br-t { font-size: 11px; }
+.pdf-report .cr-br-line { height: 10px; }
+/* PDF 1쪽 3쪽 유지용 미세 간격 (병 크기 54px 그대로) */
+.pdf-report .cr-pdf-row { margin: 0; }
+.pdf-report .cr-rel .cr-row-item { padding-top: 0; }
+.pdf-report .cr-br--past .cr-br-line, .pdf-report .cr-br--future .cr-br-line, .pdf-report .cr-br--fifth .cr-br-line { margin-top: 5px; margin-bottom: 3px; }
+.pdf-report .cr-br--present .cr-br-line { margin-top: 3px; }
+.pdf-report .cr-msg { margin-top: 10px; }

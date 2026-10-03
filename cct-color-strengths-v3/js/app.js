@@ -819,6 +819,7 @@
       const reading = window.CR.buildReading(window.CR.getSelection(), userName);
       const titleEl = resultWrap.querySelector(".result-doc-title");
       if (reading && titleEl) titleEl.insertAdjacentHTML("afterend", window.CR.buildScreenHTML(reading));
+      if (reading && titleEl) window.CR.bindScreen(resultWrap);
     }
 
     document.getElementById("btnRetry").addEventListener("click", resetApp);
@@ -857,6 +858,7 @@
       pdfBtn.addEventListener("click", (e) => downloadPdf(null, null, e.currentTarget));
     }
     document.getElementById("btnRetry").addEventListener("click", resetApp);
+    window.CR.bindScreen(resultWrap);
     bindResultCta(null, null);
   }
 

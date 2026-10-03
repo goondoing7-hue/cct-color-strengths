@@ -64,7 +64,7 @@
   // ---------- 선택 상태 ----------
   let picks = [];      // 마음에 끌리는 4색 (순서 = 선택 순서)
   let fifth = null;    // 가장 마음에 들지 않는 색
-  let step = 1;        // 1: 4색 선택, 2: 5번째 선택
+  let step = 1;        // 0: 마음 가라앉히기(10초 호흡), 1: 4색 선택, 2: 5번째 선택
   let onDoneCb = null;
   let finishLabel = "CCT 검사 시작하기";
 
@@ -79,12 +79,100 @@
     fifth = keys[4];
     return true;
   }
-  function reset() { picks = []; fifth = null; step = 1; }
+  function reset() { stopCalm(); picks = []; fifth = null; step = 1; }
+
+  // ---------- 0단계: 10초 호흡으로 마음 가라앉히기 ----------
+  const CALM_SEC = 10;
+  let calmTimer = null;
+  let audioCtx = null;
+  function stopCalm() { if (calmTimer) { clearInterval(calmTimer); calmTimer = null; } }
+
+  // 끝 알림 — 진동(안드로이드 등). 아이폰은 웹 진동을 지원하지 않아 아주 작은 종소리로 함께 알린다.
+  function notifyCalmEnd() {
+    try { if (navigator.vibrate) navigator.vibrate([300, 150, 300]); } catch (e) {}
+    try {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      [660, 880].forEach((f, i) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.value = f;
+        const t = now + i * 0.28;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.12, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+        o.connect(g).connect(audioCtx.destination);
+        o.start(t);
+        o.stop(t + 0.95);
+      });
+    } catch (e) {}
+  }
+
+  function renderCalm(root) {
+    root.innerHTML = `
+      <div class="cr-calm">
+        <div class="cr-calm-title">컬러를 고르기 전에,<br/>잠깐 마음을 가라앉혀 볼까요?</div>
+        <ol class="cr-calm-steps">
+          <li>편하게 앉아 어깨의 힘을 풀어 주세요.</li>
+          <li>아래 <b>10초 시작</b>을 누르고 눈을 감아 주세요.</li>
+          <li>코로 천천히 들이마시고, 입으로 길게 내쉬어 주세요.</li>
+          <li>휴대폰이 <b>진동</b>하면 천천히 눈을 떠 주세요.</li>
+        </ol>
+        <div class="cr-calm-circle" id="crCalmCircle">
+          <div class="cr-calm-num" id="crCalmNum">${CALM_SEC}</div>
+          <div class="cr-calm-label" id="crCalmLabel">준비되면 시작을 눌러 주세요</div>
+        </div>
+        <div class="cr-calm-actions" id="crCalmActions">
+          <button type="button" class="btn btn-primary cr-calm-start" id="crCalmStart">10초 시작</button>
+          <button type="button" class="cr-calm-skip" id="crCalmSkip">건너뛰고 바로 고르기</button>
+        </div>
+      </div>`;
+    const goPick = () => { stopCalm(); step = 1; renderPick(); window.scrollTo(0, 0); };
+    root.querySelector("#crCalmSkip").addEventListener("click", goPick);
+    root.querySelector("#crCalmStart").addEventListener("click", () => {
+      // 소리는 사용자가 누른 순간에만 켤 수 있어 여기서 준비해 둔다 (아이폰 대비)
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC && !audioCtx) audioCtx = new AC();
+        if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+      } catch (e) {}
+      const circle = root.querySelector("#crCalmCircle");
+      const num = root.querySelector("#crCalmNum");
+      const label = root.querySelector("#crCalmLabel");
+      const actions = root.querySelector("#crCalmActions");
+      actions.innerHTML = `<div class="cr-calm-running">눈을 감고, 천천히 호흡해 보세요</div>`;
+      circle.classList.add("is-running");
+      const start = Date.now();
+      stopCalm();
+      calmTimer = setInterval(() => {
+        const t = (Date.now() - start) / 1000;
+        const left = Math.max(0, Math.ceil(CALM_SEC - t));
+        num.textContent = left;
+        label.textContent = t % 10 < 4 ? "들이마시고…" : "길게 내쉬고…";
+        if (t >= CALM_SEC) {
+          stopCalm();
+          circle.classList.remove("is-running");
+          circle.classList.add("is-done");
+          num.textContent = "";
+          label.textContent = "좋아요";
+          notifyCalmEnd();
+          actions.innerHTML = `
+            <div class="cr-calm-after">이제 천천히 눈을 뜨고,<br/>지금 눈에 들어오는 색을 골라 보세요.</div>
+            <button type="button" class="btn btn-primary cr-calm-start" id="crCalmGo">컬러 고르기</button>`;
+          actions.querySelector("#crCalmGo").addEventListener("click", goPick);
+        }
+      }, 100);
+    });
+  }
 
   // ---------- 선택 화면 ----------
   function renderPick() {
     const root = document.getElementById("crPickBody");
     if (!root) return;
+    const breath = document.querySelector("#screen-colorpick .cr-breath");
+    if (breath) breath.style.display = step === 0 ? "none" : "";
+    if (step === 0) { renderCalm(root); return; }
     const isStep1 = step === 1;
     const pool = isStep1
       ? CR_COLORS
@@ -166,6 +254,7 @@
     onDoneCb = onDone;
     finishLabel = (opts && opts.finishLabel) || "CCT 검사 시작하기";
     reset();
+    step = 0; // 먼저 10초 호흡 → 컬러 고르기
     renderPick();
   }
 
@@ -183,13 +272,35 @@
   // 각 설명 최대 2~3문장, 항목끼리 같은 내용을 반복하지 않는다.
   // CR_PAIRS[k] = [제목, 속마음, 이유, 요즘 이런 순간, 해 보고 싶은 작은 일]
   function eunC(w) { return j(w, "은", "는"); }
+  // (v3_21) 결과 문장 3단 구조
+  //  ① 큰 메시지: “속마음” + 자리 문장
+  //  ② 각 컬러의 의미를 따로, 짧게 (CR_COLORS.mean)
+  //  ③ A에서 B로 이어졌기 때문에 지금 이런 마음으로 읽을 수 있다 (CR_PAIRS[k][2])
+  //  자리마다 ②·③의 말머리를 다르게 써서 기계적으로 반복되지 않게 한다.
   const SLOT_LINE = {
-    past: "그동안 이런 마음으로 지내 오셨을 수 있어요.",
-    present: "요즘 이 마음이 가장 크게 느껴질 수 있어요.",
-    future: "앞으로는 이런 모습으로 지내고 싶은 바람이에요.",
+    past: "그동안 이런 마음으로 지내오셨을 수 있어요.",
+    present: "요즘에는 이런 마음이 조금 더 크게 느껴질 수 있어요.",
+    future: "앞으로는 이런 마음을 더 키워 가고 싶으실 수 있어요.",
   };
-  function cardText(pr, slot) {
-    return `“${pr[1]}” ${SLOT_LINE[slot]} ${pr[2]}`;
+  function meanLine(a, b, slot) {
+    const A = c(a), B = c(b);
+    if (slot === "past") return `${eunC(A.ko)} ${A.mean}을, ${eunC(B.ko)} ${B.mean}을 의미해요.`;
+    if (slot === "present") return `${j(A.ko, "이", "가")} ${A.mean}이라면, ${eunC(B.ko)} ${B.mean}을 의미해요.`;
+    return `${eunC(A.ko)} ${A.mean}, ${eunC(B.ko)} ${B.mean}을 담고 있어요.`;
+  }
+  function flowLine(a, b, slot, core) {
+    const A = c(a), B = c(b);
+    let lead;
+    if (slot === "past") lead = `${A.adjP} ${A.ko}에서 ${B.adj} ${euro(B.ko)} 이어졌다는 것은`;
+    else if (slot === "present") lead = `${A.adjP} ${A.ko} 뒤에 ${j(B.ko, "을", "를")} 선택했다는 것은`;
+    else lead = `${A.adj} ${A.ko}에 이어 ${B.adj} ${j(B.ko, "을", "를")} 고르셨다는 것은`;
+    return `${lead}, ${core}으로 읽을 수 있어요.`;
+  }
+  function pairMsg(a, b, slot) {
+    const pr = pair(a, b);
+    const voice = pr[1], line = SLOT_LINE[slot];
+    const body = `${meanLine(a, b, slot)} ${flowLine(a, b, slot, pr[2])}`;
+    return { theme: pr[0], voice, line, body, text: `“${voice}” ${line} ${body}` };
   }
   // "해내고, 아끼고, 표현하고, 누리" + 끝말
   function stemList(cs, last) {
@@ -204,19 +315,19 @@
     const four = [C1, C2, C3, C4];
 
     const a1 =
-      `‘${C2.want}’${pp("마음", "은", "는")} 예전부터 지금까지 쭉 이어지고 있어요. ` +
-      `예전엔 그 옆에 “${C1.say}”${pp(C1.say, "이", "가")} 있었다면, 지금은 “${C3.say}”${pp(C3.say, "이", "가")} 그 자리를 채웠어요.`;
+      `2번 ${C2.ko}의 ‘${C2.want}’${pp("마음", "은", "는")} 과거와 현재에 모두 들어 있어서, 예전부터 지금까지 꾸준히 이어져 온 마음이에요. ` +
+      `예전에는 이 마음에 “${C1.say}” 하는 마음이 더해졌다면, 요즘은 “${C3.say}” 하는 마음이 더해졌어요.`;
     const a2 = N[3];
     const a3 =
-      `“${C2.say}”${pp(C2.say, "과", "와")} ‘${C3.want}’${pp("마음", "이", "가")} 요즘 나란히 있어요. ` +
-      `앞의 것은 예전부터 지켜 온 마음이고, 뒤의 것은 앞으로도 이어 가고 싶은 마음이에요. 지금 어느 쪽이 더 크게 느껴지시나요?`;
+      `요즘은 “${C2.say}” 하는 마음과 “${C3.say}” 하는 마음이 함께 느껴질 수 있어요. ` +
+      `앞의 것은 예전부터 이어 온 마음이고, 뒤의 것은 요즘 새로 커진 마음이에요. 지금은 어느 쪽 목소리가 더 크게 들리나요?`;
     const a4 =
-      `‘${C3.want}’${pp("마음", "은", "는")} 그대로 두고, “${C2.say}” 자리에 “${C4.say}”${pp(C4.say, "이", "가")} 들어오고 있어요. ` +
+      `‘${C3.want}’${pp("마음", "은", "는")} 그대로 이어 가면서, “${C2.say}” 하던 마음은 앞으로 “${C4.say}” 하는 마음으로 바뀌어 가길 바라고 있어요. ` +
       `이 변화를 한마디로 하면 ‘${M[0]}’이에요.`;
     const a5 = F[4];
     const a6 =
-      `처음엔 “${C1.say}”였다면, 마지막엔 “${C4.say}”예요. ` +
-      `${E[2]}`;
+      `처음엔 “${C1.say}” 하는 마음이었다면, 마지막엔 “${C4.say}” 하는 마음이에요. ` +
+      `${C1.ko}에서 ${euro(C4.ko)}의 변화는, ${E[2]}으로 읽을 수 있어요.`;
     const a7 =
       `네 컬러를 이어 말하면 “${stemList(four, "고")} 싶다”예요. ` +
       `이 중에서 지금 가장 와닿는 말 하나를 골라 보세요.`;
@@ -245,20 +356,22 @@
     const who = name ? `${name}님` : "당신";
     const P = pair(k1, k2), N = pair(k2, k3), F = pair(k3, k4), E = pair(k1, k4);
 
-    const past = { label: "과거의 나", sub: "과거의 나에게 보내는 메시지", keys: [k1, k2], theme: P[0], text: cardText(P, "past") };
-    const present = { label: "현재의 나", sub: "현재의 나에게 보내는 메시지", keys: [k2, k3], theme: N[0], text: cardText(N, "present") };
-    const future = { label: "앞으로 바라는 나", sub: "앞으로 바라는 나에게 보내는 메시지", keys: [k3, k4], theme: F[0], text: cardText(F, "future") };
+    const past = Object.assign({ label: "과거의 나", sub: "과거의 나에게 보내는 메시지", keys: [k1, k2] }, pairMsg(k1, k2, "past"));
+    const present = Object.assign({ label: "현재의 나", sub: "현재의 나에게 보내는 메시지", keys: [k2, k3] }, pairMsg(k2, k3, "present"));
+    const future = Object.assign({ label: "앞으로 바라는 나", sub: "앞으로 바라는 나에게 보내는 메시지", keys: [k3, k4] }, pairMsg(k3, k4, "future"));
+    const pLine = "마음에 덜 끌려서 고른 색이지만, 나쁜 뜻은 아니에요.";
+    const pBody = `${eunC(C5.ko)} ${C5.mean}을 의미해요. 이 색이 마지막에 남았다는 것은, 이런 마음이 필요하다고 느끼면서도 아직 충분히 꺼내 쓰지 못한 마음으로 읽을 수 있어요.`;
     const postponed = {
       label: "원하지만 아직 충분히 꺼내 쓰지 못한 마음", sub: "5번째 컬러", keys: [k5],
-      theme: C5.t5,
-      text: `“${C5.v5}” 마음에 들지 않아서 고른 색이지만 나쁜 뜻은 아니에요. 필요하다고 느끼면서도 아직 손이 덜 간 마음이에요.`,
+      theme: C5.t5, voice: C5.v5, line: pLine, body: pBody,
+      text: `“${C5.v5}” ${pLine} ${pBody}`,
     };
 
     const aspects = buildAspects(sel);
 
     const summary =
       `${who}의 다섯 컬러를 한 줄로 말하면 ‘${E[0]}’이에요. ` +
-      `요즘 가장 큰 마음은 ‘${N[0]}’이고, 앞으로는 ‘${F[0]}’을 바라고 계세요. ` +
+      `요즘 가장 큰 마음은 ‘${N[0]}’이고, 앞으로는 ‘${F[0]}’을 더 키워 가고 싶으실 수 있어요. ` +
       `그 사이에 ${C5.want5}도 조금 챙겨 주면 좋겠다는 신호가 함께 있어요.`;
 
     const healing = { key: k5, text: C5.tip };
@@ -267,27 +380,28 @@
   }
 
   // ---------- 결과 HTML ----------
+  // 다섯 병 + 관계 표시: 위쪽 괄호 = 2·3 현재의 나 / 아래쪽 괄호 = 1·2 과거의 나, 3·4 앞으로 바라는 나, 5 꺼내지 못한 마음
+  // 6칸 그리드(병 4칸 · 구분선 · 5번 병)로 괄호 끝이 각 병의 정가운데에 오도록 맞춥니다.
   function bottleRowHTML(sel, size) {
     const w = size || 46;
-    const items = sel.slice(0, 4).map((k, i) => `
-      <div class="cr-row-item">
+    const item = (k, i) => `
+      <div class="cr-row-item" style="grid-column:${i < 4 ? i + 1 : 6}">
         ${bottleSVG(c(k).hex, { w })}
         <div class="cr-row-num">${i + 1}</div>
         <div class="cr-row-name">${esc(c(k).ko)}</div>
-      </div>`).join("");
-    const k5 = sel[4];
+      </div>`;
+    const br = (cls, col, num, label) => `
+      <div class="cr-br cr-br--${cls}" style="grid-column:${col}">
+        <i class="cr-br-line"></i><span class="cr-br-t"><b>${num}</b> ${label}</span>
+      </div>`;
     return `
-      <div class="cr-row">
-        <div class="cr-row-main">${items}</div>
-        <div class="cr-row-sep" aria-hidden="true"></div>
-        <div class="cr-row-item cr-row-item--fifth">
-          ${bottleSVG(c(k5).hex, { w })}
-          <div class="cr-row-num">5</div>
-          <div class="cr-row-name">${esc(c(k5).ko)}</div>
-        </div>
-      </div>
-      <div class="cr-row-legend">
-        <span><i class="cr-arc"></i>1·2 과거</span><span><i class="cr-arc"></i>2·3 현재</span><span><i class="cr-arc"></i>3·4 바라는 나</span><span><i class="cr-arc cr-arc--5"></i>5 꺼내지 못한 마음</span>
+      <div class="cr-rel">
+        ${br("present", "2 / 4", "2·3", "현재의 나")}
+        ${sel.map(item).join("")}
+        <div class="cr-rel-sep" aria-hidden="true"></div>
+        ${br("past", "1 / 3", "1·2", "과거의 나")}
+        ${br("future", "3 / 5", "3·4", "앞으로 바라는 나")}
+        ${br("fifth", "6", "5", "꺼내지<br>못한 마음")}
       </div>`;
   }
 
@@ -304,7 +418,8 @@
           <span class="cr-msg-chips">${chips}</span>
         </div>
         <div class="cr-msg-theme">${esc(m.theme)}</div>
-        <p class="cr-msg-text">${esc(m.text)}</p>
+        ${m.voice ? `<div class="cr-msg-voice">“${esc(m.voice)}”<span>${esc(m.line)}</span></div>
+        <p class="cr-msg-text">${esc(m.body)}</p>` : `<p class="cr-msg-text">${esc(m.text)}</p>`}
       </div>`;
   }
 
@@ -341,15 +456,222 @@
 
   const NOTE = "컬러리딩은 지금 이 순간 직감으로 고른 색을 통해 마음의 흐름을 읽어보는 대화의 도구입니다. 심리검사나 진단이 아니며, 고른 색에 좋고 나쁨은 없습니다. 그때의 마음에 따라 선택하는 색은 달라질 수 있습니다.";
 
+
+  // ---------- 컬러 카드 (결과 화면: 5장을 한 장씩 넘겨 보고, 마지막에 종합 결과) ----------
+  const POS = [
+    { tag: "1번 컬러", label: "과거의 나", line: "처음 손이 간 색이라, 그동안 이 마음을 많이 써 오셨을 수 있어요." },
+    { tag: "2번 컬러", label: "현재의 나", line: "과거와 현재에 함께 들어 있어서, 예전부터 지금까지 이어지는 마음이에요." },
+    { tag: "3번 컬러", label: "앞으로 바라는 나", line: "현재와 앞으로에 함께 들어 있어서, 요즘 커지고 앞으로도 이어 가고 싶은 마음이에요." },
+    { tag: "4번 컬러", label: "앞으로 바라는 나", line: "네 번째로 고른 색이라, 앞으로 이렇게 지내고 싶은 바람이 담겨 있어요." },
+    { tag: "5번 컬러", label: "꺼내지 못한 마음", line: "마음에 덜 끌려서 고른 색이지만 나쁜 뜻은 아니에요. 필요하다고 느끼면서도 아직 충분히 꺼내 쓰지 못한 마음일 수 있어요." },
+  ];
+  let lastR = null;
+
+  // 흰색과 섞은 연한 색 (카드 윗부분 배경)
+  function tint(hex, amt) {
+    const v = [1, 3, 5].map((i) => parseInt(hex.substr(i, 2), 16));
+    return "#" + v.map((x) => Math.round(x + (255 - x) * amt).toString(16).padStart(2, "0")).join("");
+  }
+  function accent(k) { return k === "W" ? "#17161d" : c(k).hex; }
+
+  function colorCardHTML(R, i, opts) {
+    const k = R.sel[i];
+    const C = c(k);
+    const P = POS[i];
+    const exp = !!(opts && opts.export);
+    const top = k === "W" ? "#f6f6f4" : tint(C.hex, 0.84);
+    const top2 = k === "W" ? "#ffffff" : tint(C.hex, 0.95);
+    return `
+      <article class="cr-card${exp ? " cr-card--export" : ""}" style="--cr-accent:${accent(k)}">
+        <div class="cr-card-top" style="background:linear-gradient(180deg, ${top} 0%, ${top2} 100%)">
+          <div class="cr-card-meta">
+            <span class="cr-card-no">${i + 1}</span>
+            <span class="cr-card-pos">${esc(P.label)}</span>
+          </div>
+          <div class="cr-card-bottle">${bottleSVG(C.hex, { w: exp ? 96 : 92 })}</div>
+          <div class="cr-card-name">${esc(C.ko)}<span>${esc(C.en.toUpperCase())}</span></div>
+        </div>
+        <div class="cr-card-body">
+          <div class="cr-card-title">${esc(i === 4 ? C.t5 : C.want)}</div>
+          <div class="cr-card-quote">“${esc(i === 4 ? C.v5 : C.say)}”</div>
+          <p class="cr-card-text">${esc(i === 4 ? `${eunC(C.ko)} ${C.mean}을 의미해요.` : C.card)}</p>
+          <p class="cr-card-text cr-card-text--pos">${esc(P.line)}</p>
+          <div class="cr-card-chips">${C.keywords.slice(0, 3).map((w) => `<span>#${esc(w)}</span>`).join("")}</div>
+        </div>
+        <div class="cr-card-foot">${esc(R.who)}의 마음 컬러 · ${esc(P.tag)}<span>LOVLIVE COLOR INSIGHT</span></div>
+      </article>`;
+  }
+
+  const ICON_DL = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+  function deckHTML(R) {
+    const slides = [0, 1, 2, 3, 4].map((i) => `
+      <div class="cr-slide" data-i="${i}">
+        ${colorCardHTML(R, i)}
+        <button type="button" class="cr-card-save" data-save="${i}">${ICON_DL}이 카드 이미지로 저장</button>
+      </div>`).join("");
+    const minis = R.sel.map((k, i) => `
+      <div class="cr-end-bottle${i === 4 ? " is-fifth" : ""}">${bottleSVG(c(k).hex, { w: 34 })}<span>${i + 1}</span></div>`).join("");
+    const last = `
+      <div class="cr-slide cr-slide--end" data-i="5">
+        <div class="cr-card cr-card--end">
+          <div class="cr-end-kicker">다섯 컬러를 모아 보면</div>
+          <div class="cr-end-bottles">${minis}</div>
+          <p class="cr-end-text">${esc(R.summary.split(/(?<=요\.)\s/)[0])}</p>
+          <button type="button" class="btn btn-primary cr-end-go" id="crShowFull">종합 결과 보기</button>
+          <button type="button" class="cr-end-saveall" data-save="all">${ICON_DL}카드 5장 한 번에 저장</button>
+        </div>
+      </div>`;
+    const dots = [0, 1, 2, 3, 4, 5].map((i) => `<button type="button" class="cr-dot${i === 0 ? " is-on" : ""}" data-go="${i}" aria-label="${i + 1}번째 카드"></button>`).join("");
+    return `
+      <div class="cr-deck" id="crDeck">
+        <div class="cr-deck-head">
+          <span class="cr-deck-hint">옆으로 넘겨 한 컬러씩 살펴보세요</span>
+          <span class="cr-deck-count" id="crDeckCount">1 / 6</span>
+        </div>
+        <div class="cr-deck-track" id="crDeckTrack">${slides}${last}</div>
+        <div class="cr-deck-nav">
+          <button type="button" class="cr-nav-btn" id="crPrev" aria-label="이전 카드">‹</button>
+          <div class="cr-dots">${dots}</div>
+          <button type="button" class="cr-nav-btn" id="crNext2" aria-label="다음 카드">›</button>
+        </div>
+      </div>`;
+  }
+
+  // ---- 카드 이미지 저장 ----
+  function inApp() { return /KAKAOTALK|Instagram|FBAN|FBAV|Line\/|NAVER\(inapp|DaumApps|everytimeApp/i.test(navigator.userAgent || ""); }
+  function isTouch() { try { return window.matchMedia("(pointer: coarse)").matches; } catch (e) { return false; } }
+
+  async function renderCardBlob(R, i) {
+    if (!window.html2canvas) throw new Error("이미지 도구를 불러오지 못했어요");
+    const box = document.createElement("div");
+    box.className = "cr-export-box";
+    box.innerHTML = colorCardHTML(R, i, { export: true });
+    document.body.appendChild(box);
+    try {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      await new Promise((r) => setTimeout(r, 40));
+      const canvas = await window.html2canvas(box.firstElementChild, { scale: 3, backgroundColor: "#ffffff", useCORS: true });
+      return await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("이미지를 만들지 못했어요"))), "image/png"));
+    } finally {
+      box.remove();
+    }
+  }
+
+  function showImageSheet(urls) {
+    const el = document.createElement("div");
+    el.className = "cr-imgsheet";
+    el.innerHTML = `
+      <div class="cr-imgsheet-panel">
+        <div class="cr-imgsheet-head">
+          <b>이미지를 길게 눌러 저장해 주세요</b>
+          <button type="button" class="cr-imgsheet-close" aria-label="닫기">✕</button>
+        </div>
+        <div class="cr-imgsheet-list">${urls.map((u) => `<img src="${u}" alt="컬러 카드" />`).join("")}</div>
+      </div>`;
+    const close = () => { el.remove(); urls.forEach((u) => URL.revokeObjectURL(u)); };
+    el.addEventListener("click", (e) => { if (e.target === el || e.target.closest(".cr-imgsheet-close")) close(); });
+    document.body.appendChild(el);
+  }
+
+  async function saveCards(R, indices, btn) {
+    const label = btn ? btn.innerHTML : "";
+    if (btn) { btn.disabled = true; btn.textContent = "이미지 만드는 중…"; }
+    try {
+      const blobs = [];
+      for (const i of indices) blobs.push(await renderCardBlob(R, i));
+      // 파일 이름은 영문으로 (일부 브라우저가 한글 파일명을 'download'로 바꿔 버림)
+      const files = blobs.map((b, n) => {
+        const i = indices[n];
+        const en = String(c(R.sel[i]).en || "").replace(/[^A-Za-z]/g, "");
+        return new File([b], `LoveLive_ColorCard_${i + 1}_${en}.png`, { type: "image/png" });
+      });
+      if (inApp()) { showImageSheet(blobs.map((b) => URL.createObjectURL(b))); return; }
+      if (isTouch() && navigator.canShare && navigator.canShare({ files })) {
+        try { await navigator.share({ files, title: "나의 마음 컬러 카드" }); return; }
+        catch (e) { if (e && e.name === "AbortError") return; }
+      }
+      for (const f of files) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(f);
+        a.download = f.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    } catch (e) {
+      alert("카드 이미지를 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = label; }
+    }
+  }
+
+  // 결과 화면에 넣은 뒤 호출 — 넘기기·점·저장·종합 결과 펼치기
+  function bindScreen(root) {
+    const scope = root || document;
+    const deck = scope.querySelector("#crDeck");
+    const track = scope.querySelector("#crDeckTrack");
+    const full = scope.querySelector("#crFull");
+    const R = lastR;
+    if (!deck || !track || !R) return;
+    const slides = Array.from(track.querySelectorAll(".cr-slide"));
+    const dots = Array.from(deck.querySelectorAll(".cr-dot"));
+    const count = deck.querySelector("#crDeckCount");
+    let cur = 0;
+    const reveal = () => { if (full && full.hidden) full.hidden = false; };
+    const setCur = (i) => {
+      cur = i;
+      dots.forEach((d, n) => d.classList.toggle("is-on", n === i));
+      if (count) count.textContent = `${i + 1} / ${slides.length}`;
+      deck.querySelector("#crPrev").disabled = i === 0;
+      deck.querySelector("#crNext2").disabled = i === slides.length - 1;
+      if (i === slides.length - 1) reveal();
+    };
+    const go = (i) => {
+      const s = slides[Math.max(0, Math.min(slides.length - 1, i))];
+      track.scrollTo({ left: s.offsetLeft - (track.clientWidth - s.clientWidth) / 2, behavior: "smooth" });
+    };
+    let raf = 0;
+    track.addEventListener("scroll", () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const mid = track.scrollLeft + track.clientWidth / 2;
+        let best = 0, bd = 1e9;
+        slides.forEach((s, n) => { const d = Math.abs(s.offsetLeft + s.clientWidth / 2 - mid); if (d < bd) { bd = d; best = n; } });
+        if (best !== cur) setCur(best);
+      });
+    }, { passive: true });
+    dots.forEach((d) => d.addEventListener("click", () => go(Number(d.dataset.go))));
+    deck.querySelector("#crPrev").addEventListener("click", () => go(cur - 1));
+    deck.querySelector("#crNext2").addEventListener("click", () => go(cur + 1));
+    deck.addEventListener("keydown", (e) => { if (e.key === "ArrowRight") go(cur + 1); if (e.key === "ArrowLeft") go(cur - 1); });
+    deck.querySelectorAll("[data-save]").forEach((b) => b.addEventListener("click", () => {
+      const v = b.dataset.save;
+      saveCards(R, v === "all" ? [0, 1, 2, 3, 4] : [Number(v)], b);
+    }));
+    const showFull = deck.querySelector("#crShowFull");
+    if (showFull) showFull.addEventListener("click", () => {
+      reveal();
+      if (full) full.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    setCur(0);
+  }
+
   // opts.standalone: 컬러리딩만 진행한 경우 — PART 표시와 CCT 구분선을 뺍니다.
   function buildScreenHTML(R, opts) {
     if (!R) return "";
+    lastR = R;
     const solo = !!(opts && opts.standalone);
     return `
       <section class="cr-section ${solo ? "cr-section--solo" : ""}" id="crSection">
         ${solo ? "" : `<div class="cr-part-kicker">PART 1</div>
         <h2 class="cr-part-title">4병 컬러리딩</h2>`}
         <p class="cr-part-desc">직감으로 고른 다섯 컬러가 과거·현재·앞으로 바라는 나에게 보내는 메시지예요.</p>
+        ${deckHTML(R)}
+        <div class="cr-full" id="crFull" hidden>
+        <div class="cr-full-kicker">종합 컬러리딩 결과</div>
         ${bottleRowHTML(R.sel)}
         ${msgHTML(R.past, 1)}
         ${msgHTML(R.present, 2)}
@@ -359,6 +681,7 @@
         <div class="cr-aspects">${aspectsHTML(R)}</div>
         ${summaryHTML(R)}
         <p class="cr-note">${esc(NOTE)}</p>
+        </div>
       </section>
       ${solo ? "" : `<div class="cr-part-divider">
         <div class="cr-part-kicker">PART 2</div>
@@ -393,6 +716,7 @@
   }
 
   window.CR = {
+    bindScreen,
     swatchBg,
     enabled: true,
     colors: CR_COLORS,
