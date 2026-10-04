@@ -1886,3 +1886,140 @@ img, svg { display: block; }
 .cr-card-voice .cr-vt { text-wrap: balance; }
 .cr-card-voice .cr-vl, .cr-card-voice .cr-vt { font-size: inherit; font-weight: inherit; color: inherit; margin: 0; }
 .cr-card-voice .cr-vt { display: inline; }
+
+/* v3_36 · PDF 03 관계와 일상 — 컬러별 한 줄 */
+.pdf-report .ra-arows { display: flex; flex-direction: column; gap: 7px; margin: 2px 0 9px; }
+.pdf-report .ra-arow { display: grid; grid-template-columns: 132px 1fr; gap: 12px; align-items: start; }
+.pdf-report .ra-arow-k { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0; padding-top: 1px; }
+.pdf-report .ra-arow-k b { font-size: 13px; font-weight: 800; color: var(--ink-900); }
+.pdf-report .ra-arow-k small { flex: 0 0 100%; font-size: 11px; font-weight: 700; color: #8a8794; margin-top: 1px; padding-left: 18px; }
+.pdf-report .ra-arow p { margin: 0; font-size: 13.4px; line-height: 1.7; color: var(--ink-700); word-break: keep-all; }
+
+/* v3_37 · PDF 03 관계 — 컬러 보틀 비교 카드 */
+.pdf-report .ra-cols { display: grid; gap: 10px; margin: 2px 0 10px; }
+.pdf-report .ra-cols--2 { grid-template-columns: 1fr 22px 1fr; align-items: stretch; }
+.pdf-report .ra-cols--3 { grid-template-columns: repeat(3, 1fr); }
+.pdf-report .ra-col { border: 1px solid #ece9ef; border-top: 3px solid #ccc; border-radius: 12px; padding: 12px 14px 13px; background: #fff; }
+.pdf-report .ra-col-h { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.pdf-report .ra-col-b { flex: 0 0 auto; display: flex; }
+.pdf-report .ra-col-b svg { display: block; }
+.pdf-report .ra-col-k { font-size: 13px; font-weight: 800; color: var(--ink-900); line-height: 1.35; }
+.pdf-report .ra-col-l { font-size: 11px; font-weight: 700; color: #8a8794; line-height: 1.4; margin-top: 1px; }
+.pdf-report .ra-col-m { font-size: 13.4px; font-weight: 700; line-height: 1.6; color: var(--ink-900); word-break: keep-all; margin-bottom: 6px; }
+.pdf-report .ra-col-why { margin: 0; font-size: 12.6px; line-height: 1.7; color: var(--ink-700); word-break: keep-all; }
+.pdf-report .ra-col-f { margin-top: 8px; }
+.pdf-report .ra-col-f:first-of-type { margin-top: 0; }
+.pdf-report .ra-col-f em { display: block; font-style: normal; font-size: 10.5px; font-weight: 800; color: #8a8794; letter-spacing: .02em; margin-bottom: 1px; }
+.pdf-report .ra-col-f span { display: block; font-size: 12.8px; line-height: 1.65; color: var(--ink-800, #2e2c36); word-break: keep-all; }
+.pdf-report .ra-col-arr { display: flex; align-items: center; justify-content: center; font-size: 16px; color: #b9b5c2; font-weight: 700; }
+.pdf-report .ra-cmp-foot { margin-top: 2px; }
+.pdf-report .ra-tips { background: #f7f6fa; border-radius: 12px; padding: 10px 14px 11px; }
+.pdf-report .ra-tips-t { font-size: 11.5px; font-weight: 800; color: #6a56a8; margin-bottom: 4px; }
+.pdf-report .ra-tip { position: relative; padding-left: 12px; font-size: 13px; line-height: 1.7; color: var(--ink-700); word-break: keep-all; }
+.pdf-report .ra-tip::before { content: ""; position: absolute; left: 0; top: 10px; width: 4px; height: 4px; border-radius: 50%; background: #9a8cc8; }
+
+/* v3_37 · 생활 속에 적용하기 */
+.pdf-report .ra-life { border-top: 1px solid #efedf2; padding-top: 11px; margin-top: 11px; }
+.pdf-report .ra-alead + .ra-life { border-top: 0; padding-top: 2px; margin-top: 0; }
+.pdf-report .ra-life-h { display: inline-block; font-size: 12px; font-weight: 800; color: #fff; background: #4b4466; border-radius: 999px; padding: 2px 11px 3px; margin-bottom: 7px; }
+.pdf-report .ra-life-i { margin: 0 0 8px; font-size: 13.4px; font-weight: 700; line-height: 1.65; color: var(--ink-900); word-break: keep-all; }
+.pdf-report .ra-life .ra-arows { margin-bottom: 0; }
+.pdf-report .ra-life-end { margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed #e3e1e7; }
+
+/* v3_37 · 종합 컬러리딩 (마지막 페이지) */
+.pdf-report .ra-close { position: relative; margin-top: 14px; padding: 8px 6px 0; }
+.pdf-report .ra-close-bottles { display: flex; gap: 10px; margin: 0 0 6px 2px; }
+.pdf-report .ra-close-bottles span { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pdf-report .ra-close-bottles em { font-style: normal; font-size: 10px; font-weight: 800; color: #9a97a3; }
+.pdf-report .ra-close-q { font-family: Georgia, "Times New Roman", serif; font-size: 58px; line-height: 1; height: 40px; font-weight: 700; color: #2f2a5e; margin: 6px 0 4px; }
+.pdf-report .ra-close-q--end { margin: 4px 0 0; height: 44px; }
+.pdf-report .ra-close p { margin: 0 0 16px; font-size: 14.2px; line-height: 1.95; color: #34323d; word-break: keep-all; }
+.pdf-report .ra-close + .ra-note { margin-top: 18px; }
+.pdf-report .ra-lifes--cont .ra-life { border-top: 0; padding-top: 0; margin-top: 0; }
+.pdf-report .ra-lifes .ra-alead + .ra-life { border-top: 0; padding-top: 2px; margin-top: 0; }
+
+/* v3_38 · 생활 속에 적용하기 — 이유 포함, 한 페이지 */
+.pdf-report .ra-life-h { display: block; margin-bottom: 8px; background: none; padding: 0; border-radius: 0; }
+.pdf-report .ra-life-h span { display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 13px; box-sizing: border-box; border-radius: 999px; background: #4b4466; color: #fff; font-size: 12px; font-weight: 800; line-height: 1; }
+.pdf-report .ra-lrows { display: flex; flex-direction: column; gap: 9px; }
+.pdf-report .ra-lrow { display: grid; grid-template-columns: 132px 1fr; gap: 12px; align-items: start; }
+.pdf-report .ra-lrow-t p { margin: 0; word-break: keep-all; }
+.pdf-report .ra-lrow-do { font-size: 13.4px; font-weight: 600; line-height: 1.65; color: var(--ink-900); }
+.pdf-report .ra-lrow-why { display: flex; gap: 7px; margin-top: 3px !important; font-size: 12.6px; line-height: 1.65; color: #6f6c7a; }
+.pdf-report .ra-lrow-why em { flex: 0 0 auto; font-style: normal; font-size: 10.5px; font-weight: 800; color: #6a56a8; background: #f1eef9; border-radius: 6px; padding: 0 6px; height: 18px; line-height: 18px; margin-top: 2px; }
+
+/* v3_38 · 마지막 페이지: 종합 컬러리딩 + 마무리 질문 (투명 칸) */
+.pdf-report .ra-close { margin-top: 10px; padding: 0 4px; }
+.pdf-report .ra-close-top { display: flex; align-items: flex-end; justify-content: space-between; }
+.pdf-report .ra-close-bottles { margin: 0 2px 6px 0; gap: 8px; }
+.pdf-report .ra-close-q { font-size: 50px; height: 32px; margin: 0 0 6px; }
+.pdf-report .ra-close-q--end { height: 30px; margin: 0; }
+.pdf-report .ra-close p { margin: 0 0 11px; font-size: 13.6px; line-height: 1.85; }
+.pdf-report .ra-endq { margin-top: 16px; padding: 16px 4px 0; border-top: 1px solid #e7e5ea; background: transparent; }
+.pdf-report .ra-endq-t { font-size: 15px; font-weight: 800; color: var(--ink-900); }
+.pdf-report .ra-endq-d { margin: 4px 0 6px; font-size: 12.6px; line-height: 1.6; color: #8a8794; word-break: keep-all; }
+.pdf-report .ra-endq-q { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; font-size: 13.4px; font-weight: 700; line-height: 1.6; color: var(--ink-900); word-break: keep-all; }
+.pdf-report .ra-endq-q b { color: #6a56a8; flex: 0 0 auto; }
+.pdf-report .ra-endq-q em { flex: 0 0 auto; font-style: normal; font-size: 11px; font-weight: 800; color: #8a8794; }
+.pdf-report .ra-endq-line { height: 24px; border-bottom: 1px dashed #d9d6de; }
+.pdf-report .ra-endq + .ra-note { margin-top: 16px; }
+
+/* v3_38 · 관계 02~04를 한 페이지에 — 비교 카드 촘촘하게 */
+.pdf-report .ra-cmp { padding: 13px 18px 13px; }
+.pdf-report .ra-cmp .ra-alead { margin: 8px 0 8px; font-size: 13.2px; line-height: 1.55; padding: 8px 13px 9px; }
+.pdf-report .ra-cmp .ra-cols { gap: 8px; margin: 0 0 7px; }
+.pdf-report .ra-cmp .ra-col { padding: 9px 11px 10px; border-radius: 10px; }
+.pdf-report .ra-cmp .ra-col-h { margin-bottom: 6px; gap: 8px; }
+.pdf-report .ra-cmp .ra-col-m { font-size: 12.8px; line-height: 1.5; margin-bottom: 4px; }
+.pdf-report .ra-cmp .ra-col-why { font-size: 12px; line-height: 1.6; }
+.pdf-report .ra-cmp .ra-col-f { margin-top: 5px; }
+.pdf-report .ra-cmp .ra-col-f em { font-size: 10px; margin-bottom: 0; }
+.pdf-report .ra-cmp .ra-col-f span { font-size: 12.2px; line-height: 1.55; }
+.pdf-report .ra-cmp .ra-cmp-foot { margin: 0; font-size: 12.6px; line-height: 1.65; }
+.pdf-report .ra-cmp .ra-tips { padding: 8px 12px 9px; }
+.pdf-report .ra-cmp .ra-tip { font-size: 12.4px; line-height: 1.6; }
+.pdf-report .ra-cmp .ra-tip::before { top: 9px; }
+.pdf-report .ra-lifes .ra-lrows { gap: 12px; }
+.pdf-report .ra-lifes .ra-life { margin-top: 16px; padding-top: 16px; }
+.pdf-report .ra-lifes .ra-alead + .ra-life { margin-top: 4px; padding-top: 4px; }
+.pdf-report .ra-lifes .ra-alead { margin: 12px 0 12px; }
+.pdf-report .ra-lifes .ra-life-i { margin: 0 0 11px; }
+.pdf-report .ra-lifes .ra-life-end { margin-top: 16px; padding-top: 13px; }
+/* html2canvas가 글자를 약 4px 아래로 그리는 만큼 위로 보정 (PDF 전용) */
+.pdf-report .ra-life-h span { padding-bottom: 8px; }
+
+/* v3_38 · 대분류(01~04) 머리 — 더 분명하게 */
+.pdf-report .ra-sec { display: flex; align-items: center; gap: 12px; margin: 6px 0 12px; padding-bottom: 10px; border-bottom: 2px solid #2f2a5e; }
+.pdf-report .ra-sec b { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; box-sizing: border-box; padding-bottom: 8px; border-radius: 9px; background: #2f2a5e; color: #fff; font-size: 14px; font-weight: 800; letter-spacing: 0; line-height: 1; }
+.pdf-report .ra-sec b i { font-style: normal; }
+.pdf-report .ra-sec span { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: #1d1b2c; line-height: 1.2; }
+.pdf-report .ra-sec em { margin-left: auto; font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: .14em; color: #a9a6b2; }
+.pdf-report .ra-sec + .ra-desc { margin-top: -2px; }
+.pdf-report .ra-close p { margin: 0 0 9px; font-size: 13.4px; line-height: 1.82; }
+.pdf-report .ra-endq { margin-top: 12px; padding-top: 13px; }
+.pdf-report .ra-endq-q { margin-top: 8px; }
+.pdf-report .ra-endq-line { height: 22px; }
+.pdf-report .ra-endq + .ra-note { margin-top: 12px; }
+.pdf-report .ra-cmp .ra-cols { margin-bottom: 6px; }
+.pdf-report .ra-cmp .ra-alead { margin: 7px 0 7px; }
+
+/* v3_39 · 마무리 질문: 질문마다 한 줄 쓰는 칸 + 간격 넓게 */
+.pdf-report .ra-endq-q { margin-top: 18px; }
+.pdf-report .ra-endq-d + .ra-endq-q { margin-top: 12px; }
+.pdf-report .ra-endq-line { height: 30px; border-bottom: 1px solid #cfcbd6; margin: 0 0 0 26px; }
+.pdf-report .ra-close p { margin: 0 0 8px; font-size: 13.2px; line-height: 1.76; }
+.pdf-report .ra-close-q { font-size: 44px; height: 28px; margin: 0 0 4px; }
+.pdf-report .ra-close-q--end { height: 26px; margin: 0; }
+
+/* v3_40 · 생활 속에 적용하기: 컬러 이름과 실천 첫 줄 맞춤, "이유" 글자 대신 화살표 아이콘 */
+.pdf-report .ra-lrow .ra-arow-k { padding-top: 0; align-items: center; }
+.pdf-report .ra-lrow .ra-arow-k b { font-size: 13.4px; line-height: 22px; }
+.pdf-report .ra-lrow .ra-arow-k .ra-dot { top: 0; }
+.pdf-report .ra-lrow .ra-arow-k small { margin-top: -1px; }
+.pdf-report .ra-lrow-do { line-height: 22px; }
+.pdf-report .ra-lrow-why { gap: 6px; margin-top: 2px !important; line-height: 20px; }
+.pdf-report .ra-why-ic { flex: 0 0 auto; display: flex; height: 20px; align-items: center; font-style: normal; }
+.pdf-report .ra-why-ic svg { display: block; }
+/* html2canvas 글자 밀림(약 4px)에 맞춰 점·아이콘도 함께 내림 (PDF 전용) */
+.pdf-report .ra-lrow .ra-arow-k .ra-dot { top: 4px; }
+.pdf-report .ra-why-ic { position: relative; top: 3px; }

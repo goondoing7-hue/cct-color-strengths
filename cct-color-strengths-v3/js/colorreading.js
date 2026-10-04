@@ -390,7 +390,7 @@
   // ---------- PDF 전용 확장 문장 (v3_31) ----------
   // ① 지금 나에게 필요한 컬러: 꺼내지 못한 마음(5번)과 이어서
   // ② 종합 컬러리딩: 과거 → 현재 → 앞으로 → 5번 → 정리 순서로 자세히
-  // ③ 다섯 컬러의 흐름 9가지: 항목마다 한눈에 / 풀어 보기 / 나에게 묻기
+  // ③ 다섯 컬러로 보는 관계와 일상 (v3_37) · ④ 종합 컬러리딩은 마지막 페이지
   function wa(w) { return j(w, "과", "와"); }
   function eul(w) { return j(w, "을", "를"); }
   function iga(w) { return j(w, "이", "가"); }
@@ -409,59 +409,83 @@
         `${eunC(C5.ko)} ${mo(k5)} 의미하는데, 필요하다고 느끼면서도 아직 충분히 채우지 못한 부분이기 때문이에요. ${C5.tip}`,
     };
 
-    const summary = [
-      { h: "한 줄로 보면", p: `${who}의 다섯 컬러를 한 줄로 말하면 ‘${E[0]}’이에요. 1번 ${C1.ko}에서 4번 ${C4.ko}까지의 순서는, ${E[2]}으로 읽을 수 있어요.` },
-      { h: "과거의 나", p: `그동안은 ‘${P[0]}’에 가까웠을 수 있어요. 1·2번 컬러의 순서는, ${P[2]}으로 읽을 수 있어요.` },
-      { h: "현재의 나", p: `요즘은 ‘${N[0]}’이 조금 더 크게 느껴질 수 있어요. ${N[3]}` },
-      { h: "앞으로 바라는 나", p: `앞으로는 ‘${F[0]}’을 더 키워 가고 싶으실 수 있어요. 예측이 아니라, 내가 향하고 싶은 방향이에요. ${F[4]}` },
-      { h: "꺼내지 못한 마음", p: `5번 ${eunC(C5.ko)} ${mo(k5)} 의미해요. ${C5.gap}` },
-      { h: "정리하며", p: `지금은 2번 ${C2.ko}의 ${mo(k2).replace(/[을를]$/, "")}을 바탕으로, 4번 ${C4.ko}의 ${mo(k4).replace(/[을를]$/, "")} 쪽으로 나아가고 싶은 시기일 수 있어요. 정답은 없어요. 읽으면서 와닿는 문장 하나를 골라 오늘의 나에게 건네 보세요.` },
+    // v3_37: 종합 컬러리딩 — 마지막 페이지, 이어지는 글(인용 부호 상자)
+    const four0 = [C1, C2, C3, C4];
+    const whoI = j(who, "이", "가");
+    const kw = (C) => C.keywords[0];
+    const qw = (w, a, b) => `‘${w}’${pp(w, a, b)}`;
+    const closing = [
+      `${whoI} 고른 다섯 컬러는 ${C1.ko}에서 시작해 ${C2.ko}, ${C3.ko}, ${euro(C4.ko)} 이어지고, 마지막에 ${C5.ko}${pp(C5.ko, "이", "가")} 남았어요. ` +
+        `이 순서를 한 줄로 정리하면 ‘${E[0]}’에 가까워요. 처음 고른 색은 그동안 익숙하게 써 온 모습을, 네 번째 색은 앞으로 더 키우고 싶은 모습을 보여 주는데, 둘을 나란히 놓고 보면 ${E[2]}으로 읽을 수 있어요.`,
+      `지나온 시간을 돌아보면 ‘${sh(P)}’에 가까운 시기를 보내 오셨을 수 있어요. ${eunC(C1.ko)} ${mo(k1)}, ${eunC(C2.ko)} ${mo(k2)} 의미하는데, 이 두 가지를 함께 쓰며 하루하루를 꾸려 오셨을 거예요. ` +
+        `특히 2번 ${eunC(C2.ko)} 과거와 현재에 모두 들어 있어서, 상황이 바뀌어도 쉽게 내려놓지 않은 기준이라고 볼 수 있어요.`,
+      `요즘은 3번 ${C3.ko}${pp(C3.ko, "이", "가")} 더해지면서 ‘${sh(N)}’${pp(sh(N), "이", "가")} 조금 더 크게 느껴질 수 있어요. ` +
+        `익숙한 ${qw(kw(C2), "을", "를")} 바탕으로 하면서도 ${qw(kw(C3), "을", "를")} 더 찾고 있는 시기예요. 두 가지가 서로 다른 쪽을 향하는 것처럼 느껴지는 날도 있겠지만, 둘 다 지금의 나에게 필요한 것이라 어느 한쪽을 골라야 하는 문제는 아니에요.`,
+      `앞으로는 ‘${sh(F)}’ 쪽으로 나아가고 싶은 바람이 보여요. ${eunC(C4.ko)} ${mo(k4)} 의미하고, 이것은 정해진 미래가 아니라 내가 향하고 싶은 방향이에요. ` +
+        `그래서 큰 결심을 세우기보다 이번 주에 해 볼 수 있는 작은 시도 하나에서 시작해도 충분해요.`,
+      `마지막에 남은 ${eunC(C5.ko)} ${mo(k5)} 의미해요. 가장 덜 끌린 색이라고 해서 부족하다는 뜻은 아니에요. ` +
+        `${stemList(four0, "느라")} 바빴던 만큼, ${C5.gap} 이 부분을 조금씩 채워 가면 앞의 네 가지도 한결 편안하게 쓸 수 있어요.`,
+      `이 결과는 정답이 아니라 지금의 나를 살펴보는 하나의 대화예요. 읽으면서 고개가 끄덕여진 문장이 있었다면 그 부분부터 천천히 이어 가 보시고, 잘 와닿지 않는 문장이 있었다면 지금의 나와 어떤 점이 다른지 떠올려 보는 것도 좋아요.`,
+      `요즘 혼자 감당하기 버겁다고 느껴진다면, 믿을 만한 사람이나 전문가와 이야기를 나누며 도움을 받는 것도 좋은 방법이에요. 끌리는 색은 시기에 따라 달라질 수 있으니, 시간이 지나 다시 골라 보고 달라진 점을 비교해 보세요. ` +
+        `${whoI} 자신에게 맞는 속도로, 원하는 모습을 하나씩 채워 가시기를 바랍니다.`,
     ];
 
     const four = [C1, C2, C3, C4];
-    const asp = [
-      { t: "예전부터 지금까지 이어지는 것", keys: [k1, k2, k3],
-        lead: `2번 ${eunC(C2.ko)} 과거(1·2번)와 현재(2·3번)에 모두 들어 있는 컬러예요.`,
-        body: [`${eunC(C2.ko)} ${mo(k2)} 의미해요. 두 시기에 모두 들어 있다는 것은, ${mi(k2)} 잠깐 지나간 것이 아니라 예전부터 지금까지 꾸준히 이어져 왔다는 뜻으로 읽을 수 있어요.`,
-          `과거에는 1번 ${C1.ko}${j(C1.ko, "과", "와").slice(-1)} 함께 ‘${sh(P)}’으로, 요즘은 3번 ${C3.ko}${j(C3.ko, "과", "와").slice(-1)} 함께 ‘${sh(N)}’으로 나타나고 있어요.`] },
-      { t: "요즘 이런 순간이 있을 수 있어요", keys: [k2, k3],
-        lead: N[3],
-        body: [`현재의 나(2·3번)는 ‘${N[0]}’이에요. ${eunC(C2.ko)} ${mo(k2)}, ${eunC(C3.ko)} ${mo(k3)} 의미해요. 이 두 가지가 일상에서는 이런 순간으로 나타날 수 있어요.`,
-          `이런 순간이 있다면, 요즘의 내가 무엇을 원하는지 알려 주는 신호로 받아들여도 괜찮아요.`] },
-      { t: "요즘 내 안의 두 가지 바람", keys: [k2, k3],
-        lead: `요즘은 “${C2.say}”와 “${C3.say}”가 함께 느껴질 수 있어요.`,
-        list: [[k2, `“${C2.say}”`, "예전부터 이어 온 바람"], [k3, `“${C3.say}”`, "요즘 새로 커진 바람"]],
-        body: [`${eunC(C2.ko)} ${mo(k2)}, ${eunC(C3.ko)} ${mo(k3)} 의미해요. 두 가지는 서로 부딪히는 것이 아니라 함께 지금의 나를 이루고 있어요. 어느 한쪽을 고르기보다 둘 다 인정해 주는 것부터 시작해 보세요.`] },
-      { t: "지금에서 앞으로 바뀌고 싶은 것", keys: [k2, k3, k4],
-        lead: `현재(2·3번)에서 앞으로(3·4번)로 넘어가면, 3번 ${eunC(C3.ko)} 그대로 남고 2번 ${C2.ko} 자리에 4번 ${j(C4.ko, "이", "가")} 들어와요.`,
-        body: [`${j(C2.ko, "이", "가")} ${mo(k2)} 의미한다면, ${eunC(C4.ko)} ${mo(k4)} 의미해요. 그래서 이 변화는 ${M[2]}으로 읽을 수 있어요.`,
-          `한마디로 하면 ‘${M[0]}’이에요.`] },
-      { t: "앞으로 해 보고 싶은 작은 일", keys: [k3, k4],
-        lead: F[4],
-        body: [`앞으로 바라는 나(3·4번)는 ‘${F[0]}’이에요. 이 바람을 큰 목표로 두기보다 이번 주에 해 볼 수 있는 가장 작은 행동으로 바꿔 보면, 훨씬 가볍게 시작할 수 있어요.`] },
-      { t: "처음과 마지막을 비교하면", keys: [k1, k4],
-        lead: `처음은 “${C1.say}”, 마지막은 “${C4.say}”예요.`,
-        body: [`1번은 처음 고른 색이라 그동안 익숙하게 써 온 모습을, 4번은 앞으로 이렇게 지내고 싶은 바람을 보여 줘요. ${eunC(C1.ko)} ${mo(k1)}, ${eunC(C4.ko)} ${mo(k4)} 의미해요.`,
-          `1번 ${C1.ko}에서 4번 ${C4.ko}까지의 순서는, ${E[2]}으로 읽을 수 있어요.`] },
-      { t: "네 컬러에서 반복되는 키워드", keys: [k1, k2, k3, k4],
-        lead: `네 컬러의 의미를 이어 보면 “${stemList(four, "고")} 싶다”가 돼요.`,
-        list: four.map((C, i) => [sel[i], `#${C.keywords[0]}`, C.mean]),
-        body: [`네 가지는 따로 떨어진 것이 아니라, 지금 내가 원하는 것들이 순서대로 이어진 모습이에요. 이 중에서 지금 가장 와닿는 키워드가 요즘 나에게 가장 필요한 것일 수 있어요.`] },
-      { t: "아직 꺼내 쓰지 못한 것", keys: [k5],
-        lead: `${stemList(four, "느라")} 바빴던 만큼, ${C5.gap}`,
-        quote: C5.v5,
-        body: [`5번 ${eunC(C5.ko)} ${mo(k5)} 의미해요. 가장 덜 끌린 색이라고 해서 부족하거나 문제가 있다는 뜻은 아니에요. 필요하다는 걸 알면서도 아직 충분히 꺼내 쓰지 못한 부분일 수 있어요.`] },
-      { t: "지금 나에게 던져볼 질문", keys: [k1, k2, k3, k4, k5],
-        lead: `과거의 나, 현재의 나, 앞으로 바라는 나, 꺼내지 못한 마음에서 생각해 볼 질문이에요. 정답은 없고, 떠오르는 대로 적어도 충분해요.`,
-        qs: [
-          ["과거의 나", `그동안 ‘${sh(P)}’으로 지내 오면서, 가장 애써 온 일은 무엇이었나요?`],
-          ["현재의 나", `요즘 ‘${sh(N)}’이 가장 크게 느껴지는 때는 언제인가요?`],
-          ["앞으로 바라는 나", `‘${sh(F)}’을 위해 이번 달에 해 볼 수 있는 한 가지는 무엇인가요?`],
-          ["꺼내지 못한 마음", `‘${C5.t5s || C5.t5}’을 위해, 지금 할 수 있는 작은 일은 무엇인가요?`],
+    // v3_37: 03 「다섯 컬러로 보는 관계와 일상」
+    //   01 키워드(유지) · 02~04 관계(컬러 보틀 비교) · 05 생활 속에 적용하기(일상·업무·공부) · 06 질문(유지)
+    const A = (k) => CR_APPLY[k] || CR_APPLY.R;
+    const A2 = A(k2), A3 = A(k3), A4 = A(k4), A5 = A(k5);
+    const keyword = { t: "네 컬러에서 반복되는 키워드", keys: [k1, k2, k3, k4],
+      lead: `네 컬러의 의미를 이어 보면 “${stemList(four, "고")} 싶다”가 돼요.`,
+      list: four.map((C, i) => [sel[i], `#${C.keywords[0]}`, C.mean]),
+      body: [`네 가지는 따로 떨어진 것이 아니라, 지금 내가 원하는 것들이 순서대로 이어진 모습이에요. 이 중에서 지금 가장 와닿는 키워드가 요즘 나에게 가장 필요한 것일 수 있어요.`] };
+    const rel = [
+      { t: "관계 속의 나", keys: [k2, k3], arrow: true,
+        lead: `2번 ${C2.ko}에서 3번 ${euro(C3.ko)} 이어지는 순서를 보면, 관계에서도 ${qw(kw(C2), "을", "를")} 바탕으로 ${qw(kw(C3), "을", "를")} 더 찾게 된 시기일 수 있어요.`,
+        cols: [
+          { k: k2, pos: "2번", lb: "예전부터 익숙한 나", lines: [["바라는 것", A2.relWant], ["드러나는 모습", A2.relHow], ["서운해지는 때", A2.relLack]] },
+          { k: k3, pos: "3번", lb: "요즘의 나", lines: [["바라는 것", A3.relWant], ["드러나는 모습", A3.relHow], ["서운해지는 때", A3.relLack]] },
         ],
-        body: [] },
+        foot: { p: `두 모습은 어느 하나가 맞고 틀린 것이 아니에요. 가까운 사람에게 요즘 내가 관계에서 바라는 것을 한 문장으로 먼저 말해 보면, 오해가 생기기 전에 서로의 기대를 맞춰 볼 수 있어요.` } },
+      { t: "나와 잘 맞는 사람", keys: [k3, k2, k4],
+        lead: `편안함을 주는 사람과 배울 점을 주는 사람은 조금 다를 수 있어요. 고른 순서에 따라 세 사람으로 나눠 보면 이래요.`,
+        cols: [
+          { k: k3, pos: "3번", lb: "요즘 편한 사람", main: A3.fit, why: `요즘 내가 찾는 ${qw(kw(C3), "을", "를")} 자연스럽게 존중해 주기 때문이에요.` },
+          { k: k2, pos: "2번", lb: "오래 편한 사람", main: A2.fit, why: `오래 지켜 온 ${qw(kw(C2), "을", "를")} 알아봐 주는 사람이라, 시간이 지나도 편하게 지낼 수 있어요.` },
+          { k: k4, pos: "4번", lb: "배울 점이 많은 사람", main: A4.persona, why: `앞으로 키우고 싶은 ${qw(kw(C4), "을", "를")} 이미 일상에서 쓰고 있어서, 곁에 있으면 자연스럽게 배우게 될 수 있어요.` },
+        ],
+        foot: { p: `주변에서 떠오르는 사람이 있다면 이름을 적어 보고, 요즘 그 사람과 보내는 시간을 조금 늘려 보세요.` } },
+      { t: "나와 부딪히기 쉬운 사람", keys: [k3, k2, k5],
+        lead: `부딪힌다고 해서 맞지 않는 관계라는 뜻은 아니에요. 어디에서 마찰이 생기기 쉬운지 미리 알면, 같은 상황에서도 훨씬 덜 지치게 대할 수 있어요.`,
+        cols: [
+          { k: k3, pos: "3번", lb: "요즘 부딪히기 쉬운 사람", main: A3.clash, why: `요즘 중요하게 여기는 ${qw(kw(C3), "과", "와")} 반대쪽으로 움직이는 사람이라 마찰이 생기기 쉬워요.` },
+          { k: k2, pos: "2번", lb: "오래 불편했던 사람", main: A2.clash, why: `오래 지켜 온 ${qw(kw(C2), "을", "를")} 가볍게 여기는 것처럼 느껴져서, 예전부터 불편했을 수 있어요.` },
+          { k: k5, pos: "5번", lb: "처음엔 낯선 사람", main: A5.persona, why: `아직 충분히 꺼내 쓰지 못한 ${qw(kw(C5), "을", "를")} 이미 잘 쓰는 사람이라 처음엔 어색할 수 있지만, 가까워지면 배울 점이 많아요.` },
+        ],
+        foot: { t: "부딪힐 때 해 볼 것", items: [A3.relTip, A2.relTip] } },
     ];
-    return { heal, summary, asp };
+    const life = { t: "생활 속에 적용하기", keys: [k2, k3, k4, k5],
+      lead: `앞의 결과를 하루 생활과 일, 공부에 옮겨 보면 이렇게 해 볼 수 있어요. 직장인이라면 업무를, 학생이라면 공부를 중심으로 읽어 보세요. 방법마다 그렇게 해 보면 좋은 이유를 함께 적었어요.`,
+      parts: [
+        { h: "일상", intro: `하루 생활에서는 요즘 커진 ${qw(kw(C3), "과", "와")}, 앞으로 키우고 싶은 ${qw(kw(C4), "을", "를")}, 아직 덜 꺼내 쓴 ${qw(kw(C5), "을", "를")} 하나씩 챙겨 볼 수 있어요.`,
+          rows: [[k3, "요즘의 나를 위해", A3.daily, A3.dailyWhy], [k4, "바라는 나를 위해", A4.daily, A4.dailyWhy], [k5, "꺼내지 못한 부분을 위해", A5.daily, A5.dailyWhy]] },
+        { h: "직장인이라면 · 업무", intro: `회사에서는 ${A2.work} 2번 컬러는 과거와 현재에 모두 들어 있어, 이미 익숙하게 쓰고 있는 업무 방식에 가까워요.`,
+          rows: [[k3, "요즘 해 볼 것", A3.workTip, A3.workWhy], [k4, "앞으로 키워 갈 것", A4.workTip, A4.workWhy], [k5, "꺼내 쓰면 좋은 것", A5.workTip, A5.workWhy]] },
+        { h: "학생이라면 · 공부", intro: `공부할 때는 ${A2.study} 익숙한 방식은 그대로 두고, 아래 방법을 하나씩 더해 보세요.`,
+          rows: [[k3, "요즘 해 볼 것", A3.studyTip, A3.studyWhy], [k4, "앞으로 키워 갈 것", A4.studyTip, A4.studyWhy], [k5, "꺼내 쓰면 좋은 것", A5.studyTip, A5.studyWhy]] },
+      ],
+      end: `여러 가지를 한꺼번에 바꾸기보다, 이번 주에는 가장 해 볼 만한 것 하나만 골라 일주일 동안 이어 가 보세요. 해 본 뒤 달라진 점을 짧게 적어 두면, 나에게 잘 맞는 방법을 찾는 데 도움이 돼요.` };
+    const questions = { t: "지금 나에게 던져볼 질문", keys: [k1, k2, k3, k4, k5],
+      lead: `과거의 나, 현재의 나, 앞으로 바라는 나, 꺼내지 못한 마음에서 생각해 볼 질문이에요. 정답은 없고, 떠오르는 대로 적어도 충분해요.`,
+      qs: [
+        ["과거의 나", `그동안 ‘${sh(P)}’으로 지내 오면서, 가장 애써 온 일은 무엇이었나요?`],
+        ["현재의 나", `요즘 ‘${sh(N)}’이 가장 크게 느껴지는 때는 언제인가요?`],
+        ["앞으로 바라는 나", `‘${sh(F)}’을 위해 이번 달에 해 볼 수 있는 한 가지는 무엇인가요?`],
+        ["꺼내지 못한 마음", `‘${C5.t5s || C5.t5}’을 위해, 지금 할 수 있는 작은 일은 무엇인가요?`],
+      ],
+      body: [] };
+    return { heal, closing, keyword, rel, life, questions };
+
   }
 
   // ---------- 결과 HTML ----------
@@ -905,24 +929,101 @@
         </div>
       </div>`;
   }
-  function raSec(no, title) { return `<div class="ra-sec"><b>${no}</b><span>${esc(title)}</span></div>`; }
+  // v3_38 · 대분류 머리: 번호 상자 + 제목 + 영문 + 굵은 밑줄로 구분을 분명하게
+  const RA_SEC_EN = { "01": "MY FIVE COLORS", "02": "FOUR READINGS", "03": "RELATIONSHIPS & DAILY LIFE", "04": "OVERALL READING" };
+  function raSec(no, title) { return `<div class="ra-sec"><b><i>${no}</i></b><span>${esc(title)}</span><em>${RA_SEC_EN[no] || ""}</em></div>`; }
 
   function raAspectHTML(a, i) {
     const dots = a.keys.map(raDot).join("");
     const list = a.list ? `<div class="ra-alist">${a.list.map(([k, say, tail]) => `<div>${raDot(k)}<b>${esc(c(k).ko)}</b><span class="ra-say">${esc(say)}</span><span class="ra-tail">${esc(tail)}</span></div>`).join("")}</div>` : "";
     const quote = a.quote ? `<div class="ra-aq">“${esc(a.quote)}”</div>` : "";
+    const rows = a.rows ? `<div class="ra-arows">${a.rows.map(([k, lb, tx]) => `<div class="ra-arow"><div class="ra-arow-k">${raDot(k)}<b>${esc(c(k).ko)}</b><small>${esc(lb)}</small></div><p>${esc(tx)}</p></div>`).join("")}</div>` : "";
     const qs = a.qs ? `<div class="ra-qs">${a.qs.map(([lb, q], n) => `<div class="ra-q"><b>Q${n + 1}</b><span><em>${esc(lb)}</em>${esc(q)}</span></div><div class="ra-lines"><i></i></div>`).join("")}</div>` : "";
     const memo = "";
     return `
       <div class="ra-asp">
         <div class="ra-ah"><span class="ra-an">${String(i + 1).padStart(2, "0")}</span><span class="ra-at">${esc(a.t)}</span><span class="ra-adots">${dots}</span></div>
         <div class="ra-alead">${esc(a.lead)}</div>
-        ${quote}${list}
+        ${quote}${list}${rows}
         ${a.body.map((p) => `<p class="ra-ap">${esc(p)}</p>`).join("")}
         ${qs}
 
         ${memo}
       </div>`;
+  }
+
+  // v3_37 · 컬러 보틀 비교 카드 (관계 02~04)
+  function raBarColor(k) { return k === "W" ? "#d9d6de" : c(k).hex; }
+  function raCmpHTML(it, no) {
+    const dots = it.keys.map(raDot).join("");
+    const col = (o) => `
+      <div class="ra-col" style="border-top-color:${raBarColor(o.k)}">
+        <div class="ra-col-h">
+          <span class="ra-col-b">${bottleSVG(c(o.k).hex, { w: 26 })}</span>
+          <div><div class="ra-col-k">${esc(o.pos)} · ${esc(c(o.k).ko)}</div><div class="ra-col-l">${esc(o.lb)}</div></div>
+        </div>
+        ${o.main ? `<div class="ra-col-m">${esc(o.main)}</div>` : ""}
+        ${o.why ? `<p class="ra-col-why">${esc(o.why)}</p>` : ""}
+        ${o.lines ? o.lines.map(([h, t]) => `<div class="ra-col-f"><em>${esc(h)}</em><span>${esc(t)}</span></div>`).join("") : ""}
+      </div>`;
+    const cols = it.arrow
+      ? `<div class="ra-cols ra-cols--2">${col(it.cols[0])}<div class="ra-col-arr">→</div>${col(it.cols[1])}</div>`
+      : `<div class="ra-cols ra-cols--${it.cols.length}">${it.cols.map(col).join("")}</div>`;
+    const f = it.foot || {};
+    const foot = f.items
+      ? `<div class="ra-tips"><div class="ra-tips-t">${esc(f.t)}</div>${f.items.map((x) => `<div class="ra-tip">${esc(x)}</div>`).join("")}</div>`
+      : f.p ? `<p class="ra-ap ra-cmp-foot">${esc(f.p)}</p>` : "";
+    return `
+      <div class="ra-asp ra-cmp">
+        <div class="ra-ah"><span class="ra-an">${String(no).padStart(2, "0")}</span><span class="ra-at">${esc(it.t)}</span><span class="ra-adots">${dots}</span></div>
+        <div class="ra-alead">${esc(it.lead)}</div>
+        ${cols}
+        ${foot}
+      </div>`;
+  }
+  // v3_40 · 실천 아래 "왜 도움이 되는지" 줄 앞에 붙는 작은 화살표 아이콘 (↳)
+  const WHY_IC = `<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v4.2a2 2 0 0 0 2 2h5" fill="none" stroke="#8b7cc4" stroke-width="1.6" stroke-linecap="round"/><path d="M7.4 5.4l2.3 2.3-2.3 2.3" fill="none" stroke="#8b7cc4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  // v3_38 · 생활 속에 적용하기 (일상 · 업무 · 공부) — 한 페이지를 이 항목 하나로
+  function raLifeHTML(it, no) {
+    const dots = it.keys.map(raDot).join("");
+    const row = ([k, lb, tx, why]) => `
+      <div class="ra-lrow">
+        <div class="ra-arow-k">${raDot(k)}<b>${esc(c(k).ko)}</b><small>${esc(lb)}</small></div>
+        <div class="ra-lrow-t"><p class="ra-lrow-do">${esc(tx)}</p>${why ? `<p class="ra-lrow-why"><i class="ra-why-ic">${WHY_IC}</i><span>${esc(why)}</span></p>` : ""}</div>
+      </div>`;
+    const part = (pt) => `
+      <div class="ra-life">
+        <div class="ra-life-h"><span>${esc(pt.h)}</span></div>
+        <p class="ra-life-i">${esc(pt.intro)}</p>
+        <div class="ra-lrows">${pt.rows.map(row).join("")}</div>
+      </div>`;
+    return `
+      <div class="ra-asp ra-lifes">
+        <div class="ra-ah"><span class="ra-an">${String(no).padStart(2, "0")}</span><span class="ra-at">${esc(it.t)}</span><span class="ra-adots">${dots}</span></div>
+        <div class="ra-alead">${esc(it.lead)}</div>
+        ${it.parts.map(part).join("")}
+        <p class="ra-ap ra-life-end">${esc(it.end)}</p>
+      </div>`;
+  }
+  // v3_38 · 종합 컬러리딩 + 마무리 질문 (마지막 페이지 한 장)
+  function raCloseHTML(X, sel) {
+    const Q = X.questions;
+    return `
+      ${raSec("04", "종합 컬러리딩")}
+      <div class="ra-close">
+        <div class="ra-close-top">
+          <div class="ra-close-q">“</div>
+          <div class="ra-close-bottles">${sel.map((k, i) => `<span>${bottleSVG(c(k).hex, { w: 18 })}<em>${i + 1}</em></span>`).join("")}</div>
+        </div>
+        ${X.closing.map((p) => `<p>${esc(p)}</p>`).join("")}
+        <div class="ra-close-q ra-close-q--end">”</div>
+      </div>
+      <div class="ra-endq">
+        <div class="ra-endq-t">${esc(Q.t)}</div>
+        <p class="ra-endq-d">${esc(Q.lead)}</p>
+        ${Q.qs.map(([lb, q], n) => `<div class="ra-endq-q"><b>Q${n + 1}</b><em>${esc(lb)}</em><span>${esc(q)}</span></div><div class="ra-endq-line"></div>`).join("")}
+      </div>
+      <p class="ra-note">${esc(NOTE)}</p>`;
   }
 
   function buildPdfBlocks(R, opts) {
@@ -944,19 +1045,17 @@
       <div class="ra-heal">
         <div class="ra-heal-b">${bottleSVG(c(X.heal.key).hex, { w: 34 })}</div>
         <div><div class="ra-heal-t">${esc(X.heal.title)}</div><p>${esc(X.heal.text)}</p></div>
-      </div>
-      <div class="ra-sum">
-        <div class="ra-sum-k">종합 컬러리딩</div>
-        ${X.summary.map((x) => `<div class="ra-sum-i"><b>${esc(x.h)}</b><p>${esc(x.p)}</p></div>`).join("")}
       </div>` });
-    // 9가지 흐름: 한 페이지에 3개씩, 총 3페이지
-    for (let g = 0; g < 3; g++) {
-      const items = X.asp.slice(g * 3, g * 3 + 3).map((a, n) => raAspectHTML(a, g * 3 + n)).join("");
-      blocks.push({ pageBreakBefore: true, html: `
-        ${g === 0 ? `${raSec("03", "다섯 컬러의 흐름으로 읽는 나")}<div class="ra-desc">다섯 컬러를 고른 순서대로 이어 보며, 요즘의 나를 아홉 가지로 나눠 살펴봐요.</div>` : ""}
-        <div class="ra-asps">${items}</div>
-        ${g === 2 ? `<p class="ra-note">${esc(NOTE)}</p>` : ""}` });
-    }
+    // 03 관계와 일상 — 항목마다 블록 하나, 남는 자리에 이어서 배치
+    blocks.push({ pageBreakBefore: false, html: `
+      ${raSec("03", "다섯 컬러로 보는 관계와 일상")}
+      <div class="ra-desc">앞의 결과를 바탕으로, 고른 컬러를 관계와 일상, 업무와 공부에 어떻게 적용해 볼 수 있는지 살펴봐요. 타고난 성격을 정하는 것이 아니라 지금 고른 컬러로 본 예시예요.</div>
+      <div class="ra-asps">${raAspectHTML(X.keyword, 0)}</div>` });
+    // 관계 02~04는 한 페이지에 함께, 05 생활 속에 적용하기는 다음 페이지 하나를 채움
+    X.rel.forEach((it, i) => blocks.push({ pageBreakBefore: i === 0, html: raCmpHTML(it, i + 2) }));
+    blocks.push({ pageBreakBefore: true, html: raLifeHTML(X.life, 5) });
+    // 04 종합 컬러리딩 + 지금 나에게 던져볼 질문 — 마지막 한 페이지 안에서 마무리
+    blocks.push({ pageBreakBefore: true, html: raCloseHTML(X, R.sel) });
     return blocks;
   }
 
