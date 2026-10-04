@@ -563,6 +563,8 @@
       </div>`;
   }
 
+  // 첫 문장(…대화의 도구입니다.) 뒤에서 줄을 바꿉니다.
+  function noteHTML() { const i = NOTE.indexOf("니다. ") + 3; return `${esc(NOTE.slice(0, i))}<br>${esc(NOTE.slice(i + 1))}`; }
   const NOTE = "컬러리딩은 지금 이 순간 직감으로 고른 색을 통해 지금의 나를 살펴보는 대화의 도구입니다. 심리검사나 진단이 아니며, 고른 색에 좋고 나쁨은 없습니다. 그때의 마음에 따라 선택하는 색은 달라질 수 있습니다.";
 
 
@@ -739,12 +741,20 @@
   }
 
   // 카드 속마음: 문장이 두 개면 문장마다 한 줄씩(두 번째 문장은 둘째 줄부터), 한 문장이면 최대 두 줄
+  const ICON_QUOTE = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10.2 5.5C6.4 6.6 4 9.6 4 13.8V19h6.3v-6.2H7.2c.2-2.4 1.4-4 3.6-4.9l-.6-2.4zm9.8 0c-3.8 1.1-6.2 4.1-6.2 8.3V19h6.3v-6.2H17c.2-2.4 1.4-4 3.6-4.9L20 5.5z"/></svg>`;
   function voiceHTML(v) {
-    const ss = String(v || "").split(/(?<=[.?!…])\s+/).filter(Boolean);
-    if (ss.length > 1) {
-      return `<div class="cr-card-voice cr-card-voice--multi">${ss.map((x, i) => `<span class="cr-vl">${i === 0 ? "“" : ""}${esc(x)}${i === ss.length - 1 ? "”" : ""}</span>`).join("")}</div>`;
+    // 문장마다 한 줄. 한 문장 안에 쉼표가 있으면 쉼표 뒤를 다음 줄로 (최대 두 줄 유지)
+    let ss = String(v || "").split(/(?<=[.?!…])\s+/).filter(Boolean);
+    if (ss.length === 1) {
+      const m = ss[0].match(/^(.+?,)\s+(.+)$/);
+      if (m) ss = [m[1], m[2]];
     }
-    return `<div class="cr-card-voice"><span class="cr-vt">“${esc(v)}”</span></div>`;
+    // v3_42: 글자 따옴표 대신 상자 위쪽 가운데에 카드 색 따옴표 아이콘
+    const q = `<span class="cr-vq" aria-hidden="true">${ICON_QUOTE}</span>`;
+    if (ss.length > 1) {
+      return `<div class="cr-card-voice cr-card-voice--multi">${q}${ss.map((x) => `<span class="cr-vl">${esc(x)}</span>`).join("")}</div>`;
+    }
+    return `<div class="cr-card-voice">${q}<span class="cr-vt">${esc(v)}</span></div>`;
   }
   function fitVoices(scope) {
     scope.querySelectorAll(".cr-card-voice").forEach((el) => {
@@ -898,7 +908,7 @@
         ${bottleRowHTML(R.sel)}
         ${sumRowsHTML(R)}
         ${summaryHTML(R)}
-        <p class="cr-note">${esc(NOTE)}</p>
+        <p class="cr-note">${noteHTML()}</p>
         <div class="cr-full-back">
           <button type="button" class="cr-back-btn" data-view="deck" data-go="0">‹ 컬러 카드 다시 보기</button>
         </div>
@@ -930,7 +940,7 @@
       </div>`;
   }
   // v3_38 · 대분류 머리: 번호 상자 + 제목 + 영문 + 굵은 밑줄로 구분을 분명하게
-  const RA_SEC_EN = { "01": "MY FIVE COLORS", "02": "FOUR READINGS", "03": "RELATIONSHIPS & DAILY LIFE", "04": "OVERALL READING" };
+  const RA_SEC_EN = { "01": "MY FIVE COLORS", "02": "FOUR READINGS", "03": "OVERALL READING" };
   function raSec(no, title) { return `<div class="ra-sec"><b><i>${no}</i></b><span>${esc(title)}</span><em>${RA_SEC_EN[no] || ""}</em></div>`; }
 
   function raAspectHTML(a, i) {
@@ -942,7 +952,7 @@
     const memo = "";
     return `
       <div class="ra-asp">
-        <div class="ra-ah"><span class="ra-an">${String(i + 1).padStart(2, "0")}</span><span class="ra-at">${esc(a.t)}</span><span class="ra-adots">${dots}</span></div>
+        <div class="ra-ah">${i >= 0 ? `<span class="ra-an">${String(i + 1).padStart(2, "0")}</span>` : `<span class="ra-tag"><i>TIP</i></span>`}<span class="ra-at">${esc(a.t)}</span><span class="ra-adots">${dots}</span></div>
         <div class="ra-alead">${esc(a.lead)}</div>
         ${quote}${list}${rows}
         ${a.body.map((p) => `<p class="ra-ap">${esc(p)}</p>`).join("")}
@@ -1009,7 +1019,7 @@
   function raCloseHTML(X, sel) {
     const Q = X.questions;
     return `
-      ${raSec("04", "종합 컬러리딩")}
+      ${raSec("03", "종합 컬러리딩")}
       <div class="ra-close">
         <div class="ra-close-top">
           <div class="ra-close-q">“</div>
@@ -1023,7 +1033,7 @@
         <p class="ra-endq-d">${esc(Q.lead)}</p>
         ${Q.qs.map(([lb, q], n) => `<div class="ra-endq-q"><b>Q${n + 1}</b><em>${esc(lb)}</em><span>${esc(q)}</span></div><div class="ra-endq-line"></div>`).join("")}
       </div>
-      <p class="ra-note">${esc(NOTE)}</p>`;
+      <p class="ra-note">${noteHTML()}</p>`;
   }
 
   function buildPdfBlocks(R, opts) {
@@ -1046,15 +1056,9 @@
         <div class="ra-heal-b">${bottleSVG(c(X.heal.key).hex, { w: 34 })}</div>
         <div><div class="ra-heal-t">${esc(X.heal.title)}</div><p>${esc(X.heal.text)}</p></div>
       </div>` });
-    // 03 관계와 일상 — 항목마다 블록 하나, 남는 자리에 이어서 배치
-    blocks.push({ pageBreakBefore: false, html: `
-      ${raSec("03", "다섯 컬러로 보는 관계와 일상")}
-      <div class="ra-desc">앞의 결과를 바탕으로, 고른 컬러를 관계와 일상, 업무와 공부에 어떻게 적용해 볼 수 있는지 살펴봐요. 타고난 성격을 정하는 것이 아니라 지금 고른 컬러로 본 예시예요.</div>
-      <div class="ra-asps">${raAspectHTML(X.keyword, 0)}</div>` });
-    // 관계 02~04는 한 페이지에 함께, 05 생활 속에 적용하기는 다음 페이지 하나를 채움
-    X.rel.forEach((it, i) => blocks.push({ pageBreakBefore: i === 0, html: raCmpHTML(it, i + 2) }));
-    blocks.push({ pageBreakBefore: true, html: raLifeHTML(X.life, 5) });
-    // 04 종합 컬러리딩 + 지금 나에게 던져볼 질문 — 마지막 한 페이지 안에서 마무리
+    // v3_43: 관계·생활 적용(옛 3·4쪽) 삭제 — 키워드는 2쪽 꺼내지 못한 마음·필요한 컬러 아래에 (번호 없이)
+    blocks.push({ pageBreakBefore: false, html: `<div class="ra-asps ra-kw">${raAspectHTML(X.keyword, -1)}</div>` });
+    // 03 종합 컬러리딩 + 지금 나에게 던져볼 질문 — 마지막 한 페이지 안에서 마무리
     blocks.push({ pageBreakBefore: true, html: raCloseHTML(X, R.sel) });
     return blocks;
   }

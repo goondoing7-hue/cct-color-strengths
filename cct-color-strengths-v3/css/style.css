@@ -2023,3 +2023,29 @@ img, svg { display: block; }
 /* html2canvas 글자 밀림(약 4px)에 맞춰 점·아이콘도 함께 내림 (PDF 전용) */
 .pdf-report .ra-lrow .ra-arow-k .ra-dot { top: 4px; }
 .pdf-report .ra-why-ic { position: relative; top: 3px; }
+
+/* v3_42 · 카드 속마음: 글자 따옴표 대신 상자 위 가운데 따옴표 아이콘(카드 색) */
+.cr-card-voice { position: relative; margin-top: 18px; padding-top: 15px; background: #f6f5f8; }
+.cr-card-voice .cr-vq { position: absolute; left: 50%; top: 0; transform: translate(-50%, -50%); display: flex !important; align-items: center; justify-content: center; width: 26px; height: 26px; margin: 0 !important; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(23,22,29,.10); color: var(--cr-accent, #6a56a8); }
+.cr-card-voice .cr-vq svg { display: block; }
+.cr-card-voice .cr-vq { box-shadow: none; border: 1px solid #ebe9ef; box-sizing: border-box; }
+/* v3_43 · 대분류 머리: 번호 상자·제목·영문 세로 가운데 맞춤 (PDF에서 글자가 아래로 그려지는 만큼 위로) */
+.pdf-report .ra-sec span { position: relative; top: -7px; }
+.pdf-report .ra-sec em { position: relative; top: -5px; }
+.pdf-report .ra-sec { padding-top: 0; }
+
+/* v3_44 · 2쪽 키워드 상자: 제목 대신 KEYWORD 표시 + 연보라 칸으로 구분 */
+.pdf-report .ra-kw .ra-asp { background: #f7f5fc; border-color: #e3ddf2; }
+.pdf-report .ra-kw .ra-alead { background: #fff; }
+.pdf-report .ra-tag { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; height: 21px; padding: 0 9px 7px; box-sizing: border-box; border-radius: 6px; background: #6a56a8; color: #fff; font-size: 10.5px; font-weight: 800; letter-spacing: .12em; line-height: 1; }
+.pdf-report .ra-tag i { font-style: normal; display: block; height: 14px; line-height: 14px; }
+.pdf-report .ra-kw .ra-at { position: relative; top: -5px; }
+
+/* v3_44 · 네 가지 결과: 과거의 나 / 현재의 나 / 앞으로 바라는 나 / 꺼내지 못한 마음 머리를 연보라 칸으로 */
+.pdf-report .ra-ml { display: inline-flex; align-items: center; gap: 8px; height: 27px; padding: 0 13px 8px 11px; box-sizing: border-box; border-radius: 8px; background: #efecf8; color: #2f2a5e; font-size: 13.5px; font-weight: 800; line-height: 1; }
+.pdf-report .ra-ml b { margin-right: 0; color: #6a56a8; font-size: 12.5px; letter-spacing: .04em; }
+.pdf-report .ra-msg .ra-mt { margin-top: 10px; }
+.pdf-report .ra-mh .ra-mc { position: relative; top: -3px; }
+/* v3_45 · 키워드 상자 표시를 짧게: TIP */
+.pdf-report .ra-tag { padding: 0 7px 7px; letter-spacing: .06em; font-size: 10.5px; }
+.pdf-report .ra-tag { padding-bottom: 9px; }

@@ -2210,7 +2210,7 @@
       for (let pageNo = 1; pageNo <= totalPages; pageNo++) {
         container.innerHTML = `
           <div class="rp-pagefoot">
-            <span class="rp-pagefoot-name">럽리브 코칭센터</span>
+            <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
             <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
