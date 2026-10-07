@@ -200,7 +200,7 @@
         <div class="cs-example-label">예시 · 이렇게 활용해보세요</div>
         <ul>${actionItems}</ul>
       </div>
-      <div class="cs-growth"><span>💬</span><span>${escapeHtml(color.growthQuestion)}</span></div>
+      ${comp ? "" : `<div class="cs-growth"><span>💬</span><span>${escapeHtml(color.growthQuestion)}</span></div>`}
     `;
   }
 
