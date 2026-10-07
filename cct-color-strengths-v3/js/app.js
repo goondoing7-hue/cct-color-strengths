@@ -1857,8 +1857,12 @@
 
     rigid(`
       <div class="rp-cover">
-        <div class="rp-kicker">${hasReading() ? "LOVELIVE COLOR INSIGHT · 나를 읽는 두 가지 컬러" : "CCT COLOR CHARACTER STRENGTHS TEST"}</div>
-        <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}${hasReading() ? "컬러리딩 · " : ""}컬러 성격강점 결과 리포트</div>
+        <div class="rp-kicker">${hasReading() ? "LOVELIVE COLOR INSIGHT · 컬러 심리리딩 + CCT" : "CCT COLOR CHARACTER STRENGTHS TEST"}</div>
+        <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}${hasReading() ? "나를 읽는 두 가지 컬러 리포트" : "컬러 성격강점 결과 리포트"}</div>
+        ${hasReading() ? `<div class="rp-parts">
+          <div><b>PART 1</b><strong>컬러 심리리딩</strong><span>직감으로 고른 다섯 컬러로 본 지금의 나</span></div>
+          <div><b>PART 2</b><strong>CCT 컬러 성격강점</strong><span>65문항으로 본 평소 나의 강점</span></div>
+        </div>` : ""}
         <div class="rp-swatchbar">${CCT_COLORS.map((c) => `<span style="background:${c.hex}"></span>`).join("")}</div>
         <div class="rp-date">검사 일시 · ${dateStr}</div>
       </div>
@@ -1873,7 +1877,7 @@
       crBlocks.forEach((b) => (b.pageBreakBefore ? rigidBreak(b.html) : rigid(b.html)));
     }
 
-    let overviewBlock = `<div class="section-title">${crBlocks.length ? "PART 2 · " : ""}13 컬러 전체 프로파일</div>`;
+    let overviewBlock = `${crBlocks.length ? `<div class="ra-part">PART 2 · CCT 컬러 성격강점</div>` : ""}<div class="section-title">13 컬러 전체 프로파일</div>`;
     overviewBlock += `<div class="section-desc">13개 컬러 점수를 한눈에 보여주는 전체 프로파일입니다. 점수는 5점 만점 리커트 평균이며, 본인의 13개 컬러 내부에서 상대적으로 높은 컬러를 중심으로 해석합니다.</div>`;
     overviewBlock += `<div class="rp-overview">`;
     overviewBlock += `<div class="rp-radar-card">${buildRadarChartHTML(scores)}</div>`;
@@ -2232,7 +2236,7 @@
         );
       }
 
-      const fileName = `${LECTURE_EDITION && mode === "cr" ? "컬러리딩_결과리포트" : "CCT_결과리포트"}${userName ? "_" + userName : ""}.pdf`;
+      const fileName = `${LECTURE_EDITION && mode === "cr" ? "컬러리딩_결과리포트" : LECTURE_EDITION && hasReading() ? "컬러심리리딩_CCT_결과리포트" : "CCT_결과리포트"}${userName ? "_" + userName : ""}.pdf`;
       const pdfBase64 = doc.output("datauristring"); // "data:application/pdf;base64,...."
       return { doc, fileName, pdfBase64 };
     } finally {
