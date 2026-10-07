@@ -2090,6 +2090,9 @@
 
     const container = document.createElement("div");
     container.className = "pdf-report";
+    // 휴대폰의 글자 자동 확대(텍스트 자동 크기 조정)를 끕니다 — PDF 문단이 커져 쪽이 늘어나는 문제 방지
+    container.style.webkitTextSizeAdjust = "none";
+    container.style.textSizeAdjust = "none";
     document.body.appendChild(container);
 
     try {
