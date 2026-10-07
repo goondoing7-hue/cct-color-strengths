@@ -171,19 +171,22 @@
     `;
   }
 
-  function colorSectionIntroBodyHTML(color) {
+  // opts.comp: 보완 컬러 — 2026-10-08 선생님 요청으로 「건강할 때 / 과도할 때」 없이 컬러 설명만
+  function colorSectionIntroBodyHTML(color, opts) {
+    const comp = !!(opts && opts.comp);
     return `
       <p class="cs-summary">${escapeHtml(color.summary)}</p>
-      <div class="cs-subhead">이 강점이 드러나는 모습</div>
+      ${comp ? "" : `<div class="cs-subhead">이 강점이 드러나는 모습</div>`}
     `;
   }
 
-  function colorSectionDetailBodyHTML(color) {
+  function colorSectionDetailBodyHTML(color, opts) {
+    const comp = !!(opts && opts.comp);
     const healthyItems = (color.healthy || []).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
     const overuseItems = (color.overuse || []).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
     const actionItems = (color.actions || []).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
     return `
-      <div class="cs-dual">
+      ${comp ? "" : `<div class="cs-dual">
         <div class="dual-row">
           <div class="dual-label">건강할 때</div>
           <div class="dual-content"><ul>${healthyItems}</ul></div>
@@ -192,7 +195,7 @@
           <div class="dual-label">과도할 때</div>
           <div class="dual-content"><ul>${overuseItems}</ul></div>
         </div>
-      </div>
+      </div>`}
       <div class="cs-example">
         <div class="cs-example-label">예시 · 이렇게 활용해보세요</div>
         <ul>${actionItems}</ul>
@@ -206,18 +209,19 @@
   // sits behind a disclosure toggle. Expanded-by-default made the result page
   // ~2,800px of near-identical prose; collapsing the details cuts the initial
   // scroll roughly in half while keeping everything one tap away.
-  function buildColorSectionScreenHTML(color, tagLabel, panelId) {
+  function buildColorSectionScreenHTML(color, tagLabel, panelId, opts) {
+    const comp = !!(opts && opts.comp);
     return `
       <div class="color-section">
         ${colorSectionHeroHTML(color, tagLabel)}
         <div class="cs-body">
           <p class="cs-summary">${escapeHtml(color.summary)}</p>
           <button type="button" class="cs-toggle js-toggle" aria-expanded="false" aria-controls="${panelId}" data-target="${panelId}">
-            <span class="cs-toggle-label">이 강점이 드러나는 모습 보기</span>
+            <span class="cs-toggle-label">${comp ? "활용 예시 보기" : "이 강점이 드러나는 모습 보기"}</span>
             <span class="cs-toggle-icon" aria-hidden="true">▾</span>
           </button>
           <div class="cs-details" id="${panelId}">
-            ${colorSectionDetailBodyHTML(color)}
+            ${colorSectionDetailBodyHTML(color, opts)}
           </div>
         </div>
       </div>
@@ -227,16 +231,16 @@
   // PDF version: same visual content, but returned as TWO independent cards
   // (intro: hero+summary, detail: dual/example/growth) so the PDF's page-fill
   // logic can place them separately when the full card doesn't fit a gap.
-  function buildColorSectionPdfParts(color, tagLabel) {
+  function buildColorSectionPdfParts(color, tagLabel, opts) {
     const intro = `
       <div class="color-section">
         ${colorSectionHeroHTML(color, tagLabel)}
-        <div class="cs-body">${colorSectionIntroBodyHTML(color)}</div>
+        <div class="cs-body">${colorSectionIntroBodyHTML(color, opts)}</div>
       </div>
     `;
     const detail = `
       <div class="color-section">
-        <div class="cs-body cs-body-continued">${colorSectionDetailBodyHTML(color)}</div>
+        <div class="cs-body cs-body-continued">${colorSectionDetailBodyHTML(color, opts)}</div>
       </div>
     `;
     return [intro, detail];
@@ -655,6 +659,7 @@
     if (!GS_WEBHOOK_URL) return; // logging disabled
     if (resultLogged) return;
     resultLogged = true;
+    const boostSt = await getBoostStatus().catch(() => null); // ④ 글자 확대 감지 결과를 "버전" 열에 함께 기록
 
     const resultId = newResultId();
     const meta = {
@@ -662,7 +667,7 @@
       phase: "meta",
       name: userName || "",
       completedAt: new Date().toISOString(),
-      appVariant: editionLabel(),
+      appVariant: editionLabel() + boostTag(boostSt),
       colorReading: hasReading() ? window.CR.logText(window.CR.getSelection()) : "",
       top1: `${ranked[0].ko}(${ranked[0].en})`,
       top2: `${ranked[1].ko}(${ranked[1].en})`,
@@ -799,7 +804,7 @@
         <h2 class="rs-title">보완 컬러</h2>
         <p class="rs-note">${COMP_DEFINITION}</p>
         <p class="rs-note rs-note--sub">${escapeHtml(complementReasonText(top1, comp))}</p>
-        ${buildColorSectionScreenHTML(comp.chosen, "앞으로 더 활용해볼 자원", "rsComp")}
+        ${buildColorSectionScreenHTML(comp.chosen, "앞으로 더 활용해볼 자원", "rsComp", { comp: true })}
       </section>
 
       <p class="result-note">
@@ -866,13 +871,14 @@
     if (!GS_WEBHOOK_URL) return;
     if (resultLogged) return;
     resultLogged = true;
+    const boostSt = await getBoostStatus().catch(() => null); // ④ 글자 확대 감지 결과를 "버전" 열에 함께 기록
     const resultId = newResultId();
     const meta = {
       resultId,
       phase: "meta",
       name: userName || "",
       completedAt: new Date().toISOString(),
-      appVariant: editionLabel(),
+      appVariant: editionLabel() + boostTag(boostSt),
       colorReading: window.CR.logText(window.CR.getSelection()),
       top1: "", top2: "", top3: "", complement: "",
       scores: {},
@@ -1263,7 +1269,9 @@
       ${bothBlock}
       ${bringBlock}
     `;
-    const partTwo = `${diffBlock}${myEffectBlock}`;
+    // 2026-10-08: 「서로 다르게 보고 있는 지점」은 결과에서 뺌 (선생님 요청, v1~v3 공통)
+    // 2026-10-08: 「내 강점이 상대에게 닿는 방식」도 결과에서 뺌 (선생님 요청, v1~v3 공통)
+    const partTwo = "";
 
     const part = opts && opts.part;
     if (part === 1) return partOne;
@@ -1615,7 +1623,8 @@
     // The guide already ships one self-check question per color; collecting the
     // TOP3 + complement ones gives the reader a concrete way to tell whether a
     // strength is being used well or overused, which the lists above only imply.
-    const checkColors = [...top3, comp.chosen];
+    // 2026-10-08: 스스로 점검하는 질문에서 보완 컬러 질문은 뺌 (TOP 3만, 선생님 요청)
+    const checkColors = [...top3];
     const checkItems = checkColors
       .map(
         (c, i) => `
@@ -1912,7 +1921,7 @@
     // heading. The Venn diagram that used to sit here moved to the synergy
     // section below, which is what freed the vertical room for this to fit.
     // Two halves again — as one block this measured 285mm on longer profiles.
-    const [compIntroPart, compDetailPart] = buildColorSectionPdfParts(comp.chosen, "보완 컬러 · 성장 자원");
+    const [compIntroPart, compDetailPart] = buildColorSectionPdfParts(comp.chosen, "보완 컬러 · 성장 자원", { comp: true });
     rigidBreak(
       `<div class="section-title">보완 컬러 심층 분석</div>${buildComplementRationaleHTML(
         top1,
@@ -2031,7 +2040,6 @@
         <p class="section-desc">내 TOP 컬러를 기준으로, 그 컬러가 강점인 사람들과 어떤 관계를 맺기 쉬운지 정리했습니다. 사람 자체의 좋고 나쁨이 아니라 성향의 결이 얼마나 비슷한지를 뜻합니다.</p>
         ${buildRelationshipFitHTML(ranked, { part: 1 })}
       `);
-      rigid(buildRelationshipFitHTML(ranked, { part: 2 }));
     }
 
     // 6대 강점영역 + the meaning of each domain, as a page of its own directly
@@ -2085,15 +2093,159 @@
   // button and the background admin-logging call, so the actual heavy
   // html2canvas rendering only ever runs once per completed test (see
   // getPdfDoc's caching below).
+  // ---------- 휴대폰 '글자 자동 확대' 감지 · 격리 렌더링 (2026-10-08) ----------
+  // ④ 감지: 보이지 않는 곳에 PDF와 같은 너비(760px)의 긴 문단과, 화면보다 좁은 짧은 문장을 두고
+  //    같은 글자의 실제 폭을 비교합니다. 넓은 문단 쪽만 커져 있으면 자동 확대가 일어난 것입니다.
+  // ⑤ 격리: 확대가 감지되면 PDF를 화면 속 별도 창(iframe, 화면 기준 너비 = PDF 너비)에서 그립니다.
+  // ⑥ 안내: 그래도 커져 있으면 크롬 등에서 열어 저장하도록 안내하고, 시트 "버전" 열에 기록합니다.
+  const BOOST_LIMIT = 1.08;
+  const BOOST_SAMPLE = "가나다라마바사아자차카타파하";
+  function measureTextBoost(doc) {
+    doc = doc || document;
+    let wrap = null, narrow = null;
+    try {
+      wrap = doc.createElement("div");
+      wrap.className = "pdf-report";
+      wrap.setAttribute("aria-hidden", "true");
+      wrap.style.webkitTextSizeAdjust = "none";
+      wrap.style.textSizeAdjust = "none";
+      wrap.style.maxHeight = "1000000px";
+      const longText = "자신의 판단과 능력을 믿고 선택하는 힘이 지금의 나를 이끄는 중심축으로 나타났습니다. ".repeat(12);
+      wrap.innerHTML = `<p style="font-size:13px;line-height:1.6;margin:0">${longText}<span class="bp-a" style="white-space:nowrap">${BOOST_SAMPLE}</span></p>`;
+      narrow = doc.createElement("div");
+      narrow.className = "pdf-report";
+      narrow.setAttribute("aria-hidden", "true");
+      narrow.style.cssText = "width:150px;max-height:200px;overflow:hidden";
+      narrow.innerHTML = `<p style="font-size:13px;line-height:1.6;margin:0"><span class="bp-b" style="white-space:nowrap">${BOOST_SAMPLE}</span></p>`;
+      doc.body.appendChild(wrap);
+      doc.body.appendChild(narrow);
+      const a = wrap.querySelector(".bp-a").getBoundingClientRect().width;
+      const b = narrow.querySelector(".bp-b").getBoundingClientRect().width;
+      const fs = parseFloat(doc.defaultView.getComputedStyle(wrap.querySelector("p")).fontSize) || 13;
+      const r = Math.max(b > 0 ? a / b : 1, fs / 13);
+      return Math.round(r * 100) / 100;
+    } catch (e) {
+      return 1;
+    } finally {
+      if (wrap) wrap.remove();
+      if (narrow) narrow.remove();
+    }
+  }
+
+  // PDF를 그릴 별도 창(같은 주소, 화면에는 보이지 않음). 이 창의 화면 기준 너비는 800px이라
+  // 760px 문단이 '화면보다 넓은 문단'이 되지 않습니다.
+  async function createIsolatedPdfHost() {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.tabIndex = -1;
+    iframe.style.cssText = "position:fixed;left:-12000px;top:0;width:800px;height:1200px;border:0;opacity:0;pointer-events:none";
+    const cssHref = new URL("css/style.css", document.baseURI).href;
+    // html2canvas도 이 창 안에서 따로 불러 씁니다 (바깥 창의 html2canvas로 안쪽을 그리면 작은 글씨의 띄어쓰기가 붙는 문제가 있었음)
+    const h2cSrc = new URL("js/vendor/html2canvas.min.js", document.baseURI).href;
+    iframe.srcdoc = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=800"><link rel="stylesheet" href="${cssHref}"><script src="${h2cSrc}"><\/script></head><body style="margin:0;background:#fff;-webkit-text-size-adjust:none;text-size-adjust:none"></body></html>`;
+    const loaded = new Promise((res) => {
+      iframe.addEventListener("load", res, { once: true });
+      setTimeout(res, 5000);
+    });
+    document.body.appendChild(iframe);
+    await loaded;
+    const doc = iframe.contentDocument;
+    // 글꼴(Pretendard 5가지 굵기)을 모두 미리 불러옵니다 — 쓰는 순간에 불러오면 첫 렌더에서 대체 글꼴로 그려져 띄어쓰기가 붙는 일이 있음
+    try {
+      if (doc.fonts) {
+        const faces = [];
+        doc.fonts.forEach((f) => faces.push(f.load().catch(() => {})));
+        await Promise.all(faces);
+        if (doc.fonts.ready) await doc.fonts.ready;
+      }
+    } catch (e) {}
+    await new Promise((r) => setTimeout(r, 60));
+    return { iframe, doc, html2canvas: iframe.contentWindow && iframe.contentWindow.html2canvas };
+  }
+
+  // 결과마다 한 번만 확인합니다: { before: 본 화면 확대 배율, after: 격리 창 확대 배율, isolate: 격리 필요 여부 }
+  let boostStatusPromise = null;
+  function getBoostStatus() {
+    // 점검용: 주소 끝에 ?pdfiso=1 을 붙이면 확대가 없어도 별도 창 방식으로 PDF를 만듭니다.
+    if (!boostStatusPromise && /[?&]pdfiso=1/.test(window.location.search)) {
+      boostStatusPromise = Promise.resolve({ before: 1, after: 1, isolate: true });
+    }
+    // 점검용: ?pdfiso=2 는 '보정해도 커지는 기기'를 흉내 내어 안내 창을 띄웁니다.
+    if (!boostStatusPromise && /[?&]pdfiso=2/.test(window.location.search)) {
+      boostStatusPromise = Promise.resolve({ before: 1.5, after: 1.5, isolate: true });
+    }
+    if (!boostStatusPromise) {
+      boostStatusPromise = (async () => {
+        const before = measureTextBoost(document);
+        if (before <= BOOST_LIMIT) return { before, after: before, isolate: false };
+        let after = before;
+        try {
+          const host = await createIsolatedPdfHost();
+          after = measureTextBoost(host.doc);
+          host.iframe.remove();
+        } catch (e) {}
+        return { before, after, isolate: true };
+      })();
+    }
+    return boostStatusPromise;
+  }
+  // 시트 "버전" 열에 덧붙이는 짧은 표시 (확대가 없으면 빈 문자열 — 앞부분 v1/v2/v3는 그대로라 폴더 분류에 영향 없음)
+  function boostTag(st) {
+    if (!st || st.before <= BOOST_LIMIT) return "";
+    return ` · 글자확대 ${st.before.toFixed(2)}배→${st.after <= BOOST_LIMIT ? "보정됨" : "보정 안 됨"}`;
+  }
+  function showBoostNotice() {
+    let el = document.getElementById("boostHint");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "boostHint";
+      el.className = "inapp-hint";
+      el.innerHTML = `
+        <div class="inapp-hint-card">
+          <div class="inapp-hint-title">PDF 글자가 크게 저장되었을 수 있어요</div>
+          <p class="inapp-hint-text">이 휴대폰의 글자 크기 설정 때문에 PDF 일부 문단이 커지고 빈칸이 생겼을 수 있습니다. <b>크롬(또는 삼성 인터넷)</b>에서 결과를 열어 다시 저장하면 정상으로 저장됩니다. 검사를 다시 하실 필요는 없습니다.</p>
+          <div class="inapp-hint-actions">
+            <button type="button" class="inapp-btn" id="bhOpen">다른 브라우저에서 결과 열기</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="bhClose">닫기</button>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+      el.querySelector("#bhClose").addEventListener("click", () => el.classList.remove("is-open"));
+      el.querySelector("#bhOpen").addEventListener("click", () => {
+        const url = el.dataset.resultUrl || window.location.href;
+        if (!openInExternalBrowser(url)) copyCurrentLink(url).then((ok) => {
+          el.querySelector("#bhOpen").textContent = ok ? "결과 링크를 복사했어요. 크롬에 붙여 넣어 주세요" : "주소창의 링크를 크롬에서 열어 주세요";
+        });
+      });
+    }
+    el.dataset.resultUrl = lastResultUrl || window.location.href;
+    el.classList.add("is-open");
+  }
+  let lastResultUrl = "";
+
   async function buildPdfDoc(scores, ranked) {
     const blocks = buildReportBlocks(scores, ranked, userName);
 
-    const container = document.createElement("div");
+    // ④⑤ 글자 자동 확대 확인 → 확대되는 휴대폰이면 별도 창(iframe)에서 그림
+    const boost = await getBoostStatus();
+    const isoHost = boost.isolate && boost.after <= BOOST_LIMIT ? await createIsolatedPdfHost() : null;
+    const hostDoc = isoHost ? isoHost.doc : document;
+    const h2c = (isoHost && isoHost.html2canvas) || html2canvas;
+    const container = hostDoc.createElement("div");
     container.className = "pdf-report";
     // 휴대폰의 글자 자동 확대(텍스트 자동 크기 조정)를 끕니다 — PDF 문단이 커져 쪽이 늘어나는 문제 방지
     container.style.webkitTextSizeAdjust = "none";
     container.style.textSizeAdjust = "none";
-    document.body.appendChild(container);
+    container.style.maxHeight = "1000000px"; // 글자 자동 확대가 이 영역을 건너뛰게 함
+    // 안드로이드: PDF를 그리는 동안만 화면 기준 너비를 PDF 너비(800px)로 넓혀, 화면보다 넓은 문단을
+    // 키우는 '글자 자동 확대'가 작동할 이유를 없앱니다. 끝나면 원래대로 되돌립니다.
+    const vpMeta = /Android/i.test(navigator.userAgent) ? document.querySelector('meta[name="viewport"]') : null;
+    const vpPrev = vpMeta ? vpMeta.getAttribute("content") : null;
+    if (vpMeta) {
+      vpMeta.setAttribute("content", "width=800");
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    hostDoc.body.appendChild(container);
 
     try {
       // ---- Pass 1: measure every block by rendering it to its own canvas ----
@@ -2105,7 +2257,7 @@
         container.innerHTML = `<div class="pdf-block-pad">${blocks[i].html}</div>`;
         await new Promise((r) => setTimeout(r, 30)); // allow layout/paint
 
-        const canvas = await html2canvas(container, {
+        const canvas = await h2c(container, {
           scale: 2,
           backgroundColor: "#ffffff",
           useCORS: true,
@@ -2221,7 +2373,7 @@
             <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
-        const fCanvas = await html2canvas(container, {
+        const fCanvas = await h2c(container, {
           scale: 2,
           backgroundColor: "#ffffff",
           useCORS: true,
@@ -2243,7 +2395,9 @@
       const pdfBase64 = doc.output("datauristring"); // "data:application/pdf;base64,...."
       return { doc, fileName, pdfBase64 };
     } finally {
-      document.body.removeChild(container);
+      container.remove();
+      if (isoHost) isoHost.iframe.remove();
+      if (vpMeta) vpMeta.setAttribute("content", vpPrev);
     }
   }
 
@@ -2429,6 +2583,12 @@
     try {
       const { doc, fileName } = await getPdfDoc(scores, ranked);
       doc.save(fileName);
+      // ⑥ 격리해도 글자가 커지는 기기라면 다른 브라우저에서 다시 저장하도록 안내
+      const bst = await getBoostStatus().catch(() => null);
+      if (bst && bst.after > BOOST_LIMIT) {
+        try { lastResultUrl = scores ? buildResultUrl(scores, userName) || "" : ""; } catch (e) {}
+        showBoostNotice();
+      }
     } catch (err) {
       console.error(err);
       alert("PDF 생성 중 문제가 발생했습니다. 다시 시도해주세요.");
