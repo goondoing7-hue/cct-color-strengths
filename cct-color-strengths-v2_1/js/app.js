@@ -11,6 +11,12 @@
   let answers = []; // { color, value } aligned with shuffledQuestions
   let userName = "";
   let verified = false;
+  // 동점 처리용 강제선택 응답 (점수는 그대로, 순위·보완컬러만 정함 — js/cct-rank.js)
+  //   rank: 순위 동점에서 고른 컬러 key (고른 순서대로)
+  //   comp: 보완컬러 최종 동점에서 고른 컬러 key
+  const emptyPicks = () => ({ rank: [], comp: null });
+  let cctPicks = emptyPicks();
+  let decodedCctPicks = null;
 
   // Simple access-code gate (replaces the earlier Instagram-follow upload check).
   // This is a soft, client-side-only gate — anyone reading the source can see the
@@ -88,7 +94,7 @@
   }
 
   function showScreen(el) {
-    [screenIntro, screenQuiz, screenResult].forEach((s) => s.classList.remove("is-active"));
+    document.querySelectorAll(".screen").forEach((s) => s.classList.remove("is-active"));
     el.classList.add("is-active");
     window.scrollTo(0, 0);
   }
@@ -240,6 +246,7 @@
     userName = (userNameInput.value || "").trim().slice(0, 12);
     shuffledQuestions = shuffle(CCT_QUESTIONS);
     answers = new Array(shuffledQuestions.length).fill(null);
+    cctPicks = emptyPicks();
     currentIndex = 0;
     resultLogged = false; // allow a fresh retake to log its own new result
     pdfDocPromise = null; // and to build its own fresh PDF rather than reusing the old one
@@ -313,8 +320,153 @@
   function finishQuiz() {
     progressFill.style.width = "100%";
     const scores = computeScores();
-    renderResult(scores);
-    showScreen(screenResult);
+    runTieBreaks(scores, () => {
+      renderResult(scores);
+      showScreen(screenResult);
+    });
+  }
+
+  // ---------- 동점 처리 (TOP1~3 순위 · 보완컬러) ----------
+  // 점수로 순위·보완컬러가 정해지지 않을 때만 1문항씩 묻는다.
+  // 대부분의 응답은 이 화면을 거치지 않고 바로 결과로 간다.
+  function runTieBreaks(scores, done) {
+    const rk = CCTRank.resolveRanking(scores, cctPicks.rank);
+    if (rk.pending) {
+      showTieBreak(rk.pending, (key) => {
+        cctPicks.rank.push(key);
+        runTieBreaks(scores, done);
+      });
+      return;
+    }
+    const cp = CCTRank.resolveComplement(rk.ranked[0].key, scores, rk.ranked, { pick: cctPicks.comp });
+    if (cp.pending) {
+      showTieBreak(cp.pending, (key) => {
+        cctPicks.comp = key;
+        runTieBreaks(scores, done);
+      });
+      return;
+    }
+    done();
+  }
+
+  let screenTie = null;
+  function ensureTieScreen() {
+    if (screenTie) return screenTie;
+    screenTie = document.createElement("section");
+    screenTie.id = "screen-tiebreak";
+    screenTie.className = "screen screen--tiebreak";
+    screenQuiz.insertAdjacentElement("afterend", screenTie);
+    return screenTie;
+  }
+
+  function showTieBreak(pending, onPick) {
+    const el = ensureTieScreen();
+    const isComp = pending.type === "complement";
+    // 색상명은 숨기고 문장만, 순서도 섞어서 보여준다 (색 선호가 아닌 '나와 가까운 모습'을 고르도록).
+    const keys = shuffle(pending.keys);
+    const many = keys.length > 2;
+    const title = isComp
+      ? "지금의 나에게 조금 더 도움이 될 것 같은 힘을 선택해주세요."
+      : many
+        ? "다음 중 평소 나와 가장 가까운 모습을 선택해주세요."
+        : "둘 중 평소 나와 더 가까운 모습을 선택해주세요.";
+    const sub = isComp
+      ? "나의 주강점을 균형 있게 쓰도록 돕는 보완 컬러를 정하기 위해 여쭤볼게요."
+      : "응답 점수가 같은 강점이 있어 순위를 정하기 위해 여쭤볼게요. 점수는 그대로 유지됩니다.";
+    const letters = "ABCDEFGHIJKLM";
+    const opts = keys
+      .map((k, i) => {
+        const text = (isComp ? CCT_BALANCE_STATEMENTS : CCT_TIE_STATEMENTS)[k] || "";
+        return `
+        <button type="button" class="tb-option" data-key="${k}" aria-pressed="false">
+          <span class="tb-letter">${letters[i]}</span>
+          <span class="tb-text">${escapeHtml(text)}</span>
+        </button>`;
+      })
+      .join("");
+    el.innerHTML = `
+      <div class="tb-wrap">
+        <div class="tb-kicker">마지막 확인</div>
+        <h2 class="tb-title">${title}</h2>
+        <p class="tb-sub">${sub}</p>
+        <div class="tb-options">${opts}</div>
+        <button type="button" class="btn btn-primary tb-confirm" disabled>
+          선택 완료
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>`;
+    let chosen = null;
+    const confirm = el.querySelector(".tb-confirm");
+    el.querySelectorAll(".tb-option").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        chosen = btn.dataset.key;
+        el.querySelectorAll(".tb-option").forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-selected", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        confirm.disabled = false;
+      });
+    });
+    confirm.addEventListener("click", () => {
+      if (!chosen) return;
+      confirm.disabled = true;
+      onPick(chosen);
+    });
+    showScreen(el);
+  }
+
+  // 보완컬러 선택 근거 — 결과지·시트에 같은 문장을 쓴다.
+  const COMP_DEFINITION =
+    "보완컬러는 낮은 점수의 컬러를 의미하지 않습니다. 나의 주강점이 한쪽으로 과도하게 사용될 때, 균형을 잡아주고 강점을 더욱 건강하게 활용하도록 돕는 컬러입니다.";
+  function complementReasonText(top1, comp) {
+    const c = comp.chosen;
+    const o = comp.other;
+    if (!c || !o) return "";
+    const f = (v) => Number(v).toFixed(1);
+    const candNames = (CCT_COMPLEMENT_MAP[top1.key] || []).map((k) => cctColorByKey(k).ko).join("·");
+    const cand = `${top1.ko}의 보완 후보는 ${candNames}입니다.`;
+    const info = comp.info || {};
+    const dom = (k) => (info.domains || []).find((d) => d.key === k) || {};
+    switch (comp.step) {
+      case 1:
+        return `${cand} 두 후보의 점수(${c.ko} ${f(c.score)} · ${o.ko} ${f(o.score)}) 차이가 0.4 이상이어서, 상대적으로 덜 사용하고 있는 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+      case 2:
+        return `${cand} 두 후보의 점수(${c.ko} ${f(c.score)} · ${o.ko} ${f(o.score)})가 비슷해 각 후보가 속한 강점영역의 평균을 비교했습니다. '${dom(c.key).domain}' ${CCTRank.fmt2(dom(c.key).avg)}점이 '${dom(o.key).domain}' ${CCTRank.fmt2(dom(o.key).avg)}점보다 낮아, 그 영역의 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+      case 3:
+        return `${cand} 두 후보의 점수와 강점영역 평균이 같아, 이미 TOP3 강점인 ${o.ko} 대신 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+      case 4:
+        return `${cand} 두 후보의 점수와 강점영역 평균이 같아, 직접 고른 '${CCT_BALANCE_STATEMENTS[c.key] || ""}'에 따라 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+      default:
+        return `${cand} 두 후보의 점수와 강점영역 평균이 같아, 기본 순서에 따라 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+    }
+  }
+
+  function tieNotesHTML(scores) {
+    const notes = rankTieNotes(scores);
+    if (!notes.length) return "";
+    return `<div class="tie-note">${notes.map((t) => `<p>※ ${escapeHtml(t)}</p>`).join("")}</div>`;
+  }
+
+  // 순위 동점 처리 설명 (TOP3에 영향을 준 동점만)
+  function rankTieNotes(scores) {
+    const rk = CCTRank.resolveRanking(scores, cctPicks.rank, { fallback: true });
+    return rk.notes.map((n) => {
+      const nm = (k) => cctColorByKey(k).ko;
+      const names = n.keys.map(nm).join("·");
+      const parts = [];
+      n.steps.forEach((st) => {
+        if (st.type === "domain") {
+          const items = st.items.map((it) => `${nm(it.key)} '${it.domain}' ${CCTRank.fmt2(it.avg)}`).join(", ");
+          parts.push(`강점영역 평균(${items})`);
+        } else if (st.type === "choice") {
+          parts.push(`직접 고른 대표문장(${nm(st.pick)})`);
+        } else {
+          parts.push(`기본 순서(${nm(st.pick)})`);
+        }
+      });
+      return `${names} 컬러가 ${n.score.toFixed(1)}점으로 같아 순위를 따로 정했습니다 (점수는 그대로 · 기준: ${parts.join(" → ")}).`;
+    });
   }
 
   // ---------- Scoring ----------
@@ -334,30 +486,22 @@
     return avg; // { RED: 4.2, ORANGE: 3.1, ... } on 1-5 scale
   }
 
+  // 점수(score)와 순위(rank)는 따로 둔다 — 동점이어도 점수는 바꾸지 않는다.
+  // 강제선택은 runTieBreaks()에서 이미 끝났으므로 여기서는 묻지 않는다
+  // (예전 결과 링크처럼 응답이 없으면 기본 컬러 순서로 정함).
   function getRanked(scores) {
-    return CCT_COLORS.map((c) => ({ ...c, score: scores[c.key] })).sort((a, b) => b.score - a.score);
+    return CCTRank.resolveRanking(scores, cctPicks.rank, { fallback: true }).ranked;
   }
 
+  // 보완컬러: TOP1의 보완 후보 2개 중 — 점수 차이 0.4↑ → 강점영역 평균 → TOP3 여부 → 강제선택
+  // (cct-rank.js). 강제선택 응답은 결과지의 TOP1 기준일 때만 쓴다.
   function getComplement(top1Key, scores, ranked) {
-    const compKeys = CCT_COMPLEMENT_MAP[top1Key] || [];
-    const candidates = compKeys.map((k) => ({ ...cctColorByKey(k), score: scores[k] }));
-    // Lowest currently-used candidate first — the complement is meant to be the
-    // contrast resource the person leans on LEAST.
-    candidates.sort((a, b) => a.score - b.score);
-
-    // Tie-break only: when candidates score exactly the same, prefer one that
-    // isn't already a TOP3 strength. Calling a top strength "아직 덜 활용된
-    // 자원" contradicts the rest of the report, and with tied scores the order
-    // was arbitrary anyway. Never overrides a genuine score difference.
-    if (ranked && candidates.length > 1 && candidates[0].score === candidates[1].score) {
-      const topKeys = ranked.slice(0, 3).map((c) => c.key);
-      const outside = candidates.filter((c) => !topKeys.includes(c.key));
-      if (outside.length) {
-        const pick = outside[0];
-        return { chosen: pick, all: candidates };
-      }
-    }
-    return { chosen: candidates[0], all: candidates };
+    const rk = ranked || getRanked(scores);
+    const isReportTop1 = rk[0] && rk[0].key === top1Key;
+    return CCTRank.resolveComplement(top1Key, scores, rk, {
+      pick: isReportTop1 ? cctPicks.comp : null,
+      fallback: true,
+    });
   }
 
   // ---------- Result rendering (on-screen, section-style) ----------
@@ -444,6 +588,13 @@
       top2: `${ranked[1].ko}(${ranked[1].en})`,
       top3: `${ranked[2].ko}(${ranked[2].en})`,
       complement: `${comp.chosen.ko}(${comp.chosen.en})`,
+      // 점수(scores)는 원점수 그대로, 순위는 따로 — 동점이면 같은 점수에 다른 순위
+      ranks: ranked.reduce((obj, c) => {
+        obj[c.key] = c.rank;
+        return obj;
+      }, {}),
+      rankText: ranked.map((c) => `${c.rank}.${c.ko} ${Number(c.score).toFixed(1)}`).join(" · "),
+      tieNote: rankTieNotes(scores).concat([`보완: ${complementReasonText(ranked[0], comp)}`]).join(" / "),
       scores: CCT_COLORS.reduce((obj, c) => {
         obj[c.key] = scores[c.key];
         return obj;
@@ -544,7 +695,7 @@
           <div class="tz-teaser-item">13개 컬러 전체 점수와 6대 강점영역</div>
           <div class="tz-teaser-item">관계에서 잘 맞는 사람과 불편한 사람</div>
         </div>
-        <p class="tz-invite">전체 해석은 <b>럽리브 코칭센터</b>에서 확인하세요</p>
+        <p class="tz-invite">전체 해석은 <b>럽리브 컬러코칭센터</b>에서 확인하세요</p>
       </section>
 
       <p class="result-note">${resultNote}</p>
@@ -635,6 +786,7 @@
         <h2 class="rs-title">한눈에 보는 내 결과</h2>
         <div class="quick-grid">${buildQuickCardsHTML(ranked, comp)}</div>
         ${buildQuickFactsHTML(ranked, comp, "아래에서 13개 컬러 전체 프로파일과 상세 해석을 확인하실 수 있습니다.")}
+        ${tieNotesHTML(scores)}
       </section>
 
       <section class="rs-block">
@@ -656,10 +808,8 @@
 
       <section class="rs-block" id="rsComplement">
         <h2 class="rs-title">보완 컬러</h2>
-        <p class="rs-note">
-          13개 중 가장 낮은 점수가 아니라, ${escapeHtml(top1.ko)}${josa(top1.ko, "과", "와")} 심리적으로 대비되는 이론적 짝 중
-          상대적으로 덜 활용된 컬러예요.
-        </p>
+        <p class="rs-note">${COMP_DEFINITION}</p>
+        <p class="rs-note rs-note--sub">${escapeHtml(complementReasonText(top1, comp))}</p>
         ${buildColorSectionScreenHTML(comp.chosen, "앞으로 더 활용해볼 자원", "rsComp")}
       </section>
 
@@ -832,8 +982,8 @@
     // flat contradiction, so that case gets its own honest phrasing instead.
     const compIsAlsoStrength = ranked.slice(0, 3).some((c) => c.key === cp.key);
     const compLine = compIsAlsoStrength
-      ? `${nm(cp)}${josa(cp.strength, "은", "는")} 강점으로도 나타났지만 동시에 ${escapeHtml(t1.ko)}${josa(t1.ko, "과", "와")} 심리적으로 대비되는 짝이기도 해서 보완 컬러로도 함께 제시됩니다. 이미 갖고 있는 자원인 만큼, 상황에 따라 의식적으로 꺼내 쓰면 균형을 잡는 데 도움이 됩니다.`
-      : `${nm(cp)}${josa(cp.strength, "은", "는")} 이 강점들과 심리적으로 대비되는 자리에 있는 보완 컬러로, 아직 상대적으로 덜 활용되고 있어 의식적으로 꺼내 쓸수록 전체 균형이 좋아집니다.`;
+      ? `${nm(cp)}${josa(cp.strength, "은", "는")} 강점으로도 나타났고, 동시에 ${escapeHtml(t1.ko)}의 힘이 한쪽으로 과도하게 쓰일 때 균형을 잡아 주는 보완 컬러이기도 합니다. 이미 갖고 있는 자원인 만큼, 상황에 따라 의식적으로 꺼내 쓰면 주강점을 더 건강하게 활용할 수 있습니다.`
+      : `${nm(cp)}${josa(cp.strength, "은", "는")} ${escapeHtml(t1.ko)}의 힘이 한쪽으로 과도하게 쓰일 때 균형을 잡아 주는 보완 컬러로, 의식적으로 꺼내 쓸수록 주강점을 더 건강하게 활용할 수 있습니다.`;
 
     return `
       <div class="quick-facts">
@@ -851,6 +1001,7 @@
         <div class="section-subtitle">한눈에 보는 요약</div>
         <div class="quick-grid">${buildQuickCardsHTML(ranked, comp)}</div>
         ${buildQuickFactsHTML(ranked, comp, '13개 컬러 전체 점수는 리포트 맨 뒤 "컬러별 상세 점수"에서 확인하실 수 있습니다.')}
+        ${tieNotesHTML(scores)}
       </div>
     `;
   }
@@ -1257,7 +1408,7 @@
       .join(", ")} 등을 일상에서 비교적 자연스럽게 활용하고 있는 것으로 보입니다.`;
 
     const compColor = comp.chosen;
-    const compText = `${top1.ko}(${top1.strength})의 핵심 강점인 '${top1.core}'${josa(top1.core, "과", "와")} 심리적으로 대비되는 지향을 가진 컬러입니다. 점수가 낮다고 부족하거나 잘못된 것이 아니라, 아직 충분히 활용되지 않은 성장 자원에 가깝습니다. ${compColor.ko}의 '${compColor.core}'${josa(compColor.core, "을", "를")} 의도적으로 시도해보면 ${top1.ko} 하나에만 치우치지 않는 균형 잡힌 강점 조합을 만들 수 있습니다.`;
+    const compText = `${top1.ko}(${top1.strength})의 '${top1.core}'${josa(top1.core, "이", "가")} 한쪽으로 과도하게 쓰일 때 균형을 잡아 주는 강점 자원입니다. ${compColor.ko}의 '${compColor.core}'${josa(compColor.core, "을", "를")} 의도적으로 함께 써 보면 ${top1.ko}의 강점을 더욱 건강하게 활용할 수 있습니다.`;
 
     return `
       <div class="rp-summary-card">
@@ -1273,7 +1424,7 @@
           <div class="rp-summary-body">
             <h4>${escapeHtml(`${compColor.ko} · ${compColor.strength}`)}</h4>
             <p>${escapeHtml(compText)}</p>
-            <p class="rp-summary-note">※ 보완 컬러는 13개 중 최저 점수가 아니라, 핵심 강점 컬러와 심리적으로 대비되는 이론적 짝(CCT 해석 가이드 5장 표 기준) 중 상대적으로 덜 활용된 컬러를 의미합니다. 아래 "보완 컬러 심층 분석"에서 그 근거를 더 자세히 설명합니다.</p>
+            <p class="rp-summary-note">※ ${COMP_DEFINITION} 선택 근거는 아래 "보완 컬러 심층 분석"에서 설명합니다.</p>
           </div>
         </div>
       </div>
@@ -1285,17 +1436,13 @@
   // lowest score" statement. Built from each color's own `core` description so
   // every TOP1×complement combination gets its own coherent contrast, rather
   // than one generic boilerplate sentence.
-  function buildComplementRationaleHTML(top1, compColor) {
+  function buildComplementRationaleHTML(top1, compColor, comp) {
+    const reason = comp ? complementReasonText(top1, comp) : "";
     return `
       <div class="comp-rationale">
         <div class="comp-rationale-label">왜 이 컬러가 보완 컬러인가요?</div>
-        <p>
-          보완 컬러는 13개 컬러 중 점수가 가장 낮은 컬러를 그대로 가리키는 것이 아닙니다. CCT 해석 가이드에서
-          컬러마다 미리 설계해 둔 "이론적 짝" 후보들 중, 지금 상대적으로 덜 활용되고 있는 컬러를 의미합니다.
-          ${top1.ko}${josa(top1.ko, "이", "가")} '${top1.core}'${josa(top1.core, "을", "를")} 통해 발휘되는 힘이라면, ${compColor.ko}${josa(compColor.ko, "은", "는")} '${compColor.core}'${josa(compColor.core, "을", "를")}
-          통해 발휘되는 힘입니다. 서로 다른 지향의 두 강점이 함께 성장할 때, 한 가지 강점에만 의존하지 않는
-          균형 잡힌 대응이 가능해집니다.
-        </p>
+        <p>${COMP_DEFINITION}</p>
+        ${reason ? `<p class="comp-rationale-reason">${escapeHtml(reason)}</p>` : ""}
       </div>
     `;
   }
@@ -1458,7 +1605,7 @@
       </div>
       <div class="ag-block">
         <div class="section-subtitle">과사용 경고 신호 체크리스트</div>
-        <p class="section-desc">강점은 지나치면 약점처럼 작동합니다. 아래 신호가 반복된다면 잠시 속도를 조절해볼 시점입니다.</p>
+        <p class="section-desc">강점도 지나치게 쓰이면 부담으로 작동할 수 있습니다. 아래 신호가 반복된다면 잠시 속도를 조절해볼 시점입니다.</p>
         <div class="ag-warn-grid">${warnCards}</div>
       </div>
       <div class="ag-block">
@@ -1680,7 +1827,8 @@
     rigidBreak(
       `<div class="section-title">보완 컬러 심층 분석</div>${buildComplementRationaleHTML(
         top1,
-        comp.chosen
+        comp.chosen,
+        comp
       )}${compIntroPart}`
     );
     rigid(compDetailPart);
@@ -1702,8 +1850,8 @@
     // an unrelated section mid-flow — see the dedicated rigid appendix near
     // the end of this function for where that list lives now.
     const domainScores = computeDomainScores(scores);
-    let domainBlock = `<div class="section-title">6대 상위 강점영역</div>`;
-    domainBlock += `<div class="section-desc">13개 컬러를 이론적으로 묶은 상위 구조입니다. 표본 데이터 검증 이전의 초기 분류로 참고용입니다.</div>`;
+    let domainBlock = `<div class="section-title">6대 강점영역</div>`;
+    domainBlock += `<div class="section-desc">CCT에서는 13개의 컬러강점을 해석의 편의를 위해 6개의 강점영역으로 분류합니다. 개별 컬러 점수와 함께 참고용으로 보시면 됩니다.</div>`;
     domainBlock += `<div class="domain-grid">`;
     domainScores.forEach((d) => {
       const pct = Math.max(4, ((d.value - 1) / 4) * 100);
@@ -1961,7 +2109,7 @@
       for (let pageNo = 1; pageNo <= totalPages; pageNo++) {
         container.innerHTML = `
           <div class="rp-pagefoot">
-            <span class="rp-pagefoot-name">럽리뷔 코칭센터</span>
+            <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
             <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
@@ -2016,6 +2164,8 @@
         n: name || "",
         s: CCT_COLORS.map((c) => Math.round((scores[c.key] || 0) * 10)),
       };
+      if (scores && cctPicks.rank.length) payload.t = cctPicks.rank.join(",");
+      if (scores && cctPicks.comp) payload.p = cctPicks.comp;
       const json = JSON.stringify(payload);
       // btoa() is latin1-only, so UTF-8 the Korean name first.
       const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json)));
@@ -2031,6 +2181,11 @@
       const bin = atob(b64 + "===".slice((b64.length + 3) % 4));
       const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
       const payload = JSON.parse(new TextDecoder().decode(bytes));
+      const validKey = (k) => CCT_COLORS.some((c) => c.key === k);
+      decodedCctPicks = {
+        rank: typeof payload.t === "string" && payload.t ? payload.t.split(",").filter(validKey) : [],
+        comp: typeof payload.p === "string" && validKey(payload.p) ? payload.p : null,
+      };
       if (!payload || !Array.isArray(payload.s) || payload.s.length !== CCT_COLORS.length) return null;
 
       const scores = {};
@@ -2060,6 +2215,7 @@
     if (!raw) return false;
     const restored = decodeResultParam(raw);
     if (!restored) return false;
+    cctPicks = decodedCctPicks || emptyPicks();
 
     userName = restored.name;
     // resultLogged guard: this result was already logged to the sheet when it
@@ -2238,6 +2394,7 @@
 
   function resetApp() {
     answers = [];
+    cctPicks = emptyPicks();
     currentIndex = 0;
     // Drop ?r= so a reload after retaking doesn't resurrect the handed-over
     // result and drop the user straight back onto the old result screen.

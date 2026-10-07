@@ -14,8 +14,17 @@
  * 사용자가 화면을 닫아도, 검사 기록 자체는 절대 사라지지 않습니다.
  * PDF 쪽만 실패하면 "상세 PDF" 칸에 실패 사유가 남습니다.
  *
- * v1(자가 다운로드) / v2(센터 방문 안내) 앱 어느 쪽이든 동일하게 동작하며,
- * 어느 버전에서 제출됐는지는 "버전" 열에 표시됩니다.
+ * v1(자가 다운로드) / v2(센터 방문 안내) / v3(강의용: 컬러리딩+CCT) 앱 어느 쪽이든
+ * 동일하게 동작하며, 어느 버전에서 제출됐는지는 "버전" 열에 표시됩니다.
+ * v3는 "컬러리딩 선택" 열이 추가로 채워지고, PDF에도 컬러리딩이 함께 담깁니다.
+ * (2026-10 개정) 모든 버전에서 "순위(점수)"·"동점·보완 처리" 열이 함께 채워집니다.
+ *   점수 열은 원점수 그대로 — 동점이어도 점수는 바꾸지 않고 순위만 따로 기록합니다.
+ * (2026-10 개정) PDF는 "CCT 검사 결과 PDF" 폴더 안의 버전별 하위 폴더에 저장됩니다.
+ *   version1_기본 (v1) / version2_센터용 (v2) / version3_강의용 (v3) — 폴더는 처음 저장할 때 자동 생성.
+ *   (예전 이름 기본_version1 등의 폴더가 있으면 새로 만들지 않고 그 폴더의 이름만 바꿔서 씁니다.)
+ *   예전에 쌓인 PDF는 sortExistingPdfs() 를 한 번 실행하면 같은 규칙으로 옮겨집니다.
+ * (2026-10 개정) v3 컬러리딩: 고른 컬러를 "컬러리딩 1번"~"컬러리딩 5번" 열에 순서대로 한 칸씩 저장.
+ *   예전 줄은 splitExistingColorReadings() 를 한 번 실행하면 나눠 채워집니다.
  *
  * ※ 코드를 수정한 뒤에는 반드시 [배포 > 배포 관리 > (기존 배포) 수정 >
  *    버전: 새 버전 > 배포]로 "같은 배포"를 업데이트하세요. "새 배포"를
@@ -24,8 +33,22 @@
 
 var SHEET_NAME = "응답";
 var FOLDER_NAME = "CCT 검사 결과 PDF";
+// 버전별 하위 폴더 (위 폴더 안에 자동으로 만들어집니다). "버전" 열 값의 앞부분으로 구분합니다.
+//   v1 → version1_기본 / v2 → version2_센터용 / v3·컬러리딩·v3·CCT·v3·통합 → version3_강의용
+//   old: 예전 폴더 이름 — 남아 있으면 새 이름으로 바꿔서 그대로 씁니다 (PDF·링크 유지).
+var VERSION_FOLDERS = [
+  { prefix: "v1", name: "version1_기본", old: "기본_version1" },
+  { prefix: "v2", name: "version2_센터용", old: "센터용_version2" },
+  { prefix: "v3", name: "version3_강의용", old: "강의용_version3" }
+];
+var VERSION_HEADER = "버전";
 var ID_HEADER = "결과ID";
+var CR_HEADER = "컬러리딩 선택";   // 강의용(v3)만 채워집니다. 예) 1.레드 2.코랄 3.블루 4.그린 / 5.퍼플
+// 고른 컬러를 순서대로 한 칸씩 (정렬·필터·집계용). 위 "컬러리딩 선택" 열과 같은 내용을 나눠 담습니다.
+var CR_PICK_HEADERS = ["컬러리딩 1번", "컬러리딩 2번", "컬러리딩 3번", "컬러리딩 4번", "컬러리딩 5번"];
 var PDF_HEADER = "상세 PDF";
+var RANK_HEADER = "순위(점수)";        // 예) 1.골드 5.0 · 2.빨강 5.0 · 3.주황 4.0 … — 점수는 원점수 그대로, 순위만 별도
+var TIE_HEADER = "동점·보완 처리";     // 동점 순위를 정한 기준, 보완컬러를 고른 근거
 
 var COLOR_ORDER = [
   "RED", "ORANGE", "YELLOW", "LIME", "GREEN", "BLUE",
@@ -65,7 +88,7 @@ function handleMeta_(sheet, data, alsoSavePdf) {
   if (existing > 0) return json_({ ok: true, phase: "meta", duplicate: true, row: existing });
 
   var pdfCell = "생성 중…";
-  if (alsoSavePdf && data.pdfBase64) pdfCell = savePdf_(data); // 구버전 앱 호환
+  if (alsoSavePdf && data.pdfBase64) pdfCell = savePdf_(data, data.appVariant); // 구버전 앱 호환
 
   var scoreRow = COLOR_ORDER.map(function (key) {
     return data.scores && data.scores[key] != null ? data.scores[key] : "";
@@ -83,6 +106,24 @@ function handleMeta_(sheet, data, alsoSavePdf) {
   ].concat(scoreRow).concat([data.resultId || ""]);
 
   sheet.appendRow(row);
+
+  // 강의용(v3): 컬러리딩 선택을 이름으로 찾은 열에 기록 (열이 없으면 맨 뒤에 추가).
+  // v1/v2는 이 값을 보내지 않으므로 기존 시트 구조에 영향이 없습니다.
+  if (data.colorReading) {
+    var crCol = ensureColumn_(sheet, CR_HEADER);
+    sheet.getRange(sheet.getLastRow(), crCol).setValue(data.colorReading);
+    writeCrPicks_(sheet, sheet.getLastRow(), data.colorReading);
+  }
+  // 순위·동점 처리 (2026-10 CCT 개정). 점수 열(빨강~터콰이즈)은 원점수 그대로 두고,
+  // 순위와 그 근거는 별도 열에 남긴다. 열이 없으면 맨 뒤에 자동으로 추가된다.
+  if (data.rankText) {
+    var rankCol = ensureColumn_(sheet, RANK_HEADER);
+    sheet.getRange(sheet.getLastRow(), rankCol).setValue(data.rankText);
+  }
+  if (data.tieNote) {
+    var tieCol = ensureColumn_(sheet, TIE_HEADER);
+    sheet.getRange(sheet.getLastRow(), tieCol).setValue(data.tieNote);
+  }
   return json_({ ok: true, phase: "meta", resultId: data.resultId || "" });
 }
 
@@ -100,7 +141,11 @@ function handlePdf_(sheet, data) {
     }
   }
 
-  var cell = data.pdfError ? ("PDF 실패: " + data.pdfError) : savePdf_(data);
+  // 이 결과가 어느 버전에서 왔는지는 1차로 기록된 줄의 "버전" 열에서 읽는다.
+  var variant = data.appVariant || "";
+  var verCol = headers.indexOf(VERSION_HEADER) + 1;
+  if (!variant && rowNo > 0 && verCol > 0) variant = String(sheet.getRange(rowNo, verCol).getValue());
+  var cell = data.pdfError ? ("PDF 실패: " + data.pdfError) : savePdf_(data, variant);
 
   if (rowNo > 0 && pdfCol > 0) {
     sheet.getRange(rowNo, pdfCol).setValue(cell);
@@ -116,9 +161,9 @@ function handlePdf_(sheet, data) {
 }
 
 /* ---------- Drive 저장 ---------- */
-function savePdf_(data) {
+function savePdf_(data, variant) {
   try {
-    var folder = getOrCreateFolder_(FOLDER_NAME);
+    var folder = folderForVariant_(variant);
     var base64 = String(data.pdfBase64).split(",")[1] || data.pdfBase64;
     var bytes = Utilities.base64Decode(base64);
     var safeName = (data.name || "무명").replace(/[\\/:*?"<>|]/g, "_");
@@ -157,6 +202,49 @@ function ensureHeader_(sheet) {
   }
 }
 
+// "1.레드 2.코랄 3.오렌지 4.골드 / 5.인디고" → ["레드","코랄","오렌지","골드","인디고"]
+function parseCrPicks_(text) {
+  var out = [];
+  var re = /([1-5])\.\s*([^\s\/]+)/g, m;
+  while ((m = re.exec(String(text || ""))) !== null) out[Number(m[1]) - 1] = m[2];
+  return out;
+}
+
+function writeCrPicks_(sheet, rowNo, text) {
+  var picks = parseCrPicks_(text);
+  if (!picks.length) return;
+  for (var i = 0; i < CR_PICK_HEADERS.length; i++) {
+    var col = ensureColumn_(sheet, CR_PICK_HEADERS[i]);
+    sheet.getRange(rowNo, col).setValue(picks[i] || "");
+  }
+}
+
+/**
+ * (한 번만 실행) 이미 쌓인 줄의 "컬러리딩 선택"을 컬러리딩 1번~5번 열로 나눠 채웁니다.
+ * Apps Script 편집기에서 함수 "splitExistingColorReadings"를 고르고 [실행].
+ */
+function splitExistingColorReadings() {
+  var sheet = getSheet_();
+  var headers = headerRow_(sheet);
+  var crIdx = headers.indexOf(CR_HEADER);
+  if (crIdx < 0 || sheet.getLastRow() < 2) return;
+  var vals = sheet.getRange(2, crIdx + 1, sheet.getLastRow() - 1, 1).getValues();
+  var n = 0;
+  for (var r = 0; r < vals.length; r++) {
+    if (String(vals[r][0]).trim()) { writeCrPicks_(sheet, r + 2, vals[r][0]); n++; }
+  }
+  Logger.log("나눠 채운 줄: " + n + "개");
+}
+
+function ensureColumn_(sheet, header) {
+  var headers = headerRow_(sheet);
+  var idx = headers.indexOf(header);
+  if (idx !== -1) return idx + 1;
+  var col = headers.length + 1;
+  sheet.getRange(1, col).setValue(header);
+  return col;
+}
+
 function findRowByResultId_(sheet, resultId) {
   if (!resultId) return -1;
   var headers = headerRow_(sheet);
@@ -169,6 +257,61 @@ function findRowByResultId_(sheet, resultId) {
     if (String(ids[i][0]) === String(resultId)) return i + 2;
   }
   return -1;
+}
+
+// 버전에 맞는 하위 폴더. 버전을 알 수 없으면 상위 폴더("CCT 검사 결과 PDF")에 그대로 저장.
+function folderForVariant_(variant) {
+  var root = getOrCreateFolder_(FOLDER_NAME);
+  var v = String(variant || "").trim();
+  for (var i = 0; i < VERSION_FOLDERS.length; i++) {
+    if (v.indexOf(VERSION_FOLDERS[i].prefix) === 0) return getOrCreateSubfolder_(root, VERSION_FOLDERS[i].name, VERSION_FOLDERS[i].old);
+  }
+  return root;
+}
+
+function getOrCreateSubfolder_(parent, name, oldName) {
+  var it = parent.getFoldersByName(name);
+  if (it.hasNext()) return it.next();
+  if (oldName) {
+    var old = parent.getFoldersByName(oldName);
+    if (old.hasNext()) { var f = old.next(); f.setName(name); return f; }
+  }
+  return parent.createFolder(name);
+}
+
+/**
+ * (한 번만 실행) 지금까지 쌓인 PDF를 버전별 폴더로 옮깁니다.
+ * Apps Script 편집기 위쪽에서 함수 "sortExistingPdfs"를 고르고 [실행]을 누르세요.
+ * 시트의 "버전" 열과 "상세 PDF" 링크를 보고 옮기며, 링크는 바뀌지 않습니다.
+ */
+function sortExistingPdfs() {
+  var sheet = getSheet_();
+  var headers = headerRow_(sheet);
+  var verCol = headers.indexOf(VERSION_HEADER);
+  var pdfCol = headers.indexOf(PDF_HEADER);
+  if (verCol < 0 || pdfCol < 0 || sheet.getLastRow() < 2) return;
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  var nameCol = headers.indexOf("이름");
+  var moved = 0, skipped = 0;
+  rows.forEach(function (r, i) {
+    var url = String(r[pdfCol]);
+    var m = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (!m) { skipped++; return; }
+    // 예전 스크립트는 PDF를 "버전" 칸이 빈 별도 줄로 남겼다 → 바로 위쪽의 같은 이름 줄에서 버전을 가져온다.
+    var ver = String(r[verCol] || "");
+    for (var b = i - 1; !ver && b >= 0 && b >= i - 5; b--) {
+      if (nameCol < 0 || String(rows[b][nameCol]) === String(r[nameCol])) ver = String(rows[b][verCol] || "");
+    }
+    try {
+      var target = folderForVariant_(ver);
+      var file = DriveApp.getFileById(m[1]);
+      var parents = file.getParents();
+      var already = false;
+      while (parents.hasNext()) { if (parents.next().getId() === target.getId()) already = true; }
+      if (!already) { file.moveTo(target); moved++; }
+    } catch (err) { skipped++; }
+  });
+  Logger.log("옮긴 PDF: " + moved + "개 / 건너뜀: " + skipped + "개");
 }
 
 function getOrCreateFolder_(name) {
