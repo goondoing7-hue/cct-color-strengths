@@ -1910,6 +1910,9 @@
 
     const container = document.createElement("div");
     container.className = "pdf-report";
+    // 휴대폰의 글자 자동 확대(텍스트 자동 크기 조정)를 끕니다 — PDF 문단이 커져 쪽이 늘어나는 문제 방지
+    container.style.webkitTextSizeAdjust = "none";
+    container.style.textSizeAdjust = "none";
     document.body.appendChild(container);
 
     try {
@@ -1951,7 +1954,8 @@
 
       const USABLE_H = PDF_PAGE_H - PDF_MARGIN_TOP - PDF_MARGIN_BOTTOM;
 
-      const place = (block) => {
+      let onPage = 0; // 지금 페이지에 놓인 블록 수
+      const place = (block, fitH) => {
         // Safety net. The branch below places a block unconditionally when it is
         // first on a fresh page, which for a block TALLER than the page meant it
         // was drawn past the bottom edge and silently clipped — text ran under
@@ -1965,10 +1969,15 @@
           w = PDF_CONTENT_W * (USABLE_H / h);
           h = USABLE_H;
         }
+        if (fitH && h > fitH) {
+          w = w * (fitH / h);
+          h = fitH;
+        }
         const x = PDF_MARGIN_X + (PDF_CONTENT_W - w) / 2;
         doc.addImage(block.imgData, "JPEG", x, cursorY, w, h);
         cursorY += h + PDF_BLOCK_GAP;
         isFirstOnPage = false;
+        onPage++;
       };
 
       while (queue.length) {
@@ -1980,12 +1989,21 @@
           doc.addPage();
           cursorY = PDF_MARGIN_TOP;
           isFirstOnPage = true;
+          onPage = 0;
         }
 
         const availableH = PDF_PAGE_H - PDF_MARGIN_BOTTOM - cursorY;
 
         if (isFirstOnPage || head.imgH <= availableH) {
           place(head);
+          queue.shift();
+          continue;
+        }
+
+        // 첫 페이지에 제목(표지 머리)만 남고 본문이 2쪽으로 넘어가지 않도록:
+        // 제목 바로 다음 블록이 조금(최대 15%) 넘치면 살짝 줄여서 첫 페이지에 함께 싣습니다.
+        if (doc.getNumberOfPages() === 1 && onPage === 1 && head.imgH * 0.85 <= availableH) {
+          place(head, availableH);
           queue.shift();
           continue;
         }
@@ -2005,6 +2023,7 @@
           doc.addPage();
           cursorY = PDF_MARGIN_TOP;
           isFirstOnPage = true;
+          onPage = 0;
         }
       }
 
