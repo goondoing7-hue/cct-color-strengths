@@ -1279,3 +1279,6 @@ img, svg { display: block; }
 /* PDF 글자 확대 방지 2단계 — 일부 안드로이드 앱 속 브라우저는 text-size-adjust를 무시하므로,
    크롬 계열 '글자 자동 확대'가 높이 제한(max-height)이 있는 영역은 건너뛰는 점을 이용합니다. (레이아웃 영향 없음) */
 .pdf-report, .pdf-report * { max-height: 1000000px; }
+
+/* 아이폰(iOS) 글자 자동 확대 방지 — 문서 전체 기준 글자 크기를 100%로 고정 */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
