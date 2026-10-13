@@ -21,7 +21,7 @@
   // Simple access-code gate (replaces the earlier Instagram-follow upload check).
   // This is a soft, client-side-only gate — anyone reading the source can see the
   // code — but that's fine for this static-site use case.
-  const CCT_ACCESS_CODE = "live";
+  const CCT_ACCESS_CODE = "love"; // v3(강의용) 접근 코드 — 2026-10-13 변경
 
   // Optional: log each completed test to a Google Sheet via a Google Apps
   // Script Web App. Leave this empty to disable logging entirely (nothing is
@@ -2370,7 +2370,7 @@
         container.innerHTML = `
           <div class="rp-pagefoot">
             <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
-            <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
+            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">v3_55</em>${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
         const fCanvas = await h2c(container, {
