@@ -1346,3 +1346,15 @@ img, svg { display: block; }
 
 /* 아이폰(iOS) 글자 자동 확대 방지 — 문서 전체 기준 글자 크기를 100%로 고정 */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* PDF 쪽 아래 버전 표시 — 어떤 버전 사이트에서 만든 PDF인지 바로 확인 */
+.pdf-report .rp-pagefoot-ver { font-style: normal; font-weight: 600; color: var(--ink-300); margin-right: 10px; letter-spacing: .02em; }
+
+/* ---------- 결과 저장 안내 (2026-10-18) ---------- */
+.save-notice{position:fixed;left:50%;top:14px;transform:translate(-50%,-140%);z-index:9999;display:flex;align-items:center;gap:9px;max-width:calc(100% - 32px);padding:10px 16px;border-radius:999px;background:rgba(31,29,38,.92);color:#fff;font-size:13px;line-height:1.4;font-weight:500;box-shadow:0 6px 20px rgba(0,0,0,.18);transition:transform .25s ease;pointer-events:none;word-break:keep-all}
+.save-notice.is-on{transform:translate(-50%,0)}
+.save-notice.is-done{background:rgba(47,122,79,.94)}
+.save-notice-spin{flex:0 0 14px;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:saveSpin .8s linear infinite}
+.save-notice-ok{flex:0 0 auto;font-weight:700}
+@keyframes saveSpin{to{transform:rotate(360deg)}}
+@media print{.save-notice{display:none!important}}
