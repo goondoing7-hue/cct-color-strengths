@@ -553,27 +553,80 @@
     const headers = { "Content-Type": "text/plain;charset=utf-8" };
     const label = `[CCT] 결과 기록 (${payload.phase || "?"})`;
 
-    if (opts && opts.beacon && navigator.sendBeacon) {
+    if (opts && opts.beacon) {
+      // 1차(작은 결과 줄)는 sendBeacon으로 보내고, 2026-10-18부터 일반 요청으로 한 번 더 보낸다.
+      // 10/12 강의(25명 동시 완료)에서 1차가 유실된 사례가 있었기 때문. Apps Script가
+      // 결과ID로 중복을 걸러 내므로 시트에 줄이 두 번 생기지 않는다.
       try {
-        const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
-        if (navigator.sendBeacon(GS_WEBHOOK_URL, blob)) {
-          console.info(`${label} — sendBeacon 전소 (${body.length}B)`);
-          return;
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+          if (navigator.sendBeacon(GS_WEBHOOK_URL, blob)) console.info(`${label} — sendBeacon 전송 (${body.length}B)`);
         }
       } catch (e) {
         /* fall through */
       }
+      try {
+        await fetch(GS_WEBHOOK_URL, { method: "POST", mode: "no-cors", headers, body, keepalive: body.length < 60000 });
+      } catch (e) {
+        console.warn(`${label} — 보조 전송 실패:`, e && e.message);
+      }
+      return true;
     }
 
-    try {
-      const res = await fetch(GS_WEBHOOK_URL, { method: "POST", headers, body, redirect: "follow" });
-      const text = await res.text();
-      console.info(`${label} — HTTP ${res.status}: ${text.slice(0, 200)}`);
-      if (res.ok) return;
-    } catch (err) {
-      console.warn(`${label} — 응답을 읽지 못함, 재전소합니다:`, err && err.message);
+    // 2차(PDF): 읽을 수 있는 요청 → 막히면 no-cors 재전송. 네트워크 오류면 3초 뒤 한 번 더.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(GS_WEBHOOK_URL, { method: "POST", headers, body, redirect: "follow" });
+        const text = await res.text();
+        console.info(`${label} — HTTP ${res.status}: ${text.slice(0, 200)}`);
+        if (res.ok) return true;
+      } catch (err) {
+        console.warn(`${label} — 응답을 읽지 못함, 재전송합니다:`, err && err.message);
+      }
+      try {
+        await fetch(GS_WEBHOOK_URL, { method: "POST", mode: "no-cors", headers, body });
+        return true;
+      } catch (e) {
+        await new Promise((r) => setTimeout(r, 3000));
+      }
     }
-    fetch(GS_WEBHOOK_URL, { method: "POST", mode: "no-cors", headers, body }).catch(() => {});
+    return false;
+  }
+
+  // ---------- 결과 저장 안내 (2026-10-18) ----------
+  // PDF는 휴대폰에서 만드는 데 수십 초가 걸린다. 그 사이 화면을 닫으면 결과지가 Drive에
+  // 저장되지 않으므로(10/8·10/12 사례), 저장이 끝날 때까지 안내를 띄우고 닫기 전에 한 번 묻는다.
+  let saveNoticeTimer = null;
+  function guardUnload(e) {
+    e.preventDefault();
+    e.returnValue = "";
+    return "";
+  }
+  function showSaveNotice(state) {
+    let el = document.getElementById("saveNotice");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "saveNotice";
+      el.className = "save-notice";
+      el.setAttribute("role", "status");
+      el.setAttribute("aria-live", "polite");
+      document.body.appendChild(el);
+    }
+    clearTimeout(saveNoticeTimer);
+    if (state === "saving") {
+      el.innerHTML = `<span class="save-notice-spin"></span><span>결과를 저장하고 있어요. 잠시만 이 화면을 닫지 말아 주세요.</span>`;
+      el.className = "save-notice is-on";
+      window.addEventListener("beforeunload", guardUnload);
+      return;
+    }
+    window.removeEventListener("beforeunload", guardUnload);
+    if (state === "done") {
+      el.innerHTML = `<span class="save-notice-ok">✓</span><span>결과가 저장되었어요.</span>`;
+      el.className = "save-notice is-on is-done";
+      saveNoticeTimer = setTimeout(() => (el.className = "save-notice"), 2500);
+      return;
+    }
+    el.className = "save-notice";
   }
 
   async function autoLogResult(scores, ranked, comp) {
@@ -606,6 +659,7 @@
       }, {}),
     };
     // Phase 1 — the row itself. Sent before the PDF build starts.
+    showSaveNotice("saving");
     postToWebhook(meta, { beacon: true });
 
     // Phase 2 — the PDF, attached to the row created above.
@@ -613,23 +667,22 @@
       const { pdfBase64 } = await getPdfDoc(scores, ranked);
       const bytes = Math.round((pdfBase64.length * 3) / 4);
       if (bytes > PDF_LOG_MAX_BYTES) {
-        postToWebhook({
-          resultId,
+        await postToWebhook(Object.assign({}, meta, {
           phase: "pdf",
-          name: meta.name,
           pdfError: `PDF 용량 초과 (${(bytes / 1048576).toFixed(1)}MB)`,
-        });
+        }));
+        showSaveNotice("off");
         return;
       }
-      postToWebhook({ resultId, phase: "pdf", name: meta.name, pdfBytes: bytes, pdfBase64 });
+      const sent = await postToWebhook(Object.assign({}, meta, { phase: "pdf", pdfBytes: bytes, pdfBase64 }));
+      showSaveNotice(sent ? "done" : "off");
     } catch (err) {
       console.warn("결과 PDF 전송 실패:", err);
-      postToWebhook({
-        resultId,
+      await postToWebhook(Object.assign({}, meta, {
         phase: "pdf",
-        name: meta.name,
         pdfError: String((err && err.message) || err).slice(0, 200),
-      });
+      }));
+      showSaveNotice("off");
     }
   }
 
@@ -2189,7 +2242,7 @@
         container.innerHTML = `
           <div class="rp-pagefoot">
             <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
-            <span class="rp-pagefoot-num">${pageNo} / ${totalPages}</span>
+            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">v1_15</em>${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
         const fCanvas = await h2c(container, {

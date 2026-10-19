@@ -26,6 +26,12 @@
  * (2026-10 개정) v3 컬러리딩: 고른 컬러를 "컬러리딩 1번"~"컬러리딩 5번" 열에 순서대로 한 칸씩 저장.
  *   예전 줄은 splitExistingColorReadings() 를 한 번 실행하면 나눠 채워집니다.
  *
+ * (2026-10-18 개정) 저장 안정화
+ *   - 앱이 2차(PDF) 전송에도 이름·버전·점수를 함께 보냅니다. 1차 줄이 유실돼도
+ *     PDF는 올바른 버전 폴더에 저장되고, 시트 줄도 빠짐없이 채워집니다.
+ *   - 앱이 1차 전송을 두 번 보내도(유실 대비) 결과ID가 같으면 한 줄만 남습니다.
+ *   - fillMissingVersions_20261018() : 10/8·10/12에 버전 없이 남은 5줄의 "버전" 칸을 채웁니다(한 번만 실행).
+ *
  * ※ 코드를 수정한 뒤에는 반드시 [배포 > 배포 관리 > (기존 배포) 수정 >
  *    버전: 새 버전 > 배포]로 "같은 배포"를 업데이트하세요. "새 배포"를
  *    만들면 URL이 바뀌어 앱이 옛 버전을 계속 호출합니다.
@@ -37,6 +43,7 @@ var FOLDER_NAME = "CCT 검사 결과 PDF";
 //   v1 → version1_기본 / v2 → version2_센터용 / v3·컬러리딩·v3·CCT·v3·통합 → version3_강의용
 //   old: 예전 폴더 이름 — 남아 있으면 새 이름으로 바꿔서 그대로 씁니다 (PDF·링크 유지).
 var VERSION_FOLDERS = [
+  { prefix: "v3test", name: "version3_테스트용" },   // (2026-10-18) 개선 테스트 버전 — 운영 폴더와 섞이지 않게 먼저 검사
   { prefix: "v1", name: "version1_기본", old: "기본_version1" },
   { prefix: "v2", name: "version2_센터용", old: "센터용_version2" },
   { prefix: "v3", name: "version3_강의용", old: "강의용_version3" }
@@ -89,11 +96,15 @@ function handleMeta_(sheet, data, alsoSavePdf) {
 
   var pdfCell = "생성 중…";
   if (alsoSavePdf && data.pdfBase64) pdfCell = savePdf_(data, data.appVariant); // 구버전 앱 호환
+  appendResultRow_(sheet, data, pdfCell);
+  return json_({ ok: true, phase: "meta", resultId: data.resultId || "" });
+}
 
+// 결과 한 줄 + 컬러리딩·순위·동점 열. 1차 기록과 "1차 유실 후 2차 도착" 양쪽에서 같이 쓴다.
+function appendResultRow_(sheet, data, pdfCell) {
   var scoreRow = COLOR_ORDER.map(function (key) {
     return data.scores && data.scores[key] != null ? data.scores[key] : "";
   });
-
   var row = [
     data.completedAt ? new Date(data.completedAt) : new Date(),
     data.name || "",
@@ -106,25 +117,24 @@ function handleMeta_(sheet, data, alsoSavePdf) {
   ].concat(scoreRow).concat([data.resultId || ""]);
 
   sheet.appendRow(row);
+  var rowNo = sheet.getLastRow();
 
   // 강의용(v3): 컬러리딩 선택을 이름으로 찾은 열에 기록 (열이 없으면 맨 뒤에 추가).
-  // v1/v2는 이 값을 보내지 않으므로 기존 시트 구조에 영향이 없습니다.
   if (data.colorReading) {
     var crCol = ensureColumn_(sheet, CR_HEADER);
-    sheet.getRange(sheet.getLastRow(), crCol).setValue(data.colorReading);
-    writeCrPicks_(sheet, sheet.getLastRow(), data.colorReading);
+    sheet.getRange(rowNo, crCol).setValue(data.colorReading);
+    writeCrPicks_(sheet, rowNo, data.colorReading);
   }
-  // 순위·동점 처리 (2026-10 CCT 개정). 점수 열(빨강~터콰이즈)은 원점수 그대로 두고,
-  // 순위와 그 근거는 별도 열에 남긴다. 열이 없으면 맨 뒤에 자동으로 추가된다.
+  // 순위·동점 처리. 점수 열은 원점수 그대로, 순위와 근거는 별도 열.
   if (data.rankText) {
     var rankCol = ensureColumn_(sheet, RANK_HEADER);
-    sheet.getRange(sheet.getLastRow(), rankCol).setValue(data.rankText);
+    sheet.getRange(rowNo, rankCol).setValue(data.rankText);
   }
   if (data.tieNote) {
     var tieCol = ensureColumn_(sheet, TIE_HEADER);
-    sheet.getRange(sheet.getLastRow(), tieCol).setValue(data.tieNote);
+    sheet.getRange(rowNo, tieCol).setValue(data.tieNote);
   }
-  return json_({ ok: true, phase: "meta", resultId: data.resultId || "" });
+  return rowNo;
 }
 
 /* ---------- 2차: PDF 저장 후 같은 줄 채우기 ---------- */
@@ -141,7 +151,7 @@ function handlePdf_(sheet, data) {
     }
   }
 
-  // 이 결과가 어느 버전에서 왔는지는 1차로 기록된 줄의 "버전" 열에서 읽는다.
+  // 버전: 2차 전송에 들어 있는 값을 먼저 쓰고(2026-10-18 앱부터), 없으면 1차 줄의 "버전" 열에서 읽는다.
   var variant = data.appVariant || "";
   var verCol = headers.indexOf(VERSION_HEADER) + 1;
   if (!variant && rowNo > 0 && verCol > 0) variant = String(sheet.getRange(rowNo, verCol).getValue());
@@ -149,15 +159,16 @@ function handlePdf_(sheet, data) {
 
   if (rowNo > 0 && pdfCol > 0) {
     sheet.getRange(rowNo, pdfCol).setValue(cell);
+    // 1차 줄의 버전 칸이 비어 있으면 함께 채운다.
+    if (verCol > 0 && data.appVariant && !String(sheet.getRange(rowNo, verCol).getValue())) {
+      sheet.getRange(rowNo, verCol).setValue(data.appVariant);
+    }
     return json_({ ok: true, phase: "pdf", row: rowNo, value: cell });
   }
 
-  // 1차 요청이 유실된 경우: 그래도 잃지 않도록 새 줄을 만든다.
-  var row = [new Date(), data.name || "", "", "", "", "", "", cell];
-  while (row.length < 8 + COLOR_ORDER.length) row.push("");
-  row.push(data.resultId || "");
-  sheet.appendRow(row);
-  return json_({ ok: true, phase: "pdf", row: "appended", value: cell });
+  // 1차 요청이 유실된 경우: 2차에 함께 온 이름·버전·점수로 온전한 줄을 만든다.
+  var newRow = appendResultRow_(sheet, data, cell);
+  return json_({ ok: true, phase: "pdf", row: newRow, appended: true, value: cell });
 }
 
 /* ---------- Drive 저장 ---------- */
@@ -347,4 +358,33 @@ function doGet(e) {
     out.driveError = String(err);
   }
   return json_(out);
+}
+
+
+/**
+ * (한 번만 실행, 2026-10-18) 1차 기록이 유실돼 "버전" 칸이 빈 채로 남은 5줄을 채웁니다.
+ * PDF 파일은 이미 버전 폴더로 옮겨 두었습니다. 점수·TOP 칸은 원래 기록이 없어 비어 있습니다
+ * (값은 각 PDF 결과지에서 확인할 수 있습니다).
+ * Apps Script 편집기 위쪽에서 함수 "fillMissingVersions_20261018"을 고르고 [실행].
+ */
+function fillMissingVersions_20261018() {
+  var fixes = {
+    "Rmuysw0672w1l4s": "v1 (추정: 같은 시간대 v1 응답)",  // 김수연 10/8 9:31 · CCT 9쪽
+    "Rmv4srd6fnotg6b": "v3·컬러리딩",                     // 호매실알밤 10/12 · 컬러리딩 3쪽
+    "Rmv4t4rhnssc1if": "v3·통합",                         // 심호수 10/12 · 11쪽
+    "Rmv4t5ivpn6u0ri": "v3·통합",                         // 양일동 10/12 2:25 · 11쪽
+    "Rmv4tdn6uzel2c6": "v3·통합"                          // 양일동 10/12 2:31 · 11쪽
+  };
+  var sheet = getSheet_();
+  var headers = headerRow_(sheet);
+  var verCol = headers.indexOf(VERSION_HEADER) + 1;
+  var n = 0;
+  Object.keys(fixes).forEach(function (id) {
+    var r = findRowByResultId_(sheet, id);
+    if (r > 0 && verCol > 0 && !String(sheet.getRange(r, verCol).getValue())) {
+      sheet.getRange(r, verCol).setValue(fixes[id]);
+      n++;
+    }
+  });
+  Logger.log("버전을 채운 줄: " + n + "개");
 }
