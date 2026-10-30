@@ -854,7 +854,7 @@
 
       <section class="rs-block" id="rsComplement">
         <h2 class="rs-title">균형 컬러</h2>
-        <p class="rs-note">${escapeHtml(BAL_DEF)}</p>
+        <p class="rs-note">${escapeHtml(balanceIsHigh(ranked, comp) ? BAL_DEF_HIGH : BAL_DEF)}</p>
         <div class="color-section">${colorSectionHeroHTML(comp.chosen, "균형 컬러 · 함께 써 볼 자원")}<div class="cs-body">${buildBalanceGuideHTML(ranked, comp, scores)}</div></div>
       </section>
 
@@ -1051,6 +1051,7 @@
   const relIdx = (k) => (typeof CCT_REL !== "undefined" && CCT_REL[k]) || { h: [], a: [] };
   function balLink(t1, cp) { return (typeof CCT_BAL_LINK !== "undefined" && CCT_BAL_LINK[t1 + ">" + cp]) || null; }
   const BAL_DEF = typeof CCT_BAL_DEF !== "undefined" ? CCT_BAL_DEF : "";
+  const BAL_DEF_HIGH = "균형컬러는 대표 강점이 지나치게 쓰이거나 한 가지 방식으로만 쓰일 때, 그 강점을 더 유연하게 쓰도록 함께 살펴보는 또 하나의 성격 자원이에요. CCT에서는 대표 강점마다 균형 후보 두 가지를 정해 두고 그중 하나를 제안해요. 이번 결과에서는 균형 컬러도 이미 높게 나타나, 새로 채울 부분이 아니라 이미 가진 힘을 대표 강점과 이어서 쓰는 방법을 살펴봐요.";
 
   // 점수 분포 읽기 (0.2점 = 다섯 문항 중 한 문항에서 1점 차이)
   function distParagraph(ranked) {
@@ -1065,10 +1066,10 @@
     if (gap >= 0.4) {
       s = `가장 높게 나타난 강점은 ${nm(t1)}${josa(t1.strength, "이에요", "예요")}(${f1(t1.score)}점). 다음 강점인 ${escapeHtml(t2.ko)}(${f1(t2.score)}점)보다 ${f1(gap)}점 높아, 이번 결과에서는 ${escapeHtml(jq(t1.core, "이", "가"))} 가장 뚜렷하게 드러났어요.`;
     } else if (gap > 0) {
-      s = `${nm(t1)}${josa(t1.strength, "이", "가")} ${f1(t1.score)}점으로 가장 높지만, 다음 강점인 ${escapeHtml(t2.ko)}(${f1(t2.score)}점)과 ${f1(gap)}점 차이예요. 0.2점은 다섯 문항 가운데 한 문항에서 1점 정도의 차이라, 순위보다 함께 높게 나타났다는 점을 보는 것이 좋아요.`;
+      s = `${nm(t1)}${josa(t1.strength, "이", "가")} ${f1(t1.score)}점으로 가장 높지만, 다음 강점인 ${escapeHtml(t2.ko)}(${f1(t2.score)}점)${josa(t2.ko, "과", "와")} ${f1(gap)}점 차이예요. 0.2점은 다섯 문항 가운데 한 문항에서 1점 정도의 차이라, 순위보다 함께 높게 나타났다는 점을 보는 것이 좋아요.`;
     } else {
       const tied = ranked.filter((c) => c.score === t1.score);
-      s = `${tied.map((c) => `<b>${escapeHtml(c.ko)}</b>`).join("·")}${josa(tied[tied.length - 1].ko, "이", "가")} ${f1(t1.score)}점으로 함께 가장 높아요. 이 가운데 ${escapeHtml(t1.ko)}${josa(t1.ko, "을", "를")} 1위로 표시한 것은 점수가 같을 때 쓰는 순서 규칙에 따른 것이에요.`;
+      s = `${tied.length > 4 ? `13개 가운데 ${tied.length}개 컬러가` : `${tied.map((c) => `<b>${escapeHtml(c.ko)}</b>`).join("·")}${josa(tied[tied.length - 1].ko, "이", "가")}`} ${f1(t1.score)}점으로 함께 가장 높아요. 이 가운데 ${escapeHtml(t1.ko)}${josa(t1.ko, "을", "를")} 1위로 표시한 것은 점수가 같을 때 쓰는 순서 규칙에 따른 것이에요.`;
     }
     if (near >= 4) s += ` 13개 중 ${near}개 컬러가 ${f1(t1.score - 0.2)}점 이상이라, 하나의 강점이 두드러진다기보다 여러 강점이 고르게 높은 프로필에 가까워요.`;
     if (range <= 0.8) s += ` 가장 높은 점수와 가장 낮은 점수의 차이가 ${f1(range)}점으로, 13개 강점이 비교적 비슷한 수준으로 나타났어요.`;
@@ -1082,9 +1083,9 @@
     return rk.notes.map((n) => {
       const how = n.steps.some((st) => st.type === "choice") ? "직접 고른 문장" : n.steps.some((st) => st.type === "domain") ? "각 컬러가 속한 강점영역의 평균 비교" : "기본 순서";
       const outside = n.keys.filter((k) => top3.indexOf(k) === -1);
-      const names = joinKo(n.keys.map(cmpKo));
+      const names = n.keys.length > 5 ? `${n.keys.length}개` : joinKo(n.keys.map(cmpKo));
       let t = `${names} 컬러가 ${n.score.toFixed(1)}점으로 같아요. TOP 순서는 ${how}로 정했고, 점수는 그대로예요.`;
-      if (outside.length) t += ` TOP3 밖에 놓인 ${joinKo(outside.map(cmpKo))}도 같은 점수로 함께 높게 나타난 강점이에요.`;
+      if (outside.length) t += outside.length > 5 ? ` TOP3 밖에 놓인 나머지 ${outside.length}개도 같은 점수로 함께 높게 나타난 강점이에요.` : ` TOP3 밖에 놓인 ${joinKo(outside.map(cmpKo))}도 같은 점수로 함께 높게 나타난 강점이에요.`;
       return t;
     });
   }
@@ -1093,65 +1094,67 @@
     return notes.length ? `<div class="tie-note">${notes.map((t) => `<p>※ ${escapeHtml(t)}</p>`).join("")}</div>` : "";
   }
 
-  // 균형컬러를 정한 방법 — "13색 최저가 아님"과 "후보 둘 안에서는 점수 기준"을 구분해서
+  // 균형컬러를 정한 방법 — 고객용으로 짧게 (점수 계산 단계·영역 평균 수치는 쓰지 않음)
   function balanceHowText(top1, comp, scores, ranked) {
     const c = comp.chosen, o = comp.other;
     if (!c || !o) return "";
     const cand = (CCT_COMPLEMENT_MAP[top1.key] || []).map(cmpKo);
-    let s = `CCT의 초기 이론적 후보표에는 대표 강점마다 균형 후보가 두 가지씩 정해져 있어요. ${top1.ko}의 후보는 ${joinKo(cand)}${josa(cand[cand.length - 1], "이에요", "예요")}. 그래서 13개 컬러 가운데 가장 낮은 점수를 고르는 방식은 아니에요.`;
-    const min = Math.min(...Object.values(scores));
-    const lows = CCT_COLORS.filter((x) => scores[x.key] === min && cand.indexOf(x.ko) === -1);
-    if (lows.length && scores[c.key] !== min) s += ` (가장 낮은 점수는 ${joinKo(lows.map((x) => x.ko))} ${f1(min)}점이지만 후보가 아니에요.)`;
-    s += " 다만 두 후보 안에서는 지금 상대적으로 덜 쓰고 있는 쪽을 제안해요. ";
-    switch (comp.step) {
-      case 1: s += `${c.ko} ${f1(c.score)}점 · ${o.ko} ${f1(o.score)}점으로 0.4점 이상 차이가 나서 ${jq(c.ko, "을", "를")} 균형컬러로 제안했어요.`; break;
-      case 2: s += `두 후보의 점수가 비슷해(${c.ko} ${f1(c.score)}점 · ${o.ko} ${f1(o.score)}점) 각 후보가 속한 강점영역의 평균을 비교했고, 평균이 더 낮은 쪽인 ${jq(c.ko, "을", "를")} 제안했어요.`; break;
-      case 3: s += `두 후보의 점수와 영역 평균이 같아, 이미 TOP3에 든 ${o.ko} 대신 ${jq(c.ko, "을", "를")} 제안했어요.`; break;
-      case 4: s += `두 후보의 점수와 영역 평균이 같아, 직접 고른 문장에 따라 ${jq(c.ko, "을", "를")} 제안했어요.`; break;
-      default: s += `두 후보의 점수와 영역 평균이 같아, 기본 순서에 따라 ${jq(c.ko, "을", "를")} 제안했어요.`;
-    }
-    if (ranked.slice(0, 3).some((x) => x.key === c.key)) s += ` ${c.ko}${josa(c.ko, "은", "는")} 이미 강점으로도 나타났어요. 가지고 있는 자원을 균형을 위해 의식적으로 꺼내 쓰는 쪽으로 보시면 돼요.`;
+    let s = `${top1.ko}의 균형 후보는 ${joinKo(cand)}${josa(cand[cand.length - 1], "이에요", "예요")}. CCT는 13개 가운데 가장 낮은 점수를 고르지 않고, ${top1.ko}${josa(top1.ko, "과", "와")} 짝을 이루는 두 후보 가운데 하나를 제안해요.`;
+    s += comp.step === 1
+      ? ` 두 후보 가운데 지금 상대적으로 덜 꺼내 쓰는 ${c.ko}(${f1(c.score)}점)${josa(c.ko, "을", "를")} 균형 컬러로 제안했어요.`
+      : ` 두 후보의 점수가 비슷해(${c.ko} ${f1(c.score)}점 · ${o.ko} ${f1(o.score)}점), 정해진 순서 규칙에 따라 ${c.ko}${josa(c.ko, "을", "를")} 제안했어요. ${o.ko}${josa(o.ko, "도", "도")} 같은 방식으로 함께 쓸 수 있는 자원이에요.`;
     return s;
   }
+  // 균형 컬러가 이미 높게 나타난 경우 (TOP3 안이거나 TOP3 최저 점수 이상, 또는 4.0점 이상)
+  function balanceIsHigh(ranked, comp) {
+    const c = comp.chosen;
+    return ranked.slice(0, 3).some((x) => x.key === c.key) || c.score >= ranked[2].score || c.score >= 4.0;
+  }
+  function balanceHighNote(ranked, comp) {
+    const c = comp.chosen;
+    return `${c.ko}${josa(c.ko, "은", "는")} 이미 ${f1(c.score)}점으로 높게 나타난 강점이에요. 부족해서 채워야 할 부분이 아니라, 이미 가진 이 힘을 ${ranked[0].ko}의 강점과 의식적으로 이어서 쓰자는 뜻이에요.`;
+  }
 
-  // 균형 페이지 ①~④ (요청서 9장) — 화면과 PDF 공통
+  // 균형 페이지 ①~④ (요청서 9장 · 10/30 보완) — 화면과 PDF 공통
   function buildBalanceGuideHTML(ranked, comp, scores) {
     const t1 = ranked[0], t2 = ranked[1], cp = comp.chosen;
     const L = balLink(t1.key, cp.key);
     const tieTop = t2 && t2.score === t1.score;
     const close = t2 && Math.round(t1.score * 10) - Math.round(t2.score * 10) <= 2;
-    // ① 내가 가진 주요 강점
-    let p1 = `가장 높게 나타난 강점은 ${escapeHtml(t1.ko)}(${escapeHtml(t1.strength)})${josa(t1.strength, "이에요", "예요")}(${f1(t1.score)}점). ${escapeHtml(t1.core)}이에요.`;
-    if (tieTop) { const tied = ranked.filter((c) => c.score === t1.score); const lastS = tied[tied.length - 1].strength; p1 = `${tied.map((c) => `${escapeHtml(c.ko)}(${escapeHtml(c.strength)})`).join("·")}${josa(lastS, "이", "가")} ${f1(t1.score)}점으로 함께 가장 높아요. 균형컬러는 순서 규칙상 1위로 표시된 ${escapeHtml(t1.ko)}${josa(t1.ko, "을", "를")} 기준으로 정했어요.`; }
-    else if (close) p1 += ` ${escapeHtml(t2.ko)}(${escapeHtml(t2.strength)}, ${f1(t2.score)})도 바로 뒤에서 함께 높게 나타났어요.`;
-    // ② 강점이 지나치게 쓰일 때 — 이 균형 자원이 다루는 과사용 + (해당되면) TOP2
-    const overs = [];
-    if (L) L.over.forEach((i) => { const t = t1.overuse[i]; if (t && !usedLines.has(t) && overs.length < 2) overs.push([t1, useLine(t)]); });
+    const high = balanceIsHigh(ranked, comp);
+    const OS = (k) => (typeof CCT_OVER_SHORT !== "undefined" && CCT_OVER_SHORT[k]) || [];
+    // ① 내가 가진 주요 강점 (정의는 앞 쪽에서 이미 설명 — 여기서는 점수와 함께 높은 강점만)
+    let p1 = `가장 높게 나타난 강점은 ${escapeHtml(t1.ko)}(${escapeHtml(t1.strength)}, ${f1(t1.score)}점)${josa(t1.strength, "이에요", "예요")}.`;
+    if (tieTop) { const tied = ranked.filter((c) => c.score === t1.score); p1 = `${tied.length > 4 ? `13개 가운데 ${tied.length}개 컬러가` : `${tied.map((c) => `${escapeHtml(c.ko)}(${escapeHtml(c.strength)})`).join("·")}${josa(tied[tied.length - 1].strength, "이", "가")}`} ${f1(t1.score)}점으로 함께 가장 높아요. 균형 컬러는 순서 규칙상 1위로 표시된 ${escapeHtml(t1.ko)}${josa(t1.ko, "을", "를")} 기준으로 정했어요.`; }
+    else if (close) p1 += ` ${escapeHtml(t2.ko)}(${escapeHtml(t2.strength)}, ${f1(t2.score)}점)도 바로 뒤에서 함께 높게 나타났어요.`;
+    // ② 강점이 지나치게 쓰일 때 — 이 균형 자원이 다루는 과사용(짧은 말) + (해당되면) TOP2
+    const o1 = (L ? L.over : [0, 1]).map((i) => OS(t1.key)[i]).filter(Boolean).slice(0, 2);
+    let p2 = o1.length ? `<p>${escapeHtml(t1.ko)}의 ${escapeHtml(t1.strength)}${josa(t1.strength, "이", "가")} 지나치게 쓰이면 ${o1.map((t, i) => `‘${escapeHtml(t)}’${i < o1.length - 1 ? josa(t, "이나", "나") : ""}`).join(" ")}${o1.length ? euro(o1[o1.length - 1]).replace(/^/, "") : ""} 이어질 수 있어요.</p>` : "";
     const L2 = t2 ? balLink(t2.key, cp.key) : null;
-    let t2Note = "";
-    if (L2 && (close || tieTop)) {
-      const t = (L2.over || []).map((i) => t2.overuse[i]).find((x) => x && !usedLines.has(x));
-      if (t) { overs.push([t2, useLine(t)]); t2Note = `${escapeHtml(cp.ko)}${josa(cp.ko, "은", "는")} 함께 높은 ${escapeHtml(t2.ko)}의 균형 후보이기도 해서, 두 강점이 함께 강하게 쓰일 때를 같이 살펴볼 수 있어요.`; }
+    if (L2 && (close || tieTop) && L2.over && OS(t2.key)[L2.over[0]]) {
+      p2 += `<p>${escapeHtml(cp.ko)}${josa(cp.ko, "은", "는")} 함께 높은 ${escapeHtml(t2.ko)}의 균형 후보이기도 해서, ${escapeHtml(t2.ko)}의 ‘${escapeHtml(OS(t2.key)[L2.over[0]])}’도 함께 살펴볼 수 있어요.</p>`;
     }
-    const p2 = overs.length
-      ? `<ul class="cg-list">${overs.map(([c, t]) => `<li><b>${escapeHtml(c.ko)}</b> ${escapeHtml(t)}</li>`).join("")}</ul><p class="cg-sub">지금 그렇다는 뜻이 아니라, 이 강점을 자주 쓸 때 함께 살펴볼 만한 모습이에요.${t2Note ? " " + t2Note : ""}</p>`
-      : `<p class="cg-sub">강점이 지나치게 쓰일 때의 모습은 '실전 지침'에서 함께 살펴봐요.</p>`;
-    // ③ 왜 이 균형컬러인가 — 선정 규칙 + 두 자원의 관계
-    const p3 = `<p>${escapeHtml(balanceHowText(t1, comp, scores, ranked))}</p>${L ? `<p>${escapeHtml(L.link)}</p>` : `<p>${escapeHtml(cp.ko)}${josa(cp.ko, "은", "는")} ${escapeHtml(cp.core)}이에요.</p>`}`;
-    // ④ 일상에서 활용하는 방법 — 이 쌍에 맞는 실천(앞에서 쓰지 않은 것)
+    p2 += `<p class="cg-sub">지금 그렇다는 뜻이 아니라, 이 강점을 자주 쓸 때 함께 살펴볼 만한 모습이에요. 세 강점의 과사용 신호 전체는 '실전 지침'의 체크리스트에 있어요.</p>`;
+    // ③ 왜 이 균형컬러인가 — 선정 기준(짧게) + 두 자원의 관계
+    const p3 = `<p>${escapeHtml(balanceHowText(t1, comp, scores, ranked))}</p>${high ? `<p>${escapeHtml(balanceHighNote(ranked, comp))}</p>` : ""}${L ? `<p>${escapeHtml(L.link)}</p>` : `<p>${escapeHtml(cp.ko)}${josa(cp.ko, "은", "는")} ${escapeHtml(cp.core)}이에요.</p>`}`;
+    // ④ 함께 쓰는 방법 — 순서 한 문장 + 이 쌍에 맞는 실천(앞에서 쓰지 않은 것)
+    const UV = (k) => (typeof CCT_USE_VERB !== "undefined" && CCT_USE_VERB[k]) || ["", ""];
+    const how = UV(t1.key)[0] && UV(cp.key)[1]
+      ? `<p>함께 쓰는 방법은 간단해요. ${escapeHtml(t1.ko)}${euro(t1.ko)} ${escapeHtml(UV(t1.key)[0])}, 그 과정에서 ${escapeHtml(cp.ko)}${euro(cp.ko)} ${escapeHtml(UV(cp.key)[1])} 거예요.</p>` : "";
     const acts = [];
     if (L) L.use.forEach(([k, i]) => { const t = cctColorByKey(k).actions[i]; if (t && !usedLines.has(t) && acts.length < 3) acts.push(useLine(t)); });
     takeLines(cp.actions, 3 - acts.length, relIdx(cp.key).a).forEach((t) => acts.push(t));
-    const p4 = `<ul class="cg-list">${acts.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul><p class="cg-sub">균형의 핵심은 ${escapeHtml(t1.ko)}의 강점을 줄이는 것이 아니라, 그 강점을 유지하면서 ${escapeHtml(cp.ko)}의 자원으로 쓰는 방법을 넓히는 거예요.</p>`;
+    const p4 = `${how}<ul class="cg-list">${acts.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul><p class="cg-sub">균형의 핵심은 ${escapeHtml(t1.ko)}의 강점을 줄이는 것이 아니라, 그 강점을 유지하면서 ${escapeHtml(cp.ko)}의 자원으로 쓰는 방법을 넓히는 거예요.</p>`;
     const row = (no, t, body) => `<div class="cg-row"><div class="cg-no">${no}</div><div class="cg-body"><div class="cg-t">${t}</div>${body}</div></div>`;
     return `
       <div class="comp-guide">
         ${row("①", "내가 가진 주요 강점", `<p>${p1}</p>`)}
         ${row("②", "강점이 지나치게 쓰일 때", p2)}
         ${row("③", `왜 ${escapeHtml(cp.ko)}인가요?`, p3)}
-        ${row("④", "일상에서 써 보는 방법", p4)}
+        ${row("④", "두 자원을 함께 쓰는 방법", p4)}
       </div>`;
   }
+  function euro(w) { const s = String(w); const ch = s.charCodeAt(s.length - 1) - 0xac00; if (ch < 0 || ch > 11171) return "로"; const jong = ch % 28; return jong === 0 || jong === 8 ? "로" : "으로"; }
 
   // TOP3 조합 분석 — 순위 자리에 동사를 붙이지 않고, 실제 정의·특징 태그로만 (요청서 10장)
   function buildComboAnalysisHTML(ranked) {
@@ -1182,8 +1185,9 @@
     top3.forEach((c) => (O[c.key] || []).forEach((t, i) => { (om[t] = om[t] || {}); if (!(c.key in om[t])) om[t][c.key] = i; }));
     const ob = Object.entries(om).find(([, m]) => Object.keys(m).length >= 2);
     if (ob) {
-      const items = top3.filter((c) => c.key in ob[1]).map((c) => [c, useLine(c.overuse[ob[1][c.key]])]);
-      parts.push(`<div class="combo-watch"><b>함께 높을 때 살펴볼 점</b> ${items.map(([c, t]) => `${escapeHtml(c.ko)}: ${escapeHtml(t)}`).join(" / ")} 두 강점이 함께 강하게 쓰이면 이런 모습이 겹쳐 커질 수 있어요. 지금 그렇다는 뜻이 아니라, 강점을 오래 쓸 때 살펴볼 만한 지점이에요.</div>`);
+      const OS = (k, i) => ((typeof CCT_OVER_SHORT !== "undefined" && CCT_OVER_SHORT[k]) || [])[i] || "";
+      const items = top3.filter((c) => c.key in ob[1]).map((c) => [c, OS(c.key, ob[1][c.key])]);
+      parts.push(`<div class="combo-watch"><b>함께 높을 때 살펴볼 점</b> ${items.map(([c, t]) => `${escapeHtml(c.ko)}의 ‘${escapeHtml(t)}’`).join(", ")}${josa(items[items.length - 1][1], "은", "는")} 결이 비슷해서, 두 강점이 함께 강하게 쓰이면 서로를 키울 수 있어요. 지금 그렇다는 뜻이 아니라, 강점을 오래 쓸 때 살펴볼 만한 지점이에요.</div>`);
     }
     if (!parts.length) parts.push(`<p>세 강점은 서로 다른 영역에서 나왔어요. 상황에 따라 먼저 쓰이는 강점이 달라질 수 있으니, 아래 표에서 각 강점이 나타나는 모습을 따로 살펴보세요.</p>`);
     return `<div class="combo-analysis">${parts.join("")}</div>`;
@@ -1192,26 +1196,73 @@
 
 
 
-  // 관계 페이지 (요청서 13장 A안) — 사람을 '잘 맞음/불편함'으로 나누지 않는다
+  // 관계 페이지 (요청서 13장 A안 · 10/30 보완) — TOP3 각각 + 세 강점이 함께 작용할 때. 사람을 '잘 맞음/불편함'으로 나누지 않는다
   function buildRelationStrengthHTML(ranked, comp) {
     const top3 = ranked.slice(0, 3), cp = comp.chosen;
-    const useful = [];
-    top3.forEach((c) => relIdx(c.key).h.forEach((i) => { const t = c.healthy[i]; if (t && !usedLines.has(t) && useful.length < 4) useful.push([c, useLine(t)]); }));
-    const habits = [];
-    top3.forEach((c) => ((typeof CCT_REL_OVER !== "undefined" && CCT_REL_OVER[c.key]) || []).forEach((i) => { const t = c.overuse[i]; if (t && !usedLines.has(t) && habits.length < 2) habits.push([c, useLine(t)]); }));
+    const RT = (k) => (typeof CCT_REL_TEXT !== "undefined" && CCT_REL_TEXT[k]) || "";
+    const RR = (k) => (typeof CCT_REL_ROLE !== "undefined" && CCT_REL_ROLE[k]) || ["", ""];
+    const OS = (k) => (typeof CCT_OVER_SHORT !== "undefined" && CCT_OVER_SHORT[k]) || [];
+    const dot = (c) => `<b style="color:${c.hex}">${escapeHtml(c.ko)}</b>`;
+    // ① TOP3 각각
+    const each = top3.map((c) => `<li>${dot(c)} <span class="rel-tag">${escapeHtml(c.strength)}</span> ${escapeHtml(RT(c.key))}</li>`).join("");
+    // ② 세 강점이 함께 작용할 때
+    const r = top3.map((c) => RR(c.key));
+    let together = r.every((x) => x[0])
+      ? `관계에서는 ${escapeHtml(top3[0].ko)}${euro(top3[0].ko)} ${escapeHtml(r[0][0])}, ${escapeHtml(top3[1].ko)}${euro(top3[1].ko)} ${escapeHtml(r[1][0])}, ${escapeHtml(top3[2].ko)}${euro(top3[2].ko)} ${escapeHtml(r[2][1])} 모습이 함께 나타날 수 있어요.`
+      : "";
+    const inAx = (ax, side) => top3.filter((c) => CCT_AXES[ax][side].colors.includes(c.key));
+    const obj = inAx("empathyObjective", "right"), emp = inAx("empathyObjective", "left");
+    const lead = inAx("leadCollab", "right"), col = inAx("leadCollab", "left");
+    const nm = (L) => L.map((c) => escapeHtml(c.ko)).join("·");
+    let watch = "";
+    if (obj.length >= 2 && !emp.length) watch = `${nm(obj)}${josa(obj[obj.length - 1].ko, "이", "가")} 모두 정보와 기준으로 판단하는 쪽이라, 상대의 감정을 먼저 알아주는 표현은 상대적으로 덜 드러날 수 있어요. 판단을 말하기 전에 "지금 마음은 어때?"를 한 번 물어보면 균형이 맞춰져요.`;
+    else if (emp.length >= 2 && !obj.length) watch = `${nm(emp)}${josa(emp[emp.length - 1].ko, "이", "가")} 모두 감정과 관계를 먼저 살피는 쪽이라, 분명한 기준이나 내 의견을 말해야 할 때 망설여질 수 있어요. 마음을 알아준 뒤에 내 생각도 한 문장으로 덧붙여 보세요.`;
+    else if (lead.length >= 2 && !col.length) watch = `${nm(lead)}${josa(lead[lead.length - 1].ko, "이", "가")} 모두 먼저 이끄는 쪽이라, 상대가 따라올 시간을 충분히 주지 못할 때가 있을 수 있어요. 결정 전에 상대의 속도와 생각을 한 번 확인해 보세요.`;
+    else if (col.length >= 2 && !lead.length) watch = `${nm(col)}${josa(col[col.length - 1].ko, "이", "가")} 모두 맞추고 조율하는 쪽이라, 내 의견을 분명히 말해야 할 때 뒤로 물러설 수 있어요. 함께 정하는 자리에서 내 생각을 먼저 한 문장으로 말해 보세요.`;
+    else if (obj.length && emp.length) watch = `${nm(obj)}의 기준과 ${nm(emp)}의 공감이 함께 있어, 관계에서 원칙과 마음을 함께 챙길 수 있는 조합이에요. 두 쪽이 부딪힐 때는 마음을 먼저 듣고 기준을 나중에 말하는 순서가 도움이 될 수 있어요.`;
+    // ③ 지나치게 쓸 때 살펴볼 소통 습관 — TOP3 각각 하나씩 (관계 장면에 해당하는 과사용)
+    const habits = top3.map((c) => {
+      const idx = ((typeof CCT_REL_OVER !== "undefined" && CCT_REL_OVER[c.key]) || [])[0];
+      const t = OS(c.key)[idx != null ? idx : 0];
+      return t ? `<li>${dot(c)} ${escapeHtml(t)}</li>` : "";
+    }).join("");
     const balActs = [];
     relIdx(cp.key).a.forEach((i) => { const t = cp.actions[i]; if (t && !usedLines.has(t) && balActs.length < 2) balActs.push(useLine(t)); });
     if (!balActs.length) takeLines(cp.actions, 1).forEach((t) => balActs.push(t));
-    const li = (c, t) => `<li>${c ? `<b style="color:${c.hex}">${escapeHtml(c.ko)}</b> ` : ""}${escapeHtml(t)}</li>`;
     let secNo = 0;
-    const sec = (no, t, body) => `<div class="rel-sec"><div class="rel-h"><span>${++secNo}</span>${t}</div>${body}</div>`;
+    const sec = (t, body) => `<div class="rel-sec"><div class="rel-h"><span>${++secNo}</span>${t}</div>${body}</div>`;
     return `
       <div class="rel-wrap">
-        ${useful.length ? sec("1", "관계에서 내 강점이 도움이 되는 상황", `<ul class="rel-list">${useful.map(([c, t]) => li(c, t)).join("")}</ul>`) : ""}
-        ${habits.length ? sec("2", "강점을 지나치게 쓸 때 살펴볼 소통 습관", `<ul class="rel-list">${habits.map(([c, t]) => li(c, t)).join("")}</ul><p class="rel-note">상대가 겪는 문제를 말하는 것이 아니라, 대화할 때 내가 한 번 살펴볼 만한 습관이에요.</p>`) : ""}
-        ${sec("3", "나와 다른 강점을 가진 사람을 이해하는 관점", `<p class="rel-note">CCT는 사람을 '잘 맞는 사람'과 '불편한 사람'으로 나누지 않아요. 같은 상황에서도 사람마다 먼저 쓰는 강점이 다를 뿐이에요.</p><ul class="rel-q"><li>나와 일하는 방식이 다른 사람은 무엇을 먼저 중요하게 여기는지 물어본 적이 있나요?</li><li>상대의 방식이 답답하게 느껴질 때, 그 방식이 잘 맞는 상황은 언제일지 떠올려 볼 수 있나요?</li></ul>`)}
-        ${sec("4", `관계에서 균형 컬러 ${escapeHtml(cp.ko)} 써 보기`, `<ul class="rel-list">${balActs.map((t) => li(null, t)).join("")}</ul>`)}
+        ${sec("세 강점이 관계에서 발휘되는 모습", `<ul class="rel-list">${each}</ul>`)}
+        ${together || watch ? sec("세 강점이 함께 작용할 때", `${together ? `<p class="rel-p">${together}</p>` : ""}${watch ? `<p class="rel-note">${watch}</p>` : ""}`) : ""}
+        ${habits ? sec("강점을 지나치게 쓸 때 살펴볼 소통 습관", `<ul class="rel-list">${habits}</ul><p class="rel-note">상대가 겪는 문제를 말하는 것이 아니라, 대화할 때 내가 한 번 살펴볼 만한 습관이에요.</p>`) : ""}
+        ${sec("나와 다른 강점을 가진 사람을 이해하는 관점", `<p class="rel-note">CCT는 사람을 '잘 맞는 사람'과 '불편한 사람'으로 나누지 않아요. 같은 상황에서도 사람마다 먼저 쓰는 강점이 다를 뿐이에요.</p><ul class="rel-q"><li>나와 일하는 방식이 다른 사람은 무엇을 먼저 중요하게 여기는지 물어본 적이 있나요?</li><li>상대의 방식이 답답하게 느껴질 때, 그 방식이 잘 맞는 상황은 언제일지 떠올려 볼 수 있나요?</li></ul>`)}
+        ${sec(`관계에서 균형 컬러 ${escapeHtml(cp.ko)} 써 보기`, `<ul class="rel-list">${balActs.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`)}
       </div>`;
+  }
+
+  // 6대 강점영역 전체 읽기 (10/30) — 점수 나열이 아니라 프로필의 큰 특징을 한 문단으로
+  function buildDomainReadHTML(domainScores, ranked) {
+    const D = domainScores.slice().sort((a, b) => b.value - a.value);
+    const PH = (d) => (typeof CCT_DOMAIN_PHRASE !== "undefined" && CCT_DOMAIN_PHRASE[d.key]) || "";
+    const q10 = (v) => Math.round(v * 10);
+    const tops = D.filter((d) => q10(d.value) === q10(D[0].value)), lows = D.filter((d) => q10(d.value) === q10(D[D.length - 1].value));
+    const range = Math.round((D[0].value - D[D.length - 1].value) * 10) / 10;
+    const nm = (L) => L.map((d) => `‘${escapeHtml(d.name)}’`).join("·");
+    let s;
+    if (range <= 0.4) {
+      s = `여섯 영역의 점수가 ${f1(D[D.length - 1].value)}~${f1(D[0].value)}점 사이로 차이가 작아요. 한 방향에 치우치기보다 여러 방식의 강점을 고르게 쓰는 프로필에 가까워요.`;
+    } else {
+      s = `여섯 영역 가운데 ${nm(tops)}${josa(tops[tops.length - 1].name, "이", "가")} ${f1(tops[0].value)}점으로 가장 높고, ${nm(lows)}${josa(lows[lows.length - 1].name, "이", "가")} ${f1(lows[0].value)}점으로 가장 낮아요(차이 ${f1(range)}점). ` +
+        `${escapeHtml(PH(tops[0]))} 쪽의 강점이 ${escapeHtml(PH(lows[0]))} 쪽보다 먼저, 더 자주 쓰이는 프로필이라고 볼 수 있어요.`;
+    }
+    const tdom = ranked.slice(0, 3).map((c) => domainScores.find((d) => d.colors.includes(c.key))).filter(Boolean);
+    const uniq = [...new Set(tdom.map((d) => d.name))];
+    s += uniq.length === 3
+      ? ` TOP3 강점은 세 영역에 하나씩 흩어져 있어, 상황에 따라 서로 다른 방식의 강점을 꺼내 쓸 수 있어요.`
+      : ` TOP3 강점 가운데 ${uniq.length === 1 ? "세 개가 모두" : "두 개가"} ‘${escapeHtml(tdom.find((d, i) => tdom.findIndex((x) => x.name === d.name) !== i)?.name || uniq[0])}’ 영역에 모여 있어, 이 영역의 힘이 특히 두드러지게 쓰일 수 있어요.`;
+    s += ` 가장 낮은 영역도 부족하다는 뜻이 아니라, 지금은 상대적으로 덜 꺼내 쓰는 방식이라는 뜻이에요.`;
+    return `<div class="domain-read"><div class="dl-heading">한눈에 보는 6대 강점영역</div><p>${s}</p></div>`;
   }
 
   function computeDomainScores(scores) {
@@ -1447,9 +1498,16 @@
   // deep-dive section pointing at the same color avoids the report naming two
   // different colors "보완 컬러" in two places.
   function buildProfileSummaryHTML(ranked, top1, comp) {
-    const top = ranked.slice(0, 2);
+    const top = ranked.slice(0, 3);
     const topNames = top.map((c) => `${c.ko} · ${c.strength}`).join(", ");
-    const topText = `현재 13개 컬러 중 ${top.map((c) => c.ko).join("·")}${josa(top[top.length - 1].ko, "이", "가")} 상대적으로 높게 나타났습니다. ${top.map((c) => c.core).join(", ")} 등을 일상에서 비교적 자연스럽게 활용하고 있는 것으로 보입니다.`;
+    const doms = [...new Set(top.map((c) => (CCT_DOMAINS.find((d) => d.colors.includes(c.key)) || {}).name).filter(Boolean))];
+    const topText = `13개 컬러 가운데 ${top.map((c) => `${c.ko}(${f1(c.score)})`).join("·")}${josa(top[top.length - 1].ko, "이", "가")} TOP3로 나타났어요. ` +
+      (doms.length === 3 ? `세 강점이 서로 다른 세 영역(${doms.join("·")})에 걸쳐 있어요.` : (() => {
+        const dn = (c) => (CCT_DOMAINS.find((d) => d.colors.includes(c.key)) || {}).name;
+        const same = top.filter((c) => top.filter((x) => dn(x) === dn(c)).length > 1);
+        return `${same.map((c) => c.ko).join("·")}${josa(same[same.length - 1].ko, "이", "가")} 같은 ‘${dn(same[0])}’ 영역에 속해 있어요.`;
+      })()) +
+      ` 세 강점이 어떻게 함께 쓰이는지는 다음 쪽에서 살펴봐요.`;
     const cp = comp.chosen;
     const compText = `${top1.ko}(${top1.strength})의 강점을 더 유연하게 쓰도록 함께 살펴볼 자원이에요. 왜 ${jq(cp.ko, "이", "가")} 제안되었는지, 어떻게 써 볼 수 있는지는 '균형 컬러' 쪽에서 설명해요.`;
     return `
@@ -1536,21 +1594,20 @@
             <ul>${items}</ul>
           </div>`;
     }).join("");
+    // 과사용 경고 신호 체크리스트 (10/30) — TOP3 모두, 과사용 문항 3개 전체 + 균형 있게 쓰는 방법 (빈 카드가 생기지 않게)
     const warnCards = top3.map((c, i) => {
-      const overs = c.overuse.map((o, n) => [o, n]).filter(([o]) => !usedLines.has(o));
-      const items = overs.map(([o]) => `<li>${escapeHtml(useLine(o))}</li>`).join("");
-      const rem = (typeof CCT_REMEDY !== "undefined" && CCT_REMEDY[c.key]) || [];
-      const ri = overs.map(([, n]) => rem[n]).find((x) => x != null && !usedLines.has(c.actions[x]));
-      const balance = ri != null ? `조절이 필요할 때는 — ${escapeHtml(useLine(c.actions[ri]))}` : "";
-      if (!items && !balance) return "";
+      const items = c.overuse.map((o) => `<li>${escapeHtml(o)}</li>`).join("");
+      const rem = ((typeof CCT_REMEDY !== "undefined" && CCT_REMEDY[c.key]) || []).filter((x) => x != null);
+      const ri = rem.find((x) => !usedLines.has(c.actions[x]));
+      const tip = ri != null ? useLine(c.actions[ri]) : ((typeof CCT_BAL_TIP !== "undefined" && CCT_BAL_TIP[c.key]) || "");
       return `
           <div class="ag-warn-card">
             <div class="ag-warn-head">
               <span class="ag-warn-tag" style="background:${c.hex};color:${getContrastText(c.hex)}">TOP${i + 1} · ${escapeHtml(c.ko)}</span>
-              <span class="ag-warn-strength">${escapeHtml(c.strength)}</span>
+              <span class="ag-warn-strength">${escapeHtml(c.strength)} · ${f1(c.score)}점</span>
             </div>
-            ${items ? `<ul class="ag-warn-list">${items}</ul>` : ""}
-            ${balance ? `<div class="ag-warn-balance">${balance}</div>` : ""}
+            <ul class="ag-warn-list">${items}</ul>
+            ${tip ? `<div class="ag-warn-balance"><b>균형 있게 쓰려면</b> ${escapeHtml(tip)}</div>` : ""}
           </div>`;
     }).join("");
     const checkItems = top3.map((c) => `
@@ -1558,12 +1615,11 @@
           <div class="ag-check-tag" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)}</div>
           <div class="ag-check-q">${escapeHtml(c.growthQuestion)}</div>
         </div>`).join("");
-    const mission = [
-      ...takeLines(top3[0].actions, 1, relIdx(top3[0].key).a),
-      ...takeLines(top3[1].actions, 1, relIdx(top3[1].key).a),
-      ...takeLines(comp.chosen.actions, 1, relIdx(comp.chosen.key).a),
-      "이번 주에 해 본 것 가운데 가장 도움이 된 한 가지를 짧게 기록해 보세요.",
-    ];
+    // 이번 주 실천 미션 — 앞에서 쓰지 않은 문장으로 세 가지 (모자라면 '균형 있게 쓰는 방법' 문장으로 채움)
+    const mission = [];
+    [comp.chosen, top3[0], top3[1], top3[2]].forEach((c) => { if (mission.length < 3) takeLines(c.actions, 1, relIdx(c.key).a).forEach((t) => mission.push(t)); });
+    top3.forEach((c) => { const t = typeof CCT_BAL_TIP !== "undefined" ? CCT_BAL_TIP[c.key] : ""; if (mission.length < 3 && t && !usedLines.has(t)) mission.push(useLine(t)); });
+    mission.push("이번 주에 해 본 것 가운데 가장 도움이 된 한 가지를 짧게 기록해 보세요.");
     const missionItems = mission.map((m) => `<li>${escapeHtml(m)}</li>`).join("");
     return buildActionGuideBlocks(topActionsHtml, warnCards, checkItems, missionItems).join("");
   }
@@ -1693,22 +1749,33 @@
   // closing line tying all three together. `core` fields in data.js are all
   // phrased as "...하는 힘" (a noun phrase ending in "힘"), which reads
   // naturally as "...하는 사람" once the trailing "힘" is swapped for "사람".
+  // 세 강점이 한 사람 안에서 맡는 역할 (10/30: 정의를 되풀이하지 않고 조합 속 역할로)
   function buildTop3PersonaHTML(ranked) {
     const top3 = ranked.slice(0, 3);
+    const R = (k) => (typeof CCT_ROLE !== "undefined" && CCT_ROLE[k]) || ["", ""];
     const items = top3.map((c, i) => {
       const ev = takeLines(c.healthy, 1, relIdx(c.key).h)[0] || "";
       return `
           <div class="persona-item">
             <div class="persona-num" style="background:${c.hex};color:${getContrastText(c.hex)}">${i + 1}</div>
             <div class="persona-body">
-              <div class="persona-head"><span class="persona-name" style="color:${c.hex}">${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</span></div>
-              <p class="persona-text"><b>${escapeHtml(jq(c.core, "이", "가"))}</b> 상대적으로 잘 드러나요. ${escapeHtml(ev)}</p>
+              <div class="persona-head"><span class="persona-name" style="color:${c.hex}">${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</span><span class="persona-role">${escapeHtml(R(c.key)[0])}</span></div>
+              <p class="persona-text"><b>${escapeHtml(R(c.key)[1])} 역할</b>을 맡아요. ${escapeHtml(ev)}</p>
             </div>
           </div>`;
     }).join("");
+    const order = typeof CCT_ROLE_ORDER !== "undefined" ? CCT_ROLE_ORDER : [];
+    const sorted = top3.slice().sort((a, b) => order.indexOf(R(a.key)[0]) - order.indexOf(R(b.key)[0]));
+    let together = `세 강점을 한 사람 안에서 보면, ${sorted.map((c, i) => `${escapeHtml(c.ko)}${josa(c.ko, "은", "는")} ${escapeHtml(R(c.key)[1])} 쪽${i < 2 ? "," : "을"}`).join(" ")} 맡는 모습이에요.`;
+    const types = top3.map((c) => R(c.key)[0]);
+    const dup = types.find((t, i) => types.indexOf(t) !== i);
+    if (dup) together += ` 두 강점이 같은 '${dup}' 쪽에 모여 있어, 이 역할에서는 특히 힘이 크게 나타날 수 있어요.`;
+    if (!types.includes("연결")) together += ` 사람 사이를 잇는 역할(공감·표현·조율)은 TOP3 밖에 있어, 관계가 중요한 장면에서는 의식적으로 꺼내 쓰면 좋아요.`;
+    else if (!types.includes("실행") && !types.includes("조절")) together += ` 일을 끝까지 실행으로 옮기는 역할은 TOP3 밖에 있어, 마무리가 필요한 장면에서는 일정과 담당을 따로 정해 두면 좋아요.`;
     return `
       <div class="t3-persona-block">
-        <div class="section-subtitle">컬러로 본 나의 장점</div>
+        <div class="section-subtitle">세 강점이 함께 맡는 역할</div>
+        <p class="persona-together">${together}</p>
         <div class="persona-grid">${items}</div>
       </div>
     `;
@@ -1809,7 +1876,7 @@
     // Split rather than one monolith: with longer per-color text this section
     // grew past a single page (measured 285mm against a 261mm usable height) and
     // its tail was clipped. Two rigid halves each fit comfortably.
-    rigid(`<div class="section-title">TOP 3 강점 컬러 비교</div>${buildTop3CompareHTML(ranked)}${buildTop3SynergyHTML(ranked)}`);
+    rigid(`<div class="section-title">TOP 3 강점 컬러 비교</div>${buildTop3CompareHTML(ranked)}`);
     rigid(buildTop3PersonaHTML(ranked));
 
     // The complement color gets its own growth-focused deep dive (healthy/overuse,
@@ -1826,7 +1893,7 @@
     // Two halves again — as one block this measured 285mm on longer profiles.
     // 균형 컬러 (요청서 9장): ① 주요 강점 ② 지나치게 쓰일 때 ③ 왜 이 균형컬러인가 ④ 일상 활용
     rigidBreak(
-      `<div class="section-title">균형 컬러</div><p class="section-desc">${escapeHtml(BAL_DEF)}</p>${colorSectionHeroHTML(comp.chosen, "균형 컬러 · 함께 써 볼 자원")}${buildBalanceGuideHTML(ranked, comp, scores)}`
+      `<div class="section-title">균형 컬러</div><p class="section-desc">${escapeHtml(balanceIsHigh(ranked, comp) ? BAL_DEF_HIGH : BAL_DEF)}</p>${colorSectionHeroHTML(comp.chosen, "균형 컬러 · 함께 써 볼 자원")}${buildBalanceGuideHTML(ranked, comp, scores)}`
     );
     // 관계 페이지에 쓸 문장을 먼저 정해 둔다(실전 지침과 겹치지 않게) — 배치는 아래 원래 순서대로
     const relHtml = ranked.length >= 2 ? buildRelationStrengthHTML(ranked, comp) : "";
@@ -1850,6 +1917,7 @@
     const domainScores = computeDomainScores(scores);
     let domainBlock = `<div class="section-title">6대 강점영역</div>`;
     domainBlock += `<div class="section-desc">CCT에서는 13개의 컬러강점을 해석의 편의를 위해 6개의 강점영역으로 분류합니다. 개별 컬러 점수와 함께 참고용으로 보시면 됩니다.</div>`;
+    domainBlock += buildDomainReadHTML(domainScores, ranked);
     domainBlock += `<div class="domain-grid">`;
     domainScores.forEach((d) => {
       const pct = Math.max(4, ((d.value - 1) / 4) * 100);
@@ -1890,17 +1958,18 @@
       const hi = Math.max(...memberScores);
       const lo = Math.min(...memberScores);
       const spread = Math.round((hi - lo) * 10) / 10;
+      // 영역마다 구성 컬러의 실제 모습을 한 문장으로 (같은 안내문이 여섯 번 반복되지 않게)
       let readNote;
+      const mem = d.colors.map((k) => cctColorByKey(k)).sort((a, b) => scores[b.key] - scores[a.key]);
+      const hiC = mem[0], loC = mem[mem.length - 1];
       if (d.colors.length === 1) {
-        readNote = `이 영역은 ${escapeHtml(
-          cctColorByKey(d.colors[0]).ko
-        )} 한 컬러로만 구성되어, 영역 점수가 곧 해당 컬러의 점수입니다.`;
+        readNote = `${escapeHtml(hiC.ko)} 한 컬러로 이루어져, 영역 점수가 곧 ${escapeHtml(hiC.ko)}의 점수예요.`;
       } else if (spread >= 1.0) {
-        readNote = `구성 컬러 간 점수 차이가 ${spread.toFixed(
-          1
-        )}점으로 큰 편입니다. 평균값보다 위의 개별 컬러 점수를 함께 보시는 것이 정확합니다.`;
+        readNote = `${escapeHtml(hiC.ko)}(${f1(scores[hiC.key])})${josa(hiC.ko, "과", "와")} ${escapeHtml(loC.ko)}(${f1(scores[loC.key])})의 차이가 ${spread.toFixed(1)}점으로 커요. 이 영역에서는 ${escapeHtml(hiC.ko)}의 ${escapeHtml(hiC.strength)} 쪽을 주로 쓰고 있어요.`;
+      } else if (spread >= 0.4) {
+        readNote = `${escapeHtml(hiC.ko)}의 ${escapeHtml(hiC.strength)}${josa(hiC.strength, "이", "가")} 가장 높아(${f1(scores[hiC.key])}), 이 영역에서는 ${escapeHtml(hiC.strength)} 쪽이 먼저 쓰이는 편이에요.`;
       } else {
-        readNote = `구성 컬러들이 비슷한 수준으로 나타나, 평균값이 이 영역 전체를 잘 대표합니다.`;
+        readNote = `${mem.map((c) => `${escapeHtml(c.ko)} ${f1(scores[c.key])}`).join(" · ")}로 점수가 비슷해, 이 영역의 힘을 고르게 쓰는 편이에요.`;
       }
 
       domainBlock += `
@@ -2270,7 +2339,7 @@
         container.innerHTML = `
           <div class="rp-pagefoot">
             <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
-            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">v3test_03</em>${pageNo} / ${totalPages}</span>
+            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">v3test_04</em>${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
         const fCanvas = await h2c(container, {

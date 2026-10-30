@@ -335,19 +335,107 @@
     if (slot === "present") return `${n1}번 ${A.ko}에 이어 ${n2}번 ${j(B.ko, "을", "를")} 고른 순서는`;
     return `${n1}번 ${A.ko}${j(A.ko, "과", "와").slice(-1)} ${n2}번 ${j(B.ko, "을", "를")} 이어서 보면`;
   }
+  // ---------- v3test_04 (2026-10-30) · 자리별 의미 + 다섯 컬러 전체 읽기 ----------
+  // 같은 색도 놓인 자리(1 겉으로 써 온 모습 · 2 속으로 바라는 것 · 3 지금 익혀 가는 것 · 4 그 끝에 바라는 모습)에 따라
+  // 읽는 측면이 다르다 (CR_POS). 종합은 개별 결과를 다시 나열하지 않고, 다섯 컬러의 주제 태그(CR_THEMES)로
+  // 공통 주제 · 서로 다른 바람 · 옮겨 가는 방향 · 미뤄 둔 바람과의 관계를 읽는다.
+  const POS_KEY = ["o", "i", "l", "r"];
+  function posOf(k, n) { const P = typeof CR_POS !== "undefined" ? CR_POS[k] : null; return P ? P[POS_KEY[n - 1]] : c(k).mean; }
+  function roleOf(n) { return typeof CR_POS_ROLE !== "undefined" ? CR_POS_ROLE[POS_KEY[n - 1]] : ""; }
+  function themesOf(k) { return (typeof CR_THEMES !== "undefined" && CR_THEMES[k]) || []; }
+  function tl(t) { return (typeof CR_THEME_LABEL !== "undefined" && CR_THEME_LABEL[t]) || ""; }
+  function opp(t) { return (typeof CR_THEME_OPP !== "undefined" && CR_THEME_OPP[t]) || []; }
+  function q(t) { return `‘${tl(t)}’`; }
+  function wqT(t) { return `${q(t)}${pp(tl(t), "과", "와")}`; }
+  const NEG_TITLE = /지친|힘든|버거|무거|두려|불안|우울|지쳐|피곤|슬픈|외로|잃|막막|답답|아픈|상처|흔들|멈춘|막힌|어두|무서|꺼진|끝난/;
+
   function pairMsg(a, b, slot) {
-    const pr = pair(a, b), S = interpOf(a, b), [xa, xb] = pairAsps(a, b);
+    const pr = pair(a, b), S = interpOf(a, b);
+    const [n1, n2] = SLOT_NO[slot];
+    const xa = S ? aspById(S.asp[0]) : null, xb = S ? aspById(S.asp[1]) : null;
+    const ma = xa ? xa.m : posOf(a, n1), mb = xb ? xb.m : posOf(b, n2);
+    let theme = S ? S.theme : pr[0], short = S ? S.short : (pr[5] || pr[0]), voice = S ? S.voice : pr[1];
+    // 3·4번은 '앞으로 바라는 나' — 상태를 말하는 제목이면 바람(원문 '해 보고 싶은 작은 일')으로 바꿔 앞뒤가 맞게
+    if (slot === "future" && !S && NEG_TITLE.test(pr[0]) && !/싶은 마음$/.test(pr[0])) {
+      theme = pr[4].replace(/고 싶어요\.$/, "고 싶은 마음");
+      short = theme;
+      voice = pr[4].replace(/싶어요\.$/, "싶어.");
+    }
     const line = SLOT_LINE[slot];
-    const mean = meanLine2(a, b, slot, xa.m, xb.m);
-    const flow = S ? `${flowLead(a, b, slot)}, ${euroT(S.core)} 읽을 수 있어요.${S.more ? " " + S.more : ""}` : flowLine(a, b, slot, pr[2]);
+    const RV = ["그동안 겉으로 써 온", "속으로 바라는", "지금 익혀 가는", "그 끝에 바라는"];
+    const mean = `${n1}번 ${eunC(c(a).ko)} ${RV[n1 - 1]} ‘${ma}’${pp(ma, "을", "를")}, ${n2}번 ${eunC(c(b).ko)} ${RV[n2 - 1]} ‘${mb}’${pp(mb, "을", "를")} 보여 줘요.`;
+    const core = S ? S.core : pr[2];
+    const ending = { past: "읽을 수 있어요.", present: "볼 수 있어요.", future: "이해할 수 있어요." }[slot];
+    let flow = `${flowLead(a, b, slot)}, ${euroT(core)} ${ending}`;
+    if (S && S.more) flow += " " + S.more;
+    if (slot === "present" && !S && pr[3]) flow += ` 요즘에는 ${pr[3]}`;
+    if (slot === "future" && !S && pr[4] && theme !== pr[4].replace(/고 싶어요\.$/, "고 싶은 마음"))
+      flow += ` 그래서 앞으로는 ${pr[4].replace(/고 싶어요\.$/, "고 싶은 바람이 담겨 있어요.")}`;
     const body = `${mean} ${flow}`;
-    const theme = S ? S.theme : pr[0], short = S ? S.short : (pr[5] || pr[0]), voice = S ? S.voice : pr[1];
-    return { theme, short, voice, line, mean, flow, body, means: [[a, xa.m], [b, xb.m]], asps: [xa, xb], sample: S, text: `“${voice}” ${line} ${body}` };
+    return { theme, short, voice, line, mean, flow, body,
+      means: [[a, `${roleOf(n1)} · ${ma}`], [b, `${roleOf(n2)} · ${mb}`]], asps: [xa, xb], sample: S, text: `“${voice}” ${line} ${body}` };
   }
 
-  // 5번째 = 가장 마음에 들지 않은 색 (STEP1-1 40~41쪽 · STEP2 6쪽) — 사실 → 상징 → 이유는 사람마다 → 돌아볼 방향(고객이 고름)
-  const FIFTH_LABEL = "가장 마음에 들지 않은 색";
-  const FIFTH_VIEW = "교재에서는 이 자리의 색을, 지금은 멀리 두고 있거나 필요 없다고 느끼지만 마음 한편에서는 바라거나 언젠가 해야겠다고 생각하는 것과 연결해 살펴봐요.";
+  // 다섯 컬러의 주제 읽기
+  function themeMap(keys, nos) {
+    const M = {};
+    keys.forEach((k, i) => themesOf(k).forEach(([t, w]) => {
+      M[t] = M[t] || { t, w: 0, at: [] };
+      M[t].w += w;
+      if (!M[t].at.some((x) => x.k === k)) M[t].at.push({ k, no: nos[i], w });
+    }));
+    return Object.values(M).sort((x, y) => y.w - x.w || y.at.length - x.at.length);
+  }
+  function namesAt(at) { return at.map((x) => `${x.no}번 ${c(x.k).ko}`).join("·"); }
+  function readFive(sel) {
+    const [k1, k2, k3, k4, k5] = sel;
+    const all = themeMap([k1, k2, k3, k4], [1, 2, 3, 4]);
+    const common = all.filter((x) => x.at.length >= 2);
+    const top = all[0];
+    // 서로 다른 바람: 서로 다른 색이 맡은 반대 주제 짝 중 무게가 큰 것
+    let tension = null;
+    all.forEach((x) => opp(x.t).forEach((o) => {
+      const y = all.find((z) => z.t === o);
+      if (!y) return;
+      const xa = x.at.filter((p) => !y.at.some((q2) => q2.k === p.k)), ya = y.at.filter((p) => !x.at.some((q2) => q2.k === p.k));
+      if (!xa.length || !ya.length) return;
+      if (!xa.some((p) => p.w === 2) || !ya.some((p) => p.w === 2)) return; // 두 쪽 모두 그 색의 대표 주제일 때만
+      const s = x.w + y.w;
+      if (!tension || s > tension.s) tension = { a: { t: x.t, at: xa }, b: { t: y.t, at: ya }, s };
+    }));
+    if (tension && tension.a.at[0].no > tension.b.at[0].no) tension = { a: tension.b, b: tension.a, s: tension.s };
+    // 옮겨 가는 방향 (1·2 → 3·4)
+    const P = themeMap([k1, k2], [1, 2]), F = themeMap([k3, k4], [3, 4]);
+    // 무게 차이로 본다: 3·4번에서 가장 커진 주제(같으면 4번 → 3번 색의 대표 주제 우선), 1·2번에서 가장 줄어든 주제
+    const wOf = (L, t) => { const x = L.find((y) => y.t === t); return x ? x.w : 0; };
+    const prim = (L, t, no) => L.some((x) => x.t === t && x.at.some((a) => a.no === no && a.w === 2));
+    const ts = [...new Set([...P, ...F].map((x) => x.t))];
+    const rankNew = ts.map((t) => ({ t, d: wOf(F, t) - wOf(P, t), p: (prim(F, t, 4) ? 2 : 0) + (prim(F, t, 3) ? 1 : 0) }))
+      .filter((x) => x.d > 0).sort((x, y) => y.d - x.d || y.p - x.p);
+    const rankOld = ts.map((t) => ({ t, d: wOf(P, t) - wOf(F, t), p: (prim(P, t, 1) ? 2 : 0) + (prim(P, t, 2) ? 1 : 0) }))
+      .filter((x) => x.d > 0).sort((x, y) => y.d - x.d || y.p - x.p);
+    const newT = rankNew[0] || null, oldT = rankOld[0] || null;
+    const cont = P.filter((x) => F.some((y) => y.t === x.t)).sort((x, y) => (y.w + wOf(F, y.t)) - (x.w + wOf(F, x.t)))[0] || null;
+    // 5번째
+    const T5 = ((typeof CR_FIFTH_THEME !== "undefined" && CR_FIFTH_THEME[k5]) || themesOf(k5).map(([t]) => t)).map((t) => [t]);
+    const t5 = T5[0] ? T5[0][0] : null;
+    let link5 = { kind: "none", t: t5 };
+    const oppTop = top && T5.find(([t]) => opp(top.t).includes(t));
+    const shared = T5.map(([t]) => all.find((x) => x.t === t)).find(Boolean);
+    if (oppTop) link5 = { kind: "opp", t: oppTop[0], top };
+    else if (shared) link5 = { kind: "share", t: shared.t, at: shared.at };
+    return { all, common, top, tension, oldT, newT, cont, t5, link5 };
+  }
+  function fifthRecIdx(k5, t) {
+    const D = (typeof CR_FIFTH_DIR_THEME !== "undefined" && CR_FIFTH_DIR_THEME[k5]) || [];
+    const i = D.indexOf(t);
+    return i >= 0 ? i : 0;
+  }
+
+  // 5번째 = 가장 마음에 들지 않은 색 (STEP1-2 40~41쪽 '절실히 소망하고 원하지만 어떠한 이유로 미루어지고 있는 색' · STEP2 6쪽 '지금은 필요없다고 생각하지만 당장 해야 할 일')
+  const FIFTH_LABEL = "어쩌면 나에게 가장 필요한 부분";
+  const FIFTH_FACT = "가장 마음에 들지 않은 색";
+  const FIFTH_VIEW = "5번째 자리는 단순히 싫은 색을 확인하는 자리가 아니에요. 컬러리딩에서는 이 색을, 마음 한편에서는 바라면서도 여러 이유로 뒤로 미뤄 두고 있는 것, 지금은 필요 없다고 느끼지만 사실은 챙겨야 할 것으로 읽어요.";
   function fifthOf(k) { return (typeof CR_FIFTH_DIR !== "undefined" && CR_FIFTH_DIR[k]) || { mean: c(k).mean, dirs: [] }; }
 
   function buildReading(sel, name) {
@@ -360,109 +448,131 @@
     const present = Object.assign({ label: "현재의 나", sub: "현재의 나에게 보내는 메시지", keys: [k2, k3] }, pairMsg(k2, k3, "present"));
     const future = Object.assign({ label: "앞으로 바라는 나", sub: "앞으로 바라는 나에게 보내는 메시지", keys: [k3, k4] }, pairMsg(k3, k4, "future"));
 
+    const RF = readFive(sel);
     const F5 = fifthOf(k5);
-    const pMean = `${eunC(C5.ko)} ${eulT(F5.mean)} 상징해요. ${j(who, "은", "는")} 이 색을 가장 마음에 들지 않는 색으로 골랐어요.`;
-    const pLine = "색이 끌리지 않는 이유는 기억이나 이미지, 취향처럼 사람마다 달라요.";
-    const pFlow = "아래 세 가지 방향 가운데 지금의 나에게 마음에 걸리는 것이 있는지 살펴보세요.";
-    const pQ = `${C5.ko}${pp(C5.ko, "이", "가")} 뜻하는 것 가운데, 지금의 나에게 의미 있는 쪽은 어디일까요?`;
+    const L5 = RF.link5;
+    let link;
+    if (L5.kind === "opp") link = `앞의 네 컬러에서는 ${q(L5.top.t)}${pp(tl(L5.top.t), "이", "가")} 크게 나타났어요(${namesAt(L5.top.at)}). 그만큼 ${C5.ko}${pp(C5.ko, "이", "가")} 뜻하는 ‘${C5.t5s}’${pp(C5.t5s, "은", "는")} 뒤로 밀려 있었을 수 있어요.`;
+    else if (L5.kind === "share") link = `${C5.ko}${pp(C5.ko, "이", "가")} 뜻하는 ‘${C5.t5s}’${pp(C5.t5s, "은", "는")} 앞의 ${namesAt(L5.at)}에 담긴 ${wqT(L5.t)} 닿아 있어요. 바라는 마음은 이미 있지만, 막상 나를 위해 꺼내 쓰는 일은 미뤄 두었을 수 있어요.`;
+    else link = `${C5.ko}${pp(C5.ko, "이", "가")} 뜻하는 ‘${C5.t5s}’${pp(C5.t5s, "은", "는")} 앞의 네 컬러에는 드러나지 않았어요. 지금 마음이 다른 곳에 가 있는 동안 조용히 뒤로 미뤄진 바람일 수 있어요.`;
+    const rec = fifthRecIdx(k5, L5.t);
+    const dirs = F5.dirs.map((d, i) => [d[0], d[1], i === rec]);
+    const pMean = `${eunC(C5.ko)} ${eulT(F5.mean)} 상징해요. ${j(who, "은", "는")} 이 색을 다섯 컬러 가운데 가장 마음에 들지 않는 색으로 골랐어요.`;
+    const pWhy = "색이 끌리지 않는 이유는 기억이나 이미지, 취향처럼 사람마다 달라요. 아래 방향 가운데 지금의 나와 맞닿는 것이 있는지 견주어 보세요.";
     const postponed = {
-      label: FIFTH_LABEL, sub: "5번째 컬러", keys: [k5],
-      theme: `${j(C5.ko, "을", "를")} 가장 마음에 들지 않는 색으로 골랐어요`, short: `${C5.ko} · 가장 마음에 들지 않은 색`,
-      voice: pQ, voiceIsQuestion: true, line: pLine, mean: pMean, flow: pFlow, cardFlow: `${pLine} ${pFlow}`,
-      view: FIFTH_VIEW, body: `${pMean} ${pLine} ${pFlow}`,
-      means: [[k5, F5.mean]], dirs: F5.dirs, text: `${pMean} ${pLine} ${pFlow} ${pQ}`,
+      label: FIFTH_LABEL, sub: `5번째 · ${FIFTH_FACT}`, keys: [k5],
+      theme: C5.t5, short: C5.t5s, voice: C5.v5, line: "가장 마음에 들지 않은 색이 건네는 이야기일 수 있어요.",
+      mean: pMean, view: FIFTH_VIEW, link, flow: `${pMean} ${link}`, cardFlow: `${link} ${pWhy}`, why: pWhy,
+      body: `${pMean} ${link} ${pWhy}`, means: [[k5, F5.mean]], dirs, rec, text: `${pMean} ${link} ${pWhy}`,
     };
 
-    // 화면 요약 — 1·4번 조합으로 전체를 요약하지 않는다 (해석원칙 2026-10-18)
+    const lead = RF.common[0] ? `${who}의 다섯 컬러에는 ${q(RF.common[0].t)}${pp(tl(RF.common[0].t), "이", "가")} 함께 흐르고 있어요. ` : "";
     const sN = present.short, sF = future.short;
-    const summary =
-      `${who}의 결과에서 요즘은 ‘${sN}’${pp(sN, "이", "가")} 크게 느껴지고, 앞으로는 ‘${sF}’ 쪽을 향하는 바람이 보여요. ` +
-      `가장 마음에 들지 않은 색으로는 ${j(C5.ko, "을", "를")} 골랐어요.`;
+    const summary = `${lead}요즘은 ‘${sN}’${pp(sN, "이", "가")} 크게 느껴지고, 앞으로는 ‘${sF}’${pp(sF, "을", "를")} 바라고 있어요. ` +
+      `가장 마음에 들지 않은 ${C5.ko}에는 ‘${C5.t5s}’${pp(C5.t5s, "이", "가")} 미뤄져 있을 수 있어요.`;
     const healing = { key: k5, title: `${j(C5.ko, "을", "를")} 생활에서 가볍게 만나 보기`, text: `${C5.tip} 내키지 않는다면 억지로 할 필요는 없어요.` };
 
-    const pdf = buildPdfDetail(sel, who, { past, present, future, postponed, healing });
+    const pdf = buildPdfDetail(sel, who, { past, present, future, postponed, healing, RF });
     return { sel, who, past, present, future, postponed, summary, healing, pdf };
   }
 
   // ---------- PDF 전용 문장 ----------
-  // 종합 컬러리딩 (요청서 5장) = ① 현재 마음의 중심 ② 과거→현재→앞으로의 변화 ③ 함께 살펴볼 부분(원문에 긴장 표현이 있을 때만)
-  //                            ④ 나를 돌보는 방향(실천 + 5번째) + 질문형 정리
+  // 종합 컬러리딩 (10/30 요청) — 과거·현재·미래를 다시 나열하지 않는다.
+  //   ① 다섯 컬러에 함께 흐르는 주제 ② 서로 다른 바람(내적 긴장) ③ 마음이 옮겨 가는 방향 ④ 미뤄 둔 바람까지 함께 보면 + 질문
   function wa(w) { return j(w, "과", "와"); }
   function buildPdfDetail(sel, who, M) {
     const [k1, k2, k3, k4, k5] = sel;
-    const C2 = c(k2), C3 = c(k3), C4 = c(k4), C5 = c(k5);
-    const { past: mP, present: mN, future: mF, postponed: m5 } = M;
-    const F = pair(k3, k4);
-    const sP = mP.sample, sN = mN.sample, sF = mF.sample;
-    const gist = (m) => (m.sample ? m.sample.gist : `‘${m.short}’`);
-    const gP = gist(mP), gN = gist(mN), gF = gist(mF);
-    const whoI = j(who, "이", "가");
+    const C2 = c(k2), C3 = c(k3), C5 = c(k5);
+    const { present: mN, future: mF, RF } = M;
     const heal = { key: k5, title: M.healing.title, text: M.healing.text };
+    const iq = (t) => `${q(t)}${pp(tl(t), "이", "가")}`, eq = (t) => `${q(t)}${pp(tl(t), "을", "를")}`, nq = (t) => `${q(t)}${pp(tl(t), "은", "는")}`, wq = (t) => `${q(t)}${pp(tl(t), "과", "와")}`;
 
-    // ① 현재 마음의 중심
-    const p1 = `${whoI} 고른 순서에서 지금의 마음을 보여 주는 것은 2번 ${wa(C2.ko)} 3번 ${C3.ko}의 조합이에요. ` +
-      `요즘은 ${iT(gN)} 마음의 중심에 있는 것으로 읽을 수 있어요.`;
-    // ② 변화 — 2·3번 색이 앞뒤 결과에서 같은 측면이면 '이어짐', 다른 측면이면 '다른 모습'으로 (두 조합 모두 시범 데이터가 있을 때만)
-    let saidDiff = false;
-    const side = (no, C, xa, xb, na, nb) => {
-      if (!xa || !xb) return "";
-      if (xa.id === xb.id) return `${no}번 ${eunC(C.ko)} ${wa(na)} ${nb} 모두에서 ${eulT(xa.m)} 뜻해, 그 마음이 이어지고 있어요.`;
-      const tail = saidDiff ? "" : " 같은 색이 시기에 따라 다른 모습으로 쓰이고 있어요.";
-      saidDiff = true;
-      return `${no}번 ${eunC(C.ko)} ${na}에서는 ${eulT(xa.m)}, ${nb}에서는 ${eulT(xb.m)} 뜻해요.${tail}`;
-    };
-    const s2 = sP && sN ? side(2, C2, mP.asps[1], mN.asps[0], "과거 결과", "현재 결과") : "";
-    const s3 = sN && sF ? side(3, C3, mN.asps[1], mF.asps[0], "현재 결과", "앞으로 바라는 결과") : "";
-    const p2 = `그동안의 결과(1·2번)에서는 ${iT(gP)} 보였어요. ${s2 ? s2 + " " : ""}` +
-      `앞으로 바라는 결과(3·4번)에서는 ${sF ? eulT(gF) + " 바라는 마음이" : iT(gF)} 보여요. ${s3 ? s3 + " " : ""}` +
-      `앞으로 바라는 결과는 정해진 미래가 아니라, 내가 향하고 싶은 쪽이에요.`;
-    // ③ 함께 살펴볼 부분 — 조합 원문에 긴장 표현이 있을 때만
-    // 많아야 두 가지 — 현재·앞으로 바라는 결과를 먼저 (과거는 2문단에서 이미 다룸)
-    const tens = [[sP, "그동안의 결과"], [sN, "현재 결과"], [sF, "앞으로 바라는 결과"]].filter(([x]) => x && x.tension).slice(-2);
-    const p3 = tens.length
-      ? `${tens.map(([x, nm]) => `${nm}에는 ${iT(x.tension)}`).join(", ")} 함께 들어 있어요. ` +
-        tens.map(([x]) => x.tnote).filter(Boolean).join(" ") + " 지금 꼭 그렇다는 뜻이 아니라, 결과에 함께 나타난 부분이라 한 번 살펴볼 만해요."
-      : "";
-    // ④ 나를 돌보는 방향 — 앞 문단에서 이어지는 실천 + 5번째 색
-    const actFrom = (tens.length ? tens[tens.length - 1][0] : null) || [sF, sN, sP].find((x) => x && x.act) || null;
-    const act = actFrom && actFrom.act ? actFrom.act : (F[4] ? `앞으로 바라는 결과와 이어지는 작은 일로는 이런 것이 있어요. “${F[4]}”` : "");
-    const ask = [sP, sN, sF].map((x) => x && x.ask).filter(Boolean).join(" ");
-    const F5 = fifthOf(k5);
-    const p4 = `${act ? act + " " : ""}${ask ? ask + " " : ""}` +
-      `그리고 가장 마음에 들지 않는 색으로 고른 ${eunC(C5.ko)} ${eulT(F5.mean)} 상징해요. ` +
-      (F5.dirs.length
-        ? `색이 끌리지 않는 이유는 사람마다 다르니, 앞에 적은 세 가지 방향 가운데 마음에 걸리는 것이 있을 때만 그 옆의 작은 실천 하나부터 해 보세요.`
-        : `${j(C5.ko, "을", "를")} 볼 때 떠오르는 것부터 가볍게 적어 보세요.`);
-    // 정리 — 질문형 (STEP3 '피드백은 질문형으로')
+    // ① 공통 주제
+    let p1;
+    const C0 = RF.common[0];
+    if (C0) {
+      const nos = C0.at.map((x) => x.no);
+      const early = nos.some((n) => n <= 2), late = nos.some((n) => n >= 3);
+      const span = nos.includes(2) && nos.includes(3) && nos.length === 2
+        ? "지금의 나를 보여 주는 2·3번에 모여 있어, 요즘 가장 많이 쓰고 있는 마음일 수 있어요."
+        : early && late ? "지나온 시기와 앞으로 바라는 쪽에 모두 들어 있어, 잠깐의 기분이라기보다 오래 품어 온 주제일 수 있어요."
+        : early ? "주로 1·2번 쪽에 모여 있어, 그동안 많이 기대어 온 힘일 수 있어요."
+        : "주로 3·4번 쪽에 모여 있어, 요즘 새로 커지고 있는 바람일 수 있어요.";
+      p1 = `다섯 컬러를 한꺼번에 놓고 보면, ${namesAt(C0.at)}${pp(c(C0.at[C0.at.length - 1].k).ko, "이", "가")} 모두 ${wq(C0.t)} 닿아 있어요. ${span}`;
+      const C1 = RF.common[1];
+      if (C1) p1 += ` 여기에 ${iq(C1.t)} 함께 흐르고 있어요(${namesAt(C1.at)}).`;
+    } else {
+      p1 = `다섯 컬러를 한꺼번에 놓고 보면, 네 컬러가 저마다 다른 주제를 하나씩 담고 있어요. ` +
+        `${RF.all.filter((x) => x.at.some((a) => a.w === 2)).slice(0, 4).map((x) => `${x.at[0].no}번 ${c(x.at[0].k).ko}는 ${q(x.t)}`).join(", ")}. ` +
+        `한 가지에 마음이 모이기보다, 여러 바람이 한꺼번에 움직이고 있는 시기일 수 있어요.`;
+      p1 = p1.replace(/(\d번 )([^\s]+)는/g, (m0, a, b) => `${a}${eunC(b)}`);
+    }
+
+    // ② 서로 다른 바람
+    let p2, h2;
+    const T = RF.tension;
+    const tnotes = [mN.sample, mF.sample].map((x) => x && x.tension && x.tnote).filter(Boolean);
+    if (T) {
+      h2 = "함께 있는 서로 다른 바람";
+      p2 = `한편 ${namesAt(T.a.at)}에는 ${iq(T.a.t)}, ${namesAt(T.b.at)}에는 ${iq(T.b.t)} 담겨 있어요. ` +
+        `한쪽에 힘을 쓰면 다른 쪽이 밀리기 쉬운 두 바람이라, 마음속에서 서로 당기는 느낌이 들 때가 있을 수 있어요.` +
+        ` 둘 중 하나를 고르기보다, 어떤 때 어느 쪽이 필요한지 나눠 보는 것이 도움이 될 수 있어요.`;
+    } else {
+      h2 = "한 방향으로 모이는 바람";
+      p2 = `서로 크게 부딪히는 바람은 보이지 않아요. 네 컬러가 비슷한 쪽을 향하고 있어, 지금 원하는 것이 비교적 분명한 편일 수 있어요.` +
+        (tnotes.length ? ` 다만 ${tnotes[0]}` : "");
+    }
+
+    // ③ 옮겨 가는 방향
+    let p3;
+    if (RF.oldT && RF.newT) {
+      p3 = `1·2번에서 컸던 ${q(RF.oldT.t)}에서, 3·4번에서는 ${q(RF.newT.t)} 쪽으로 무게가 옮겨 가요. 두 시기를 잇는 2번 ${wa(C2.ko)} 3번 ${C3.ko}${pp(C3.ko, "이", "가")} 지금 그 변화가 일어나고 있는 자리예요.`;
+      if (RF.cont) p3 += ` 그러면서도 ${nq(RF.cont.t)} 처음부터 끝까지 놓지 않고 있어요.`;
+    } else if (RF.cont) {
+      p3 = `${nq(RF.cont.t)} 1·2번과 3·4번에 모두 들어 있어, 처음부터 끝까지 놓지 않는 바람이에요.` +
+        (RF.newT ? ` 여기에 3·4번에서는 ${iq(RF.newT.t)} 새로 더해져요.` : ` 큰 방향을 바꾸기보다, 같은 바람을 조금 다른 모습으로 이어 가려는 쪽에 가까워요.`);
+    } else {
+      p3 = `1·2번과 3·4번이 서로 다른 주제를 담고 있어, 지나온 시기와 앞으로 바라는 쪽이 분명히 달라요. 2번 ${wa(C2.ko)} 3번 ${C3.ko}${pp(C3.ko, "이", "가")} 그 사이를 잇는 자리예요.`;
+    }
+
+    // ④ 미뤄 둔 바람까지
+    const t5 = RF.link5.t, w5 = `‘${C5.t5s}’`;
+    const futT = themeMap([k3, k4], [3, 4]);
+    let p4;
+    if (futT.some((x) => x.t === t5)) p4 = `가장 마음에 들지 않은 ${C5.ko}에 담긴 ${w5}${pp(C5.t5s, "은", "는")} 앞으로 바라는 3·4번과 같은 쪽을 가리켜요. 가고 싶은 방향은 이미 마음에 있고, 첫발을 떼는 일이 남아 있는 모습일 수 있어요.`;
+    else if (futT.some((x) => opp(x.t).includes(t5))) p4 = `가장 마음에 들지 않은 ${C5.ko}에 담긴 ${w5}${pp(C5.t5s, "은", "는")} 앞으로 바라는 3·4번과 반대편에 있어요. 바라는 쪽으로 가더라도 이 부분을 아주 놓치지 않도록 조금씩 챙겨 두면, 한쪽으로 기울지 않고 나아갈 수 있어요.`;
+    else p4 = `가장 마음에 들지 않은 ${C5.ko}에 담긴 ${w5}${pp(C5.t5s, "은", "는")} 앞으로 바라는 모습을 받쳐 주는 쪽으로 쓸 수 있어요. 미뤄 둔 바람을 조금 꺼내 쓰는 것이, 바라는 쪽으로 가는 데도 힘이 될 수 있어요.`;
+    const rd = M.postponed.dirs.find((d) => d[2]);
+    if (rd) p4 += ` 시작은 ‘${rd[1]}’처럼 작은 것이면 충분해요.`;
+
+    // 마무리 질문
     const nm = who === "당신" ? "나" : who;
-    const p5 = `정리하면, 그동안은 ${gP}, 요즘은 ${gN}, 앞으로는 ${euroT(gF)} 이어지는 흐름이에요. 지금의 ${nm}${who === "당신" ? "와도" : "이 느끼기에도"} 비슷한가요?`;
+    let p5;
+    if (T) p5 = `${wq(T.a.t)} ${q(T.b.t)} 가운데, 이번 달에 조금 더 시간을 쓰고 싶은 쪽은 어디인가요?`;
+    else if (RF.newT) p5 = `${q(RF.newT.t)} 쪽으로 한 걸음 가기 위해, 지금 내려놓을 수 있는 것은 무엇일까요?`;
+    else p5 = `${C5.ko}에 담긴 ${w5}${pp(C5.t5s, "을", "를")} 이번 주에 한 번 챙긴다면, 무엇부터 해 보고 싶나요?`;
+    p5 += ` 지금의 ${nm}에게 이 이야기가 얼마나 가깝게 느껴지는지도 함께 떠올려 보세요.`;
+
     const closing = [
-      { h: "현재 마음의 중심", t: p1 },
-      { h: "과거에서 현재, 앞으로 이어지는 변화", t: p2 },
-      p3 ? { h: "함께 살펴볼 부분", t: p3 } : null,
-      { h: "나를 돌보는 방향", t: p4 },
+      { h: "다섯 컬러에 함께 흐르는 주제", t: p1 },
+      { h: h2, t: p2 },
+      { h: "마음이 옮겨 가는 방향", t: p3 },
+      { h: "미뤄 둔 바람까지 함께 보면", t: p4 },
       { h: "", t: p5 },
-    ].filter(Boolean);
+    ];
     const closingNote = "끌리는 색은 시기에 따라 달라질 수 있으니, 시간이 지나 다시 골라 비교해 보세요. 요즘 혼자 감당하기 버겁다면 믿을 만한 사람이나 전문가와 이야기를 나눠 보세요.";
 
-    // 2쪽 키워드 상자 — 이번 결과에서 각 색이 뜻한 측면
-    const kAsp = [mP.asps[0], mN.asps[0], mN.asps[1], mF.asps[1]];
-    const keyword = { t: "이번 결과에서 네 컬러가 뜻한 것", keys: [k1, k2, k3, k4],
-      lead: "같은 색도 어떤 조합에 놓이느냐에 따라 뜻하는 측면이 달라요. 이번 결과에서 네 컬러가 뜻한 것을 모아 보면 이래요.",
-      list: [k1, k2, k3, k4].map((k, i) => [k, `#${kAsp[i].kw}`, kAsp[i].m]),
-      body: ["이 가운데 지금의 나와 가장 가깝게 느껴지는 키워드 하나를 골라 보세요."] };
-
-    const shP = mP.short, shN = mN.short, shF = mF.short;
+    const shP = M.past.short, shN = mN.short, shF = mF.short;
     const questions = { t: "지금 나에게 던져볼 질문", keys: [k1, k2, k3, k4, k5],
-      lead: `과거의 나, 현재의 나, 앞으로 바라는 나, 가장 마음에 들지 않은 색에서 생각해 볼 질문이에요. 정답은 없고, 떠오르는 대로 적어도 충분해요.`,
+      lead: `과거의 나, 현재의 나, 앞으로 바라는 나, 미뤄 둔 바람에서 생각해 볼 질문이에요. 정답은 없고, 떠오르는 대로 적어도 충분해요.`,
       qs: [
         ["과거의 나", `‘${shP}’${pp(shP, "이", "가")} 컸던 때를 떠올려 보면, 그때 나에게 힘이 된 것은 무엇이었나요?`],
         ["현재의 나", `요즘 ‘${shN}’${pp(shN, "이", "가")} 가장 크게 느껴지는 때는 언제인가요?`],
         ["앞으로 바라는 나", `‘${shF}’${pp(shF, "을", "를")} 위해 이번 달에 해 볼 수 있는 한 가지는 무엇인가요?`],
-        [FIFTH_LABEL, `${C5.ko}${pp(C5.ko, "이", "가")} 마음에 들지 않았던 이유를 떠올려 보면, 어떤 기억이나 이미지가 생각나나요?`],
+        ["미뤄 둔 바람", `${C5.ko}에 담긴 ${w5}${pp(C5.t5s, "을", "를")} 뒤로 미뤄 두게 된 이유가 있다면 무엇일까요?`],
       ],
       body: [] };
-    return { heal, closing, closingNote, keyword, questions };
+    return { heal, closing, closingNote, questions };
   }
 
   // ---------- 결과 HTML ----------
@@ -537,12 +647,12 @@
 
 
   // ---------- 컬러 카드 (결과 화면: 5장을 한 장씩 넘겨 보고, 마지막에 종합 결과) ----------
-  // 결과 카드 4장: 과거의 나(1·2) / 현재의 나(2·3) / 앞으로 바라는 나(3·4) / 가장 마음에 들지 않은 색(5)
+  // 결과 카드 4장: 과거의 나(1·2) / 현재의 나(2·3) / 앞으로 바라는 나(3·4) / 어쩌면 나에게 가장 필요한 부분(5 · 가장 마음에 들지 않은 색)
   const CARDS = [
     { label: "과거의 나", tag: "1·2번 컬러", file: "Past", idx: [0, 1], msg: "past" },
     { label: "현재의 나", tag: "2·3번 컬러", file: "Present", idx: [1, 2], msg: "present" },
     { label: "앞으로 바라는 나", tag: "3·4번 컬러", file: "Future", idx: [2, 3], msg: "future" },
-    { label: "가장 마음에 들지 않은 색", tag: "5번 컬러", file: "Least", idx: [4], msg: "postponed" },
+    { label: "어쩌면 나에게 가장 필요한 부분", tag: "5번 · 가장 마음에 들지 않은 색", file: "Least", idx: [4], msg: "postponed" },
   ];
   let lastR = null;
 
@@ -573,7 +683,7 @@
             </div>`).join(`<div class="cr-cb-arrow" aria-hidden="true">›</div>`);
     const means = (m.means || keys.map((k) => [k, c(k).mean])).map(([k, mm]) => `
             <div class="cr-cm"><i style="${swatchBg(k)}"></i><p><b>${esc(c(k).ko)}</b> ${esc(mm)}</p></div>`).join("");
-    const dirs = m.dirs && m.dirs.length ? `<ul class="cr-card-dirs">${m.dirs.map(([d]) => `<li>${esc(d)}</li>`).join("")}</ul>` : "";
+    const dirs = m.dirs && m.dirs.length ? `<ul class="cr-card-dirs">${m.dirs.map(([d, , rec]) => `<li${rec ? ' class="is-rec"' : ""}>${esc(d)}${rec ? " <b>먼저 해 볼 만한 것</b>" : ""}</li>`).join("")}</ul>` : "";
     return `
       <article class="cr-card cr-card--read${exp ? " cr-card--export" : ""}" style="--cr-accent:${accent(k2)}">
         <div class="cr-card-top" style="background:${topBg}">
@@ -586,6 +696,7 @@
         <div class="cr-card-body">
           <div class="cr-card-title"><span class="cr-fit">${esc(m.short)}</span></div>
           ${m.voiceIsQuestion ? `<div class="cr-card-ask">${esc(m.voice)}</div>` : voiceHTML(m.voice)}
+          ${m.view ? `<p class="cr-card-view">${esc(m.view)}</p>` : ""}
           <div class="cr-card-means">${means}</div>
           <p class="cr-card-flow">${esc(m.cardFlow || m.flow)}</p>
           ${dirs}
@@ -900,15 +1011,15 @@
     const means = (m.means || m.keys.map((k) => [k, c(k).mean])).map(([k, mm]) => `<div class="ra-mm">${raDot(k)}<b>${esc(c(k).ko)}</b> ${esc(mm)}</div>`).join("");
     const isFifth = key === "postponed";
     const dirs = isFifth && m.dirs && m.dirs.length
-      ? `<div class="ra-dirs"><div class="ra-h6">돌아볼 수 있는 방향 · 마음에 걸리는 것 하나를 골라 보세요</div>${m.dirs.map(([d, a], n) => `<div class="ra-dir"><b>${n + 1}</b><div><span>${esc(d)}</span><em>${esc(a)}</em></div></div>`).join("")}</div>` : "";
+      ? `<div class="ra-dirs"><div class="ra-h6">실천해 볼 방향 · 지금의 나와 맞닿는 것을 골라 보세요</div>${m.dirs.map(([d, a, rec], n) => `<div class="ra-dir${rec ? " is-rec" : ""}"><b>${n + 1}</b><div><span>${esc(d)}${rec ? `<i class="ra-rec">앞의 네 컬러와 이어 보면 먼저 해 볼 만한 것</i>` : ""}</span><em>${esc(a)}</em></div></div>`).join("")}</div>` : "";
     return `
       <div class="ra-msg">
         <div class="ra-mh"><span class="ra-ml"><b>0${no}</b>${esc(m.label)}</span><span class="ra-mc">${route}<em>${RA_POS[key]}</em></span></div>
         <div class="ra-mt">${esc(m.theme)}</div>
         ${m.voiceIsQuestion ? `<div class="ra-mq ra-mq--ask">${esc(m.voice)}<small>${esc(m.line)}</small></div>` : `<div class="ra-mq">“${esc(m.voice)}”<small>${esc(m.line)}</small></div>`}
         <div class="ra-mg">
-          <div><div class="ra-h6">${isFifth ? "이 색이 상징하는 것" : "컬러의 의미"}</div>${means}</div>
-          <div><div class="ra-h6">${isFifth ? "이 자리를 읽는 관점" : "이어진 해석"}</div><p>${esc(isFifth ? m.view + " " + m.flow : m.flow)}</p></div>
+          <div><div class="ra-h6">${isFifth ? "이 색이 상징하는 것" : "고른 자리로 본 컬러의 의미"}</div>${means}${isFifth ? `<p class="ra-view">${esc(m.view)}</p>` : ""}</div>
+          <div><div class="ra-h6">${isFifth ? "앞의 네 컬러와 이어 보면" : "이어진 해석"}</div><p>${esc(isFifth ? m.mean + " " + m.link + " " + m.why : m.flow)}</p></div>
         </div>
         ${dirs}
       </div>`;
@@ -1019,7 +1130,7 @@
     blocks.push({ pageBreakBefore: false, html: `
       ${solo ? "" : `<div class="ra-part">PART 1 · 컬러 심리리딩</div>`}
       ${raSec("01", "나의 다섯 컬러")}
-      <div class="ra-desc">직감으로 고른 다섯 컬러의 의미를 고른 순서에 따라 살펴봐요. 1·2번째는 과거, 2·3번째는 현재, 3·4번째는 앞으로 바라는 나, 5번째는 가장 마음에 들지 않은 색이에요.</div>
+      <div class="ra-desc">직감으로 고른 다섯 컬러의 의미를 고른 순서에 따라 살펴봐요. 1·2번째는 과거, 2·3번째는 현재, 3·4번째는 앞으로 바라는 나예요. 가장 마음에 들지 않은 5번째 색은 원하면서도 미뤄 둔 바람을 살펴보는 자리예요.</div>
       <div class="cr-pdf-row">${bottleRowHTML(R.sel, 54)}</div>
       ${raSec("02", "네 가지 결과")}
       ${raMsgHTML(R.past, 1, "past")}
@@ -1031,8 +1142,7 @@
         <div class="ra-heal-b">${bottleSVG(c(X.heal.key).hex, { w: 34 })}</div>
         <div><div class="ra-heal-t">${esc(X.heal.title)}</div><p>${esc(X.heal.text)}</p></div>
       </div>` });
-    // v3_43: 관계·생활 적용(옛 3·4쪽) 삭제 — 키워드는 2쪽 5번째 색·생활에서 만나 보기 아래에 (번호 없이)
-    blocks.push({ pageBreakBefore: false, html: `<div class="ra-asps ra-kw">${raAspectHTML(X.keyword, -1)}</div>` });
+    // v3test_04: '이번 결과에서 네 컬러가 뜻한 것' 상자 삭제 (10/30 요청)
     // 03 종합 컬러리딩 + 지금 나에게 던져볼 질문 — 마지막 한 페이지 안에서 마무리
     blocks.push({ pageBreakBefore: true, html: raCloseHTML(X, R.sel) });
     return blocks;

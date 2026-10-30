@@ -2124,3 +2124,20 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .rel-list li { margin: 3px 0; word-break: keep-all; }
 .rel-note { margin: 4px 0 6px; font-size: 12.6px; line-height: 1.7; color: #6f6c7a; word-break: keep-all; }
 .rel-q { margin: 0; padding-left: 18px; font-size: 13.4px; line-height: 1.75; color: var(--ink-900); font-weight: 600; }
+
+/* ===== v3test_04 (2026-10-30) · 컬러리딩 5번째 자리 ===== */
+.cr-card-view { margin: 4px 0 10px; font-size: 12.4px; line-height: 1.6; color: #6f6c7a; word-break: keep-all; }
+.cr-card-dirs li.is-rec { color: var(--ink-900); font-weight: 700; }
+.cr-card-dirs li.is-rec b { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 8px; background: var(--cr-accent, #8b7cc4); color: #fff; font-size: 10.5px; font-weight: 700; vertical-align: 1px; }
+.pdf-report .ra-view { margin: 8px 0 0; font-size: 12px; line-height: 1.65; color: #6f6c7a; word-break: keep-all; }
+.pdf-report .ra-dir.is-rec span { color: #4b3a8c; }
+.pdf-report .ra-rec { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 8px; background: #6a56a8; color: #fff; font-size: 10.5px; font-style: normal; font-weight: 700; line-height: 1.6; vertical-align: 1px; }
+
+/* ===== v3test_04 (2026-10-30) · CCT 10/30 보완 ===== */
+.persona-together { margin: 4px 0 10px; font-size: 13.4px; line-height: 1.75; color: var(--ink-700); word-break: keep-all; }
+.persona-role { margin-left: 8px; padding: 1px 8px; border-radius: 9px; background: #f1eef8; color: #6a56a8; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+.rel-tag { display: inline-block; margin-right: 4px; padding: 0 6px; border-radius: 8px; background: #f1eef8; color: #6a56a8; font-size: 11px; font-weight: 700; }
+.rel-p { margin: 0 0 4px; font-size: 13.4px; line-height: 1.75; color: var(--ink-800, #2b2933); word-break: keep-all; }
+.ag-warn-balance b { color: #6a56a8; margin-right: 4px; }
+.domain-read { margin: 6px 0 14px; padding: 12px 14px; border-radius: 12px; background: #f7f5fb; }
+.domain-read p { margin: 4px 0 0; font-size: 13.2px; line-height: 1.75; color: var(--ink-800, #2b2933); word-break: keep-all; }
