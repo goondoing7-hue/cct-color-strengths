@@ -1,0 +1,2906 @@
+/* ==========================================================
+   CCT 컬러성격강점검사 — App Logic (v3 · 강의용: 컬러 심리리딩 + CCT)
+   ========================================================== */
+
+(function () {
+  "use strict";
+
+  // ---------- State ----------
+  let shuffledQuestions = [];
+  let currentIndex = 0;
+  let answers = []; // { color, value } aligned with shuffledQuestions
+  let userName = "";
+  let verified = false;
+  // 동점 처리용 강제선택 응답 (점수는 그대로, 순위·보완컬러만 정함 — js/cct-rank.js)
+  //   rank: 순위 동점에서 고른 컬러 key (고른 순서대로)
+  //   comp: 보완컬러 최종 동점에서 고른 컬러 key
+  const emptyPicks = () => ({ rank: [], comp: null });
+  let cctPicks = emptyPicks();
+  let decodedCctPicks = null;
+
+  // Simple access-code gate (replaces the earlier Instagram-follow upload check).
+  // This is a soft, client-side-only gate — anyone reading the source can see the
+  // code — but that's fine for this static-site use case.
+  const CCT_ACCESS_CODE = "love"; // v3(강의용) 접근 코드 — 2026-10-13 변경
+
+  // Optional: log each completed test to a Google Sheet via a Google Apps
+  // Script Web App. Leave this empty to disable logging entirely (nothing is
+  // sent anywhere). Paste your deployed Apps Script "Web app URL" here once
+  // you've set it up — see the setup guide provided alongside this app.
+  const GS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbw7cwjYx_pNXHYEJAcHArACExeQ2OqxotMC5YHPrK3QaBFgzNNOGj4e6M9dUJrPB5F6zg/exec";
+
+  // ---------- App variant ----------
+  // "v1": the end user can download their own detailed PDF report immediately.
+  // "v2": the PDF is NOT offered for self-download — the result screen instead
+  // tells the user to visit a center in person to receive it, with Naver Map
+  // links to each branch. In both variants the detailed PDF is still generated
+  // automatically in the background and logged (see GS_WEBHOOK_URL above) so
+  // the admin can always look it up later regardless of variant.
+  const APP_VARIANT = "v1"; // "v1" | "v2"
+
+  // ---------- 강의용(v3) ----------
+  // v1과 동일한 CCT(전체 결과 + PDF 즉시 다운로드)에 앞서 「카마 커뮤니케이션
+  // 컬러테라피」 4병 컬러리딩을 진행하고, 두 결과를 한 화면·한 PDF로 보여줍니다.
+  // 컬러리딩 데이터·엔진·화면은 js/colorreading*.js (window.CR) 에 있습니다.
+  const LECTURE_EDITION = !!(window.CR && window.CR.enabled);
+  // 강의용은 입장 후 검사 방식을 고릅니다.
+  //   "cr"   : 컬러 심리리딩만
+  //   "cct"  : CCT 컬러성격강점검사만 (v1과 동일)
+  //   "both" : 컬러리딩 → CCT, 결과를 한 화면·한 PDF로
+  let mode = "both";
+  const MODE_LABEL = { cr: "v3s·컬러리딩", cct: "v3s·CCT", both: "v3s·통합" }; // 강의 단축형(39문항)
+  function editionLabel() { return LECTURE_EDITION ? MODE_LABEL[mode] : APP_VARIANT; }
+  // 이번 결과에 컬러리딩이 포함되는지 (선택이 끝난 경우에만)
+  function hasReading() { return LECTURE_EDITION && mode !== "cct" && !!window.CR.getSelection(); }
+
+  const CENTER_LOCATIONS = [
+    { name: "럽리브 남양주점", url: "https://naver.me/GubsO7BA" },
+    { name: "럽리브 춘천점", url: "https://naver.me/5pwdXIT5" },
+  ];
+
+  // ---------- DOM refs ----------
+  const screenIntro = document.getElementById("screen-intro");
+  const screenQuiz = document.getElementById("screen-quiz");
+  const screenResult = document.getElementById("screen-result");
+  const screenColorPick = document.getElementById("screen-colorpick");
+  const screenMode = document.getElementById("screen-mode");
+
+  const btnStart = document.getElementById("btnStart");
+  const btnBack = document.getElementById("btnBack");
+  const userNameInput = document.getElementById("userName");
+
+  const progressFill = document.getElementById("progressFill");
+  const qNumEl = document.getElementById("qNum");
+  const qTotalEl = document.getElementById("qTotal");
+  const quizCard = document.getElementById("quizCard");
+  const quizQuestion = document.getElementById("quizQuestion");
+  const quizScale = document.getElementById("quizScale");
+
+  const resultWrap = document.getElementById("resultWrap");
+
+  const accessCodeInput = document.getElementById("accessCode");
+  const accessStatus = document.getElementById("accessStatus");
+
+  // ---------- Init: color-wheel ring on intro ----------
+  function buildColorRing() {
+    const ring = document.getElementById("colorRing");
+    if (!ring) return;
+    const size = 132, r = 58, sw = 11;
+    const cx = size / 2, cy = size / 2;
+    const C = 2 * Math.PI * r;
+    const n = CCT_COLORS.length;
+    const gapFrac = 0.16; // fraction of each segment that is empty gap
+    const segLen = (C / n) * (1 - gapFrac);
+    const circles = CCT_COLORS.map((c, i) => {
+      const offset = -(C / n) * i;
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c.hex}" stroke-width="${sw}"
+        stroke-linecap="round" stroke-dasharray="${segLen} ${C - segLen}" stroke-dashoffset="${offset}"
+        transform="rotate(-90 ${cx} ${cy})"/>`;
+    }).join("");
+    ring.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="13 컬러 휠">${circles}</svg>`;
+  }
+
+  // ---------- Utils ----------
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function showScreen(el) {
+    document.querySelectorAll(".screen").forEach((s) => s.classList.remove("is-active"));
+    el.classList.add("is-active");
+    window.scrollTo(0, 0);
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Picks the correct Korean particle for a word, so generated sentences read
+  // naturally instead of falling back to the clumsy "은(는)" / "이(가)" form.
+  // A Hangul syllable has a final consonant (받침) when its code point offset
+  // from 가(U+AC00) is not an exact multiple of 28.
+  function josa(word, withBatchim, withoutBatchim) {
+    const s = String(word);
+    const code = s.charCodeAt(s.length - 1);
+    if (code < 0xac00 || code > 0xd7a3) return withoutBatchim; // non-Hangul tail
+    return (code - 0xac00) % 28 !== 0 ? withBatchim : withoutBatchim;
+  }
+
+  // "으로" vs "로" needs its own helper: unlike 은/는, the ㄹ final consonant
+  // (jongseong index 8) takes "로" just like a vowel ending does — 힘으로, but
+  // 열정로가 아니라 열정으로 / 물로. josa()'s binary batchim test can't express that.
+  function euro(word) {
+    const s = String(word);
+    const code = s.charCodeAt(s.length - 1);
+    if (code < 0xac00 || code > 0xd7a3) return "로";
+    const jong = (code - 0xac00) % 28;
+    return jong === 0 || jong === 8 ? "로" : "으로";
+  }
+
+  function getContrastText(hex) {
+    // returns readable ink color (white or dark) for a given background hex
+    const num = parseInt(hex.replace("#", ""), 16);
+    const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return lum > 0.62 ? "#17161d" : "#ffffff";
+  }
+
+  // ---------- Shared color-section template (used on-screen + in PDF) ----------
+  // Shared sub-pieces of a color's profile card. Split out so the PDF renderer
+  // (below) can place the "intro" half and the "detail" half as two separate,
+  // independently-fittable blocks — without this, a single ~190mm-tall card
+  // regularly left 60-70mm of blank space at the bottom of a page whenever it
+  // didn't quite fit what was left of the current page.
+  function colorSectionHeroHTML(color, tagLabel) {
+    const textColor = getContrastText(color.hex);
+    const overlay = textColor === "#ffffff" ? "rgba(255,255,255,.22)" : "rgba(23,22,29,.10)";
+    return `
+      <div class="cs-hero" style="background:${color.hex};color:${textColor}">
+        <span class="cs-tag" style="background:${overlay};color:${textColor}">${escapeHtml(tagLabel)}</span>
+        <h3>${escapeHtml(color.ko)} · ${escapeHtml(color.strength)}</h3>
+        <div class="cs-en">${escapeHtml(color.en)}</div>
+        <p class="cs-tagline">${escapeHtml(color.core)}</p>
+      </div>
+    `;
+  }
+
+  // opts.comp: 보완 컬러 — 2026-10-08 선생님 요청으로 「건강할 때 / 과도할 때」 없이 컬러 설명만
+  function colorSectionIntroBodyHTML(color, opts) {
+    const comp = !!(opts && opts.comp);
+    return `
+      <p class="cs-summary">${escapeHtml(color.summary)}</p>
+      ${comp ? "" : `<div class="cs-subhead">이 강점이 드러나는 모습</div>`}
+    `;
+  }
+
+  function colorSectionDetailBodyHTML(color, opts) {
+    const comp = !!(opts && opts.comp);
+    const healthyItems = (color.healthy || []).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
+    const overuseItems = (color.overuse || []).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
+    const actionItems = (color.actions || []).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
+    return `
+      ${comp ? "" : `<div class="cs-dual">
+        <div class="dual-row">
+          <div class="dual-label">건강할 때</div>
+          <div class="dual-content"><ul>${healthyItems}</ul></div>
+        </div>
+        <div class="dual-row">
+          <div class="dual-label">과도할 때</div>
+          <div class="dual-content"><ul>${overuseItems}</ul></div>
+        </div>
+      </div>`}
+      <div class="cs-example">
+        <div class="cs-example-label">예시 · 이렇게 활용해보세요</div>
+        <ul>${actionItems}</ul>
+      </div>
+      ${comp ? "" : `<div class="cs-growth"><span>💬</span><span>${escapeHtml(color.growthQuestion)}</span></div>`}
+    `;
+  }
+
+  // On-screen version: hero + summary are always visible, and the long detail
+  // half (건강할 때 / 과도할 때 / 예시 / 질문 — roughly 13 bullets per color)
+  // sits behind a disclosure toggle. Expanded-by-default made the result page
+  // ~2,800px of near-identical prose; collapsing the details cuts the initial
+  // scroll roughly in half while keeping everything one tap away.
+  function buildColorSectionScreenHTML(color, tagLabel, panelId, opts) {
+    const comp = !!(opts && opts.comp);
+    return `
+      <div class="color-section">
+        ${colorSectionHeroHTML(color, tagLabel)}
+        <div class="cs-body">
+          <p class="cs-summary">${escapeHtml(color.summary)}</p>
+          <button type="button" class="cs-toggle js-toggle" aria-expanded="false" aria-controls="${panelId}" data-target="${panelId}">
+            <span class="cs-toggle-label">${comp ? "활용 예시 보기" : "이 강점이 드러나는 모습 보기"}</span>
+            <span class="cs-toggle-icon" aria-hidden="true">▾</span>
+          </button>
+          <div class="cs-details" id="${panelId}">
+            ${colorSectionDetailBodyHTML(color, opts)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // PDF version: same visual content, but returned as TWO independent cards
+  // (intro: hero+summary, detail: dual/example/growth) so the PDF's page-fill
+  // logic can place them separately when the full card doesn't fit a gap.
+  function buildColorSectionPdfParts(color, tagLabel, opts) {
+    const intro = `
+      <div class="color-section">
+        ${colorSectionHeroHTML(color, tagLabel)}
+        <div class="cs-body">${colorSectionIntroBodyHTML(color, opts)}</div>
+      </div>
+    `;
+    const detail = `
+      <div class="color-section">
+        <div class="cs-body cs-body-continued">${colorSectionDetailBodyHTML(color, opts)}</div>
+      </div>
+    `;
+    return [intro, detail];
+  }
+
+  // One continuous card — hero + summary + healthy/overuse/example in a single
+  // .color-section. Used where the whole profile is placed as one unit (the
+  // complement deep dive), so it doesn't show the seam between two stacked
+  // cards that the intro/detail split produces.
+  function buildColorSectionWholeHTML(color, tagLabel) {
+    return `
+      <div class="color-section">
+        ${colorSectionHeroHTML(color, tagLabel)}
+        <div class="cs-body">
+          ${colorSectionIntroBodyHTML(color)}
+          ${colorSectionDetailBodyHTML(color)}
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------- Quiz flow ----------
+  // 강의용: 이름·코드 확인 → 컬러 5개 선택 → CCT 65문항 → 통합 결과
+  function beginFlow() {
+    if (!verified) return;
+    if (LECTURE_EDITION && screenMode) {
+      showScreen(screenMode);
+      return;
+    }
+    startQuiz();
+  }
+
+  // 검사 방식 선택 화면에서 고른 방식으로 시작합니다.
+  function chooseMode(m) {
+    mode = m;
+    window.CR.reset();
+    if (m === "cct") {
+      startQuiz();
+      return;
+    }
+    window.CR.openPick(
+      () => (mode === "cr" ? finishReadingOnly() : startQuiz()),
+      { finishLabel: mode === "cr" ? "컬러리딩 결과 보기" : "CCT 검사 시작하기" }
+    );
+    showScreen(screenColorPick);
+  }
+
+  // 카드를 눌러 고르고(다시 고를 수 있음) → [선택 완료]로 시작합니다.
+  let pendingMode = null;
+  const MODE_NAMES = { cr: "컬러 심리리딩", cct: "CCT 컬러성격강점검사", both: "컬러리딩 + CCT" };
+  function setPendingMode(m) {
+    pendingMode = m;
+    if (!screenMode) return;
+    screenMode.querySelectorAll("[data-mode]").forEach((btn) => {
+      const on = btn.dataset.mode === m;
+      btn.classList.toggle("is-selected", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    const confirm = document.getElementById("btnModeConfirm");
+    if (confirm) confirm.disabled = !m;
+    const hint = document.getElementById("modeHint");
+    if (hint) hint.textContent = m ? `선택한 검사 · ${MODE_NAMES[m]}` : "검사를 선택해주세요";
+  }
+
+  function bindModeScreen() {
+    if (!screenMode) return;
+    screenMode.querySelectorAll("[data-mode]").forEach((btn) => {
+      btn.addEventListener("click", () => setPendingMode(btn.dataset.mode));
+    });
+    const confirm = document.getElementById("btnModeConfirm");
+    if (confirm) confirm.addEventListener("click", () => { if (pendingMode) chooseMode(pendingMode); });
+    const back = document.getElementById("btnModeBack");
+    if (back) back.addEventListener("click", () => showScreen(screenIntro));
+  }
+
+  // 컬러리딩만 진행한 경우: CCT 없이 바로 결과로 갑니다.
+  function finishReadingOnly() {
+    userName = (userNameInput.value || "").trim().slice(0, 12);
+    resultLogged = false;
+    pdfDocPromise = null;
+    renderReadingResult();
+    showScreen(screenResult);
+  }
+
+  function startQuiz() {
+    userName = (userNameInput.value || "").trim().slice(0, 12);
+    shuffledQuestions = shuffle(typeof CCT_QUESTIONS_SHORT !== "undefined" ? CCT_QUESTIONS_SHORT : CCT_QUESTIONS); // 강의 단축형: 39문항
+    answers = new Array(shuffledQuestions.length).fill(null);
+    cctPicks = emptyPicks();
+    currentIndex = 0;
+    resultLogged = false; // allow a fresh retake to log its own new result
+    pdfDocPromise = null; // and to build its own fresh PDF rather than reusing the old one
+    qTotalEl.textContent = shuffledQuestions.length;
+    quizCard.classList.remove("leaving");
+    showScreen(screenQuiz);
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    const q = shuffledQuestions[currentIndex];
+    quizQuestion.textContent = q.text;
+    qNumEl.textContent = currentIndex + 1;
+
+    const pct = (currentIndex / shuffledQuestions.length) * 100;
+    progressFill.style.width = pct + "%";
+
+    btnBack.disabled = currentIndex === 0;
+
+    quizScale.innerHTML = "";
+    const current = answers[currentIndex];
+
+    CCT_SCALE.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "scale-btn";
+      btn.dataset.val = opt.value;
+      if (current && current.value === opt.value) btn.classList.add("selected");
+      btn.innerHTML = `<span class="dot"></span><span>${opt.label}</span>`;
+      btn.addEventListener("click", () => selectAnswer(opt.value));
+      quizScale.appendChild(btn);
+    });
+  }
+
+  function selectAnswer(value) {
+    const q = shuffledQuestions[currentIndex];
+    answers[currentIndex] = { color: q.color, value };
+
+    Array.from(quizScale.children).forEach((btn) => {
+      btn.classList.toggle("selected", Number(btn.dataset.val) === value);
+      // Prevent rapid double/triple-clicks on the same question from queuing
+      // up multiple advance/finish timers (which could otherwise fire the
+      // Google Sheets logging call more than once for a single completion).
+      btn.disabled = true;
+    });
+
+    setTimeout(() => {
+      quizCard.classList.add("leaving");
+      setTimeout(() => {
+        if (currentIndex < shuffledQuestions.length - 1) {
+          currentIndex++;
+          renderQuestion();
+          quizCard.classList.remove("leaving");
+        } else {
+          finishQuiz();
+        }
+      }, 220);
+    }, 160);
+  }
+
+  btnBack.addEventListener("click", () => {
+    if (currentIndex > 0) {
+      quizCard.classList.add("leaving");
+      setTimeout(() => {
+        currentIndex--;
+        renderQuestion();
+        quizCard.classList.remove("leaving");
+      }, 220);
+    }
+  });
+
+  function finishQuiz() {
+    progressFill.style.width = "100%";
+    const scores = computeScores();
+    runTieBreaks(scores, () => {
+      renderResult(scores);
+      showScreen(screenResult);
+    });
+  }
+
+  // ---------- 동점 처리 (TOP1~3 순위 · 보완컬러) ----------
+  // 점수로 순위·보완컬러가 정해지지 않을 때만 1문항씩 묻는다.
+  // 대부분의 응답은 이 화면을 거치지 않고 바로 결과로 간다.
+  function runTieBreaks(scores, done) {
+    const rk = CCTRank.resolveRanking(scores, cctPicks.rank);
+    if (rk.pending) {
+      showTieBreak(rk.pending, (key) => {
+        cctPicks.rank.push(key);
+        runTieBreaks(scores, done);
+      });
+      return;
+    }
+    const cp = CCTRank.resolveComplement(rk.ranked[0].key, scores, rk.ranked, { pick: cctPicks.comp });
+    if (cp.pending) {
+      showTieBreak(cp.pending, (key) => {
+        cctPicks.comp = key;
+        runTieBreaks(scores, done);
+      });
+      return;
+    }
+    done();
+  }
+
+  let screenTie = null;
+  function ensureTieScreen() {
+    if (screenTie) return screenTie;
+    screenTie = document.createElement("section");
+    screenTie.id = "screen-tiebreak";
+    screenTie.className = "screen screen--tiebreak";
+    screenQuiz.insertAdjacentElement("afterend", screenTie);
+    return screenTie;
+  }
+
+  function showTieBreak(pending, onPick) {
+    const el = ensureTieScreen();
+    const isComp = pending.type === "complement";
+    // 색상명은 숨기고 문장만, 순서도 섞어서 보여준다 (색 선호가 아닌 '나와 가까운 모습'을 고르도록).
+    const keys = shuffle(pending.keys);
+    const many = keys.length > 2;
+    const title = isComp
+      ? "지금의 나에게 조금 더 도움이 될 것 같은 힘을 선택해주세요."
+      : many
+        ? "다음 중 평소 나와 가장 가까운 모습을 선택해주세요."
+        : "둘 중 평소 나와 더 가까운 모습을 선택해주세요.";
+    const sub = isComp
+      ? "나의 주강점을 균형 있게 쓰도록 돕는 보완 컬러를 정하기 위해 여쭤볼게요."
+      : "응답 점수가 같은 강점이 있어 순위를 정하기 위해 여쭤볼게요. 점수는 그대로 유지됩니다.";
+    const letters = "ABCDEFGHIJKLM";
+    const opts = keys
+      .map((k, i) => {
+        const text = (isComp ? CCT_BALANCE_STATEMENTS : CCT_TIE_STATEMENTS)[k] || "";
+        return `
+        <button type="button" class="tb-option" data-key="${k}" aria-pressed="false">
+          <span class="tb-letter">${letters[i]}</span>
+          <span class="tb-text">${escapeHtml(text)}</span>
+        </button>`;
+      })
+      .join("");
+    el.innerHTML = `
+      <div class="tb-wrap">
+        <div class="tb-kicker">마지막 확인</div>
+        <h2 class="tb-title">${title}</h2>
+        <p class="tb-sub">${sub}</p>
+        <div class="tb-options">${opts}</div>
+        <button type="button" class="btn btn-primary tb-confirm" disabled>
+          선택 완료
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>`;
+    let chosen = null;
+    const confirm = el.querySelector(".tb-confirm");
+    el.querySelectorAll(".tb-option").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        chosen = btn.dataset.key;
+        el.querySelectorAll(".tb-option").forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("is-selected", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        confirm.disabled = false;
+      });
+    });
+    confirm.addEventListener("click", () => {
+      if (!chosen) return;
+      confirm.disabled = true;
+      onPick(chosen);
+    });
+    showScreen(el);
+  }
+
+  // 보완컬러 선택 근거 — 결과지·시트에 같은 문장을 쓴다.
+  const COMP_DEFINITION =
+    "보완컬러는 낮은 점수의 컬러를 의미하지 않습니다. 나의 주강점이 한쪽으로 과도하게 사용될 때, 균형을 잡아주고 강점을 더욱 건강하게 활용하도록 돕는 컬러입니다.";
+  function complementReasonText(top1, comp) {
+    const c = comp.chosen;
+    const o = comp.other;
+    if (!c || !o) return "";
+    const f = (v) => Number(v).toFixed(1);
+    const candNames = (CCT_COMPLEMENT_MAP[top1.key] || []).map((k) => cctColorByKey(k).ko).join("·");
+    const cand = `${top1.ko}의 보완 후보는 ${candNames}입니다.`;
+    const info = comp.info || {};
+    const dom = (k) => (info.domains || []).find((d) => d.key === k) || {};
+    switch (comp.step) {
+      case 1:
+        return `${cand} 두 후보의 점수(${c.ko} ${f(c.score)} · ${o.ko} ${f(o.score)}) 차이가 0.4 이상이어서, 상대적으로 덜 사용하고 있는 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+      case 2:
+        return `${cand} 두 후보의 점수(${c.ko} ${f(c.score)} · ${o.ko} ${f(o.score)})가 비슷해 각 후보가 속한 강점영역의 평균을 비교했습니다. '${dom(c.key).domain}' ${CCTRank.fmt2(dom(c.key).avg)}점이 '${dom(o.key).domain}' ${CCTRank.fmt2(dom(o.key).avg)}점보다 낮아, 그 영역의 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+      case 3:
+        return `${cand} 두 후보의 점수와 강점영역 평균이 같아, 이미 TOP3 강점인 ${o.ko} 대신 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+      case 4:
+        return `${cand} 두 후보의 점수와 강점영역 평균이 같아, 직접 고른 '${CCT_BALANCE_STATEMENTS[c.key] || ""}'에 따라 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+      default:
+        return `${cand} 두 후보의 점수와 강점영역 평균이 같아, 기본 순서에 따라 ${c.ko}${josa(c.ko, "을", "를")} 보완컬러로 정했습니다.`;
+    }
+  }
+
+  function tieNotesHTML(scores) {
+    const notes = rankTieNotes(scores);
+    if (!notes.length) return "";
+    return `<div class="tie-note">${notes.map((t) => `<p>※ ${escapeHtml(t)}</p>`).join("")}</div>`;
+  }
+
+  // 순위 동점 처리 설명 (TOP3에 영향을 준 동점만)
+  function rankTieNotes(scores) {
+    const rk = CCTRank.resolveRanking(scores, cctPicks.rank, { fallback: true });
+    return rk.notes.map((n) => {
+      const nm = (k) => cctColorByKey(k).ko;
+      const names = n.keys.map(nm).join("·");
+      const parts = [];
+      n.steps.forEach((st) => {
+        if (st.type === "domain") {
+          const items = st.items.map((it) => `${nm(it.key)} '${it.domain}' ${CCTRank.fmt2(it.avg)}`).join(", ");
+          parts.push(`강점영역 평균(${items})`);
+        } else if (st.type === "choice") {
+          parts.push(`직접 고른 대표문장(${nm(st.pick)})`);
+        } else {
+          parts.push(`기본 순서(${nm(st.pick)})`);
+        }
+      });
+      return `${names} 컬러가 ${n.score.toFixed(1)}점으로 같아 순위를 따로 정했습니다 (점수는 그대로 · 기준: ${parts.join(" → ")}).`;
+    });
+  }
+
+  // ---------- Scoring ----------
+  function computeScores() {
+    const sums = {};
+    const counts = {};
+    CCT_COLORS.forEach((c) => { sums[c.key] = 0; counts[c.key] = 0; });
+    answers.forEach((a) => {
+      if (!a) return;
+      sums[a.color] += a.value;
+      counts[a.color] += 1;
+    });
+    const avg = {};
+    CCT_COLORS.forEach((c) => {
+      avg[c.key] = counts[c.key] ? sums[c.key] / counts[c.key] : 0;
+    });
+    return avg; // { RED: 4.2, ORANGE: 3.1, ... } on 1-5 scale
+  }
+
+  // 점수(score)와 순위(rank)는 따로 둔다 — 동점이어도 점수는 바꾸지 않는다.
+  // 강제선택은 runTieBreaks()에서 이미 끝났으므로 여기서는 묻지 않는다
+  // (예전 결과 링크처럼 응답이 없으면 기본 컬러 순서로 정함).
+  function getRanked(scores) {
+    return CCTRank.resolveRanking(scores, cctPicks.rank, { fallback: true }).ranked;
+  }
+
+  // 보완컬러: TOP1의 보완 후보 2개 중 — 점수 차이 0.4↑ → 강점영역 평균 → TOP3 여부 → 강제선택
+  // (cct-rank.js). 강제선택 응답은 결과지의 TOP1 기준일 때만 쓴다.
+  function getComplement(top1Key, scores, ranked) {
+    const rk = ranked || getRanked(scores);
+    const isReportTop1 = rk[0] && rk[0].key === top1Key;
+    return CCTRank.resolveComplement(top1Key, scores, rk, {
+      pick: isReportTop1 ? cctPicks.comp : null,
+      fallback: true,
+    });
+  }
+
+  // ---------- Result rendering (on-screen, section-style) ----------
+  // ---------- Optional: log completed result to Google Sheets ----------
+  let resultLogged = false; // one-shot guard: never log the same completion twice
+  // Automatically logs every completed test to the admin's Google Sheet AND
+  // attaches the full detailed PDF (saved to the admin's Drive by the Apps
+  // Script, linked from the sheet row) — regardless of app variant, so the
+  // admin can always look up who took the test and see their exact result,
+  // even in the v2 variant where the end user themselves never sees a
+  // download button.
+  // ---- Result logging: two phases, on purpose ----
+  // The detailed PDF now runs to 8 pages, each rendered through html2canvas,
+  // plus a footer pass per page. On a phone — especially inside the KakaoTalk
+  // webview — that build takes tens of seconds. The old code awaited the whole
+  // PDF and only THEN sent anything, so if the reader closed the screen, handed
+  // off to another browser, or the webview was memory-killed mid-build, the
+  // result was never recorded at all and there was no trace of why.
+  //
+  // Phase 1 fires immediately with everything except the PDF, via sendBeacon so
+  // it survives the page being unloaded. Phase 2 sends the PDF afterwards and
+  // fills the same row in. A failed PDF now costs the PDF link only — never
+  // the record that the test happened.
+  const PDF_LOG_MAX_BYTES = 7 * 1024 * 1024; // Apps Script rejects very large POST bodies
+
+  function newResultId() {
+    return "R" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  // Fire-and-forget POST, but readable when the browser lets us read it.
+  //
+  // `beacon` uses navigator.sendBeacon, which the browser completes even after
+  // the page goes away — but it caps the body at ~64KB, so only the small
+  // phase-1 payload may use it.
+  //
+  // Otherwise we first try an ordinary (readable) request: text/plain keeps it a
+  // "simple" CORS request, so no preflight, and Apps Script's redirect target
+  // does send Access-Control-Allow-Origin. When that works we can see the
+  // status and the script's own reply in the console — which is the only way
+  // a silent logging failure ever becomes visible. If reading is blocked we
+  // re-send with mode:"no-cors" (write-only). A re-send is safe because the
+  // Apps Script keys every write on resultId and ignores repeats.
+  async function postToWebhook(payload, opts) {
+    const body = JSON.stringify(payload);
+    const headers = { "Content-Type": "text/plain;charset=utf-8" };
+    const label = `[CCT] 결과 기록 (${payload.phase || "?"})`;
+
+    if (opts && opts.beacon) {
+      // 1차(작은 결과 줄)는 sendBeacon으로 보내고, 2026-10-18부터 일반 요청으로 한 번 더 보낸다.
+      // 10/12 강의(25명 동시 완료)에서 1차가 유실된 사례가 있었기 때문. Apps Script가
+      // 결과ID로 중복을 걸러 내므로 시트에 줄이 두 번 생기지 않는다.
+      try {
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+          if (navigator.sendBeacon(GS_WEBHOOK_URL, blob)) console.info(`${label} — sendBeacon 전송 (${body.length}B)`);
+        }
+      } catch (e) {
+        /* fall through */
+      }
+      return true;
+    }
+
+    // 2차(PDF): 읽을 수 있는 요청 → 막히면 no-cors 재전송. 네트워크 오류면 3초 뒤 한 번 더.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(GS_WEBHOOK_URL, { method: "POST", headers, body, redirect: "follow" });
+        const text = await res.text();
+        console.info(`${label} — HTTP ${res.status}: ${text.slice(0, 200)}`);
+        if (res.ok) return true;
+      } catch (err) {
+        console.warn(`${label} — 응답을 읽지 못함, 재전송합니다:`, err && err.message);
+      }
+      try {
+        await fetch(GS_WEBHOOK_URL, { method: "POST", mode: "no-cors", headers, body });
+        return true;
+      } catch (e) {
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
+    return false;
+  }
+
+
+  // ---------- 저장 안정화 2차 (2026-10-31) ----------
+  // ① 휴대폰에 먼저 보관(outbox) → 서버가 '받았다'고 답하면 지움. 답이 없으면 간격을 늘려 다시 보내고,
+  //    창을 닫았어도 다음에 이 사이트를 열 때 자동으로 다시 보낸다(같은 결과ID는 시트에서 한 줄만 남음).
+  // ② 결과 링크(?r=)를 함께 보내 시트 "결과 링크" 열에 남긴다 — PDF가 빠져도 같은 결과지를 다시 만들 수 있다.
+  // ③ 서버의 답을 읽어 '저장 완료'를 확인하고, 끝내 확인이 안 되면 [다시 저장하기]를 보여 준다.
+  // ④ 확인 전송은 0.5~3초 사이로 흩뜨려, 강의처럼 여러 명이 동시에 끝내도 요청이 한꺼번에 몰리지 않게 한다.
+  const OUTBOX_KEY = "cctLogOutbox_v1";
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function outboxRead() {
+    try { const a = JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  }
+  function outboxWrite(list) {
+    try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(list.slice(-20))); } catch (e) { /* 저장 공간 없음 — 무시 */ }
+  }
+  function outboxPut(meta) {
+    const list = outboxRead().filter((x) => x && x.meta && x.meta.resultId !== meta.resultId);
+    list.push({ meta, at: Date.now(), tries: 0 });
+    outboxWrite(list);
+  }
+  function outboxDrop(id) { outboxWrite(outboxRead().filter((x) => x && x.meta && x.meta.resultId !== id)); }
+  // 읽을 수 있는 요청: "ok"(스크립트가 받았다고 답함) / "busy"·"error"(받지 못했다고 답함) / "unknown"(답을 못 읽음)
+  async function postReadable(payload) {
+    try {
+      const res = await fetch(GS_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        redirect: "follow",
+      });
+      const text = await res.text();
+      let j = null;
+      try { j = JSON.parse(text); } catch (e) { /* not json */ }
+      if (j && j.ok) return "ok";
+      if (j) return j.busy ? "busy" : "error";
+      return "unknown";
+    } catch (e) {
+      return "unknown";
+    }
+  }
+  // 1차 기록을 '받았다'는 답이 올 때까지 최대 5번 (약 2·4·8·16초 간격 + 흔들기)
+  async function deliverMeta(meta) {
+    let last = "unknown";
+    for (let i = 0; i < 5; i++) {
+      await sleep(i === 0 ? 500 + Math.random() * 2500 : 2 ** i * 1000 + Math.random() * 1500);
+      last = await postReadable(meta);
+      console.info(`[CCT] 결과 기록 확인 ${i + 1}회차: ${last}`);
+      if (last === "ok") { outboxDrop(meta.resultId); return "ok"; }
+    }
+    return last;
+  }
+  // 예전에 보내지 못한 결과를 다시 보낸다 (페이지를 열 때 한 번). 14일이 지났거나 10번 넘게 실패한 것은 버린다.
+  async function flushOutbox() {
+    if (!GS_WEBHOOK_URL) return;
+    const list = outboxRead();
+    for (const it of list) {
+      if (!it || !it.meta) continue;
+      if (Date.now() - (it.at || 0) > 14 * 864e5 || (it.tries || 0) >= 10) { outboxDrop(it.meta.resultId); continue; }
+      const r = await postReadable(Object.assign({}, it.meta, { phase: "meta", resent: true }));
+      if (r === "ok") outboxDrop(it.meta.resultId);
+      else {
+        const L = outboxRead();
+        const x = L.find((y) => y && y.meta && y.meta.resultId === it.meta.resultId);
+        if (x) { x.tries = (x.tries || 0) + 1; outboxWrite(L); }
+      }
+      await sleep(800);
+    }
+  }
+  function safeResultUrl(scores) {
+    try { return buildResultUrl(scores, userName) || ""; } catch (e) { return ""; }
+  }
+  // 1차 기록 전체 흐름: 보관 → 즉시 sendBeacon(창을 닫아도 전송) → 흩뜨린 뒤 확인될 때까지 재전송
+  function startMetaDelivery(meta) {
+    outboxPut(meta);
+    postToWebhook(meta, { beacon: true });
+    return deliverMeta(meta);
+  }
+  async function finishSaveNotice(metaPromise, meta) {
+    const r = await metaPromise;
+    if (r === "ok") { showSaveNotice("done"); return; }
+    showSaveNotice("retry", meta);
+  }
+
+  // ---------- 결과 저장 안내 (2026-10-18) ----------
+  // PDF는 휴대폰에서 만드는 데 수십 초가 걸린다. 그 사이 화면을 닫으면 결과지가 Drive에
+  // 저장되지 않으므로(10/8·10/12 사례), 저장이 끝날 때까지 안내를 띄우고 닫기 전에 한 번 묻는다.
+  let saveNoticeTimer = null;
+  function guardUnload(e) {
+    e.preventDefault();
+    e.returnValue = "";
+    return "";
+  }
+  function showSaveNotice(state, meta) {
+    let el = document.getElementById("saveNotice");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "saveNotice";
+      el.className = "save-notice";
+      el.setAttribute("role", "status");
+      el.setAttribute("aria-live", "polite");
+      document.body.appendChild(el);
+    }
+    clearTimeout(saveNoticeTimer);
+    if (state === "saving") {
+      el.innerHTML = `<span class="save-notice-spin"></span><span>결과를 저장하고 있어요. 잠시만 이 화면을 닫지 말아 주세요.</span>`;
+      el.className = "save-notice is-on";
+      window.addEventListener("beforeunload", guardUnload);
+      return;
+    }
+    window.removeEventListener("beforeunload", guardUnload);
+    if (state === "retry") {
+      el.innerHTML = `<span>결과 저장을 아직 확인하지 못했어요. 인터넷 연결을 확인한 뒤 눌러 주세요.</span><button type="button" class="save-notice-btn">다시 저장하기</button>`;
+      el.className = "save-notice is-on is-retry";
+      const btn = el.querySelector(".save-notice-btn");
+      if (btn && meta) btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "저장하는 중…";
+        const r = await postReadable(meta);
+        if (r === "ok") { outboxDrop(meta.resultId); showSaveNotice("done"); }
+        else { btn.disabled = false; btn.textContent = "다시 저장하기"; }
+      });
+      return;
+    }
+    if (state === "done") {
+      el.innerHTML = `<span class="save-notice-ok">✓</span><span>결과가 저장되었어요.</span>`;
+      el.className = "save-notice is-on is-done";
+      saveNoticeTimer = setTimeout(() => (el.className = "save-notice"), 2500);
+      return;
+    }
+    el.className = "save-notice";
+  }
+
+  // (2026-11-04) 문항별 응답 — data.js 문항 순서(01~65)대로 한 글자씩(1~5), 묻지 않은 문항은 "-".
+  // 시트 「문항응답」 탭에 저장되어 문항 신뢰도 분석(analyzeItems)에 쓰입니다.
+  function itemAnswerString() {
+    try {
+      return CCT_QUESTIONS.map((q) => {
+        const i = shuffledQuestions.indexOf(q);
+        const a = i >= 0 ? answers[i] : null;
+        return a && a.value >= 1 && a.value <= 5 ? String(a.value) : "-";
+      }).join("");
+    } catch (e) {
+      return "";
+    }
+  }
+
+  async function autoLogResult(scores, ranked, comp) {
+    if (!GS_WEBHOOK_URL) return; // logging disabled
+    if (resultLogged) return;
+    resultLogged = true;
+    const boostSt = await getBoostStatus().catch(() => null); // ④ 글자 확대 감지 결과를 "버전" 열에 함께 기록
+
+    const resultId = newResultId();
+    const meta = {
+      resultId,
+      phase: "meta",
+      name: userName || "",
+      completedAt: new Date().toISOString(),
+      appVariant: editionLabel() + boostTag(boostSt),
+      colorReading: hasReading() ? window.CR.logText(window.CR.getSelection()) : "",
+      top1: `${ranked[0].ko}(${ranked[0].en})`,
+      top2: `${ranked[1].ko}(${ranked[1].en})`,
+      top3: `${ranked[2].ko}(${ranked[2].en})`,
+      complement: `${comp.chosen.ko}(${comp.chosen.en})`,
+      // 점수(scores)는 원점수 그대로, 순위는 따로 — 동점이면 같은 점수에 다른 순위
+      ranks: ranked.reduce((obj, c) => {
+        obj[c.key] = c.rank;
+        return obj;
+      }, {}),
+      rankText: ranked.map((c) => `${c.rank}.${c.ko} ${Number(c.score).toFixed(1)}`).join(" · "),
+      tieNote: rankTieNotes(scores).concat([`보완: ${complementReasonText(ranked[0], comp)}`]).join(" / "),
+      scores: CCT_COLORS.reduce((obj, c) => {
+        obj[c.key] = scores[c.key];
+        return obj;
+      }, {}),
+      resultUrl: safeResultUrl(scores),
+      items: itemAnswerString(),
+    };
+    // Phase 1 — the row itself. Sent before the PDF build starts.
+    showSaveNotice("saving");
+    const metaDone = startMetaDelivery(meta);
+
+    // Phase 2 — the PDF, attached to the row created above.
+    try {
+      const { pdfBase64 } = await getPdfDoc(scores, ranked);
+      const bytes = Math.round((pdfBase64.length * 3) / 4);
+      if (bytes > PDF_LOG_MAX_BYTES) {
+        await postToWebhook(Object.assign({}, meta, {
+          phase: "pdf",
+          pdfError: `PDF 용량 초과 (${(bytes / 1048576).toFixed(1)}MB)`,
+        }));
+        await finishSaveNotice(metaDone, meta);
+        return;
+      }
+      const sent = await postToWebhook(Object.assign({}, meta, { phase: "pdf", pdfBytes: bytes, pdfBase64 }));
+      await finishSaveNotice(metaDone, meta);
+    } catch (err) {
+      console.warn("결과 PDF 전송 실패:", err);
+      await postToWebhook(Object.assign({}, meta, {
+        phase: "pdf",
+        pdfError: String((err && err.message) || err).slice(0, 200),
+      }));
+      await finishSaveNotice(metaDone, meta);
+    }
+  }
+
+  function buildResultActionsHTML() {
+    if (APP_VARIANT === "v2") {
+      // v2: no self-service PDF download — direct the user to visit a center
+      // in person, where the (already auto-generated) detailed PDF is provided.
+      const centerButtons = CENTER_LOCATIONS.map(
+        (loc) => `
+          <a class="btn btn-secondary btn-center" href="${loc.url}" target="_blank" rel="noopener noreferrer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.5" stroke="currentColor" stroke-width="2"/></svg>
+            ${escapeHtml(loc.name)} 지도 보기
+          </a>
+        `
+      ).join("");
+      return `
+        <div class="center-notice">
+          <div class="center-notice-title">상세 결과 PDF는 센터 방문 시 제공됩니다</div>
+          <p>13개 컬러 전체 프로파일과 상세 해석이 담긴 리포트는 온라인으로 바로 받아보실 수 없고, 아래 센터에서 진단 예약을 하고 센터로 방문하시면 안내받으실 수 있어요.</p>
+        </div>
+        <div class="result-actions">
+          ${centerButtons}
+          <button class="btn btn-secondary" id="btnRetry">다시 검사하기</button>
+        </div>
+      `;
+    }
+
+    // v1 (default): the user can download their own detailed PDF right away.
+    return `
+      <div class="result-actions">
+        <button class="btn btn-primary" id="btnPdf">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          상세 결과 PDF 다운로드
+        </button>
+        <button class="btn btn-secondary" id="btnRetry">다시 검사하기</button>
+      </div>
+      <div class="toast" id="toast">PDF를 생성하고 있습니다…</div>
+    `;
+  }
+
+  function renderResult(scores) {
+    const ranked = getRanked(scores);
+    const top1 = ranked[0];
+    const comp = getComplement(top1.key, scores, ranked);
+    // Fire-and-forget: builds the PDF and logs it to the admin's Google Sheet/
+    // Drive in the background. Runs for BOTH variants, and never blocks or
+    // breaks the result screen if it fails (see autoLogResult's own try/catch).
+    autoLogResult(scores, ranked, comp);
+
+    const resultNote =
+      APP_VARIANT === "v2"
+        ? `본 결과는 자기보고 기반 성격강점 프로파일이며<br/>정신건강·성격장애를 진단하는 임상 도구가 아닙니다.`
+        : `본 결과는 자기보고 기반 성격강점 프로파일이며<br/>정신건강·성격장애를 진단하는 임상 도구가 아닙니다.<br/>
+        ${hasReading() ? "컬러리딩과 " : ""}13개 컬러 전체 프로파일·상세 해석은<br/>아래 PDF 리포트에서 확인하실 수 있습니다.`;
+
+    const ctaLabel = APP_VARIANT === "v2" ? "센터 방문 안내 보기" : "상세 결과 PDF 다운로드";
+
+    const html = `
+      <div class="result-doc-title">CCT 컬러성격강점검사 분석 결과</div>
+
+      <div class="result-hero">
+        <p class="lead">${userName ? escapeHtml(userName) + "님의" : "나의"} 강점 컬러는</p>
+        <h1 style="color:${top1.hex}">${top1.ko}</h1>
+        <p class="strength-name">${top1.strength} · ${top1.en}</p>
+      </div>
+
+      <section class="rs-block">
+        <h2 class="rs-title">한눈에 보는 내 결과</h2>
+        <div class="quick-grid">${buildQuickCardsHTML(ranked, comp)}</div>
+        ${buildQuickFactsHTML(ranked, comp, "아래에서 13개 컬러 전체 프로파일과 상세 해석을 확인하실 수 있습니다.")}
+        ${tieNotesHTML(scores)}
+      </section>
+
+      <section class="rs-block">
+        <h2 class="rs-title">13개 컬러 프로파일</h2>
+        <div class="rs-radar-card">${buildRadarChartHTML(scores)}</div>
+        <button type="button" class="rs-toggle js-toggle" aria-expanded="false" aria-controls="rsScores" data-target="rsScores">
+          <span class="cs-toggle-label">컬러별 상세 점수 보기</span>
+          <span class="cs-toggle-icon" aria-hidden="true">▾</span>
+        </button>
+        <div class="rs-panel" id="rsScores">
+          <div class="bar-chart">${ranked.map((c, i) => buildScoreBarRowHTML(c, i)).join("")}</div>
+        </div>
+      </section>
+
+      <section class="rs-block">
+        <h2 class="rs-title">핵심 강점 컬러</h2>
+        ${buildColorSectionScreenHTML(top1, "핵심 강점 컬러", "rsTop1")}
+      </section>
+
+      <section class="rs-block" id="rsComplement">
+        <h2 class="rs-title">보완 컬러</h2>
+        <p class="rs-note">${COMP_DEFINITION}</p>
+        <p class="rs-note rs-note--sub">${escapeHtml(complementReasonText(top1, comp))}</p>
+        ${buildColorSectionScreenHTML(comp.chosen, "앞으로 더 활용해볼 자원", "rsComp", { comp: true })}
+      </section>
+
+      <p class="result-note">
+        ${resultNote}
+      </p>
+
+      ${buildResultActionsHTML()}
+
+      <div class="rs-cta-bar" id="rsCtaBar">
+        <button type="button" class="btn btn-primary" id="btnCta">${ctaLabel}</button>
+      </div>
+    `;
+
+    resultWrap.innerHTML = html;
+
+    if (hasReading()) {
+      const reading = window.CR.buildReading(window.CR.getSelection(), userName);
+      const titleEl = resultWrap.querySelector(".result-doc-title");
+      if (reading && titleEl) titleEl.insertAdjacentHTML("afterend", window.CR.buildScreenHTML(reading));
+      if (reading && titleEl) window.CR.bindScreen(resultWrap);
+    }
+
+    document.getElementById("btnRetry").addEventListener("click", resetApp);
+    const btnPdf = document.getElementById("btnPdf");
+    if (btnPdf) btnPdf.addEventListener("click", (e) => downloadPdf(scores, ranked, e.currentTarget));
+
+    bindDisclosureToggles(resultWrap);
+    fitRadarToWidth(resultWrap);
+    bindResultCta(scores, ranked);
+
+    if (!renderResult._resizeBound) {
+      renderResult._resizeBound = true;
+      window.addEventListener("resize", () => fitRadarToWidth(resultWrap));
+    }
+  }
+
+  // ---------- 컬러리딩 단독 결과 ----------
+  function renderReadingResult() {
+    const reading = window.CR.buildReading(window.CR.getSelection(), userName);
+    autoLogReading();
+    resultWrap.innerHTML = `
+      <div class="result-doc-title">컬러리딩 결과</div>
+      ${window.CR.buildScreenHTML(reading, { standalone: true })}
+      <p class="result-note">
+        컬러리딩은 진단이 아닌, 지금의 마음을 함께 읽어보는 대화의 도구입니다.<br/>
+        전체 리딩은 아래 PDF 리포트로 받아보실 수 있습니다.
+      </p>
+      ${buildResultActionsHTML()}
+      <div class="rs-cta-bar" id="rsCtaBar">
+        <button type="button" class="btn btn-primary" id="btnCta">컬러리딩 PDF 다운로드</button>
+      </div>
+    `;
+    const pdfBtn = document.getElementById("btnPdf");
+    if (pdfBtn) {
+      pdfBtn.lastChild.textContent = " 컬러리딩 PDF 다운로드";
+      pdfBtn.addEventListener("click", (e) => downloadPdf(null, null, e.currentTarget));
+    }
+    document.getElementById("btnRetry").addEventListener("click", resetApp);
+    window.CR.bindScreen(resultWrap);
+    bindResultCta(null, null);
+  }
+
+  async function autoLogReading() {
+    if (!GS_WEBHOOK_URL) return;
+    if (resultLogged) return;
+    resultLogged = true;
+    const boostSt = await getBoostStatus().catch(() => null); // ④ 글자 확대 감지 결과를 "버전" 열에 함께 기록
+    const resultId = newResultId();
+    const meta = {
+      resultId,
+      phase: "meta",
+      name: userName || "",
+      completedAt: new Date().toISOString(),
+      appVariant: editionLabel() + boostTag(boostSt),
+      colorReading: window.CR.logText(window.CR.getSelection()),
+      top1: "", top2: "", top3: "", complement: "",
+      scores: {},
+      resultUrl: safeResultUrl(null),
+    };
+    showSaveNotice("saving");
+    const metaDone = startMetaDelivery(meta);
+    try {
+      const { pdfBase64 } = await getPdfDoc(null, null);
+      const bytes = Math.round((pdfBase64.length * 3) / 4);
+      if (bytes > PDF_LOG_MAX_BYTES) {
+        await postToWebhook(Object.assign({}, meta, { phase: "pdf", pdfError: `PDF 용량 초과 (${(bytes / 1048576).toFixed(1)}MB)` }));
+        await finishSaveNotice(metaDone, meta);
+        return;
+      }
+      const sent = await postToWebhook(Object.assign({}, meta, { phase: "pdf", pdfBytes: bytes, pdfBase64 }));
+      await finishSaveNotice(metaDone, meta);
+    } catch (err) {
+      console.warn("컬러리딩 PDF 전송 실패:", err);
+      await postToWebhook(Object.assign({}, meta, { phase: "pdf", pdfError: String((err && err.message) || err).slice(0, 200) }));
+      await finishSaveNotice(metaDone, meta);
+    }
+  }
+
+  // Expand/collapse handlers for every .js-toggle in the result screen.
+  function bindDisclosureToggles(root) {
+    root.querySelectorAll(".js-toggle").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const panel = document.getElementById(btn.dataset.target);
+        if (!panel) return;
+        const open = panel.classList.toggle("is-open");
+        btn.classList.toggle("is-open", open);
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        const label = btn.querySelector(".cs-toggle-label");
+        if (label) label.textContent = label.textContent.replace(open ? "보기" : "접기", open ? "접기" : "보기");
+      });
+    });
+  }
+
+  // The radar chart is authored at a fixed 356px square (it has to be, because
+  // its labels are absolutely positioned at computed coordinates). On narrow
+  // phones that overflows the 24px-padded column, so scale the whole thing down
+  // to fit and shrink its container to match the scaled height.
+  //
+  // NOTE renderResult() runs while #screen-result is still display:none (see
+  // finishQuiz: render first, then showScreen), so on the first call every
+  // measurement is 0. Retry on subsequent frames until the element actually has
+  // a width, and re-fit on resize/orientation change.
+  function fitRadarToWidth(root, attempt) {
+    const card = root.querySelector(".rs-radar-card");
+    const wrap = card && card.querySelector(".radar-wrap");
+    if (!card || !wrap) return;
+
+    const natural = wrap.offsetWidth || 356;
+    const available = card.clientWidth - 16; // card's own horizontal padding
+    if (available <= 0) {
+      // not laid out yet — try again next frame (bounded, so a permanently
+      // hidden screen can never spin forever)
+      const next = (attempt || 0) + 1;
+      if (next < 30) requestAnimationFrame(() => fitRadarToWidth(root, next));
+      return;
+    }
+
+    const scale = Math.min(1, available / natural);
+    wrap.style.transformOrigin = "top center";
+    wrap.style.transform = scale < 1 ? `scale(${scale})` : "";
+    card.style.height = Math.round(natural * scale) + 16 + "px";
+  }
+
+  // Floating bottom CTA: gives the primary action a permanent home on a page
+  // that is otherwise several screens tall. It hides itself once the real
+  // action buttons at the bottom scroll into view, so the two never stack up.
+  function bindResultCta(scores, ranked) {
+    const bar = document.getElementById("rsCtaBar");
+    const cta = document.getElementById("btnCta");
+    const actions = resultWrap.querySelector(".result-actions");
+    if (!bar || !cta) return;
+
+    cta.addEventListener("click", (e) => {
+      if (APP_VARIANT === "v2") {
+        const target = resultWrap.querySelector(".center-notice") || actions;
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        downloadPdf(scores, ranked, e.currentTarget);
+      }
+    });
+
+    if (actions && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver(
+        (entries) => entries.forEach((en) => bar.classList.toggle("is-hidden", en.isIntersecting)),
+        { threshold: 0.1 }
+      );
+      io.observe(actions);
+    }
+  }
+
+  // ---------- Detailed PDF report ----------
+  // Shared by the profile page's quick summary AND the later "6대 상위
+  // 강점영역" flexible block, so both always agree on the same ranking.
+  function computeDomainScores(scores) {
+    return CCT_DOMAINS.map((d) => {
+      const vals = d.colors.map((k) => scores[k]);
+      return { ...d, value: vals.reduce((a, b) => a + b, 0) / vals.length };
+    }).sort((a, b) => b.value - a.value);
+  }
+
+  // Replaces the raw 13-color bar list that used to sit at the bottom of the
+  // profile/overview page — that page is meant to be a skimmable "profile",
+  // and a wall of 13 bars didn't read that way. This condenses the same
+  // profile down to what actually matters at a glance (TOP3 + complement,
+  // the single highest domain, and the two axis leanings); the full
+  // color-by-color bar list still exists, just moved to a dedicated section
+  // at the very end of the report (see buildReportBlocks) instead of living
+  // here.
+  // The four TOP1-3 + complement stat cards. Shared by the PDF's profile page
+  // and the on-screen result, so both always show the same four colors.
+  function buildQuickCardsHTML(ranked, comp) {
+    // Labels say "강점" / "보완 컬러" outright — plain "TOP1/TOP2/TOP3" left
+    // readers thinking these were just "my colors" rather than strength colors.
+    // A color can be BOTH a TOP3 strength and the complement (~2.5% of results;
+    // in 72% of those the alternate candidate is also a top strength, so
+    // swapping colors doesn't fix it). Rendering it twice looked like a bug, so
+    // the two labels are merged onto one card instead of duplicating it.
+    const topKeys = ranked.slice(0, 3).map((c) => c.key);
+    const compIsTop = topKeys.indexOf(comp.chosen.key);
+    const cards = ranked.slice(0, 3).map((c, i) => ({
+      rank: i === compIsTop ? `강점 TOP${i + 1} · 보완` : `강점 TOP${i + 1}`,
+      dual: i === compIsTop,
+      c,
+    }));
+    if (compIsTop === -1) cards.push({ rank: "보완 컬러", dual: false, c: comp.chosen });
+    return cards
+      .map(
+        ({ rank, c, dual }) => `
+        <div class="quick-card${dual ? " qc-dual" : ""}">
+          <div class="qc-rank">${rank}</div>
+          <div class="qc-dot" style="background:${c.hex}"></div>
+          <div class="qc-name">${escapeHtml(c.ko)}</div>
+          <div class="qc-strength">${escapeHtml(c.strength)}</div>
+          <div class="qc-score">${c.score.toFixed(1)} / 5.0</div>
+        </div>
+      `
+      )
+      .join("");
+  }
+
+  // One-paragraph recap that narrates EXACTLY the four cards shown directly
+  // above it (TOP1, TOP2, TOP3, complement) and nothing else. It used to talk
+  // about the 6대 강점영역 average and the two reference axes instead — numbers
+  // that appear nowhere in those cards — which made the paragraph read as if it
+  // belonged to a different section. Keep this paragraph tied to the cards:
+  // if it mentions a figure, that figure should be visible right above it.
+  function buildQuickFactsHTML(ranked, comp, tailText) {
+    const t1 = ranked[0];
+    const t2 = ranked[1];
+    const t3 = ranked[2];
+    const cp = comp.chosen;
+    const nm = (c) => `<b>${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</b>`;
+
+    // The complement is picked from TOP1's theoretical contrast pair, which is
+    // NOT guaranteed to sit outside the TOP3 — so the same color can legitimately
+    // appear as both a strength and the complement. Saying "아직 덜 활용되고
+    // 있다" about a color the reader just saw ranked in their TOP3 reads as a
+    // flat contradiction, so that case gets its own honest phrasing instead.
+    const compIsAlsoStrength = ranked.slice(0, 3).some((c) => c.key === cp.key);
+    const compLine = compIsAlsoStrength
+      ? `${nm(cp)}${josa(cp.strength, "은", "는")} 강점으로도 나타났고, 동시에 ${escapeHtml(t1.ko)}의 힘이 한쪽으로 과도하게 쓰일 때 균형을 잡아 주는 보완 컬러이기도 합니다. 이미 갖고 있는 자원인 만큼, 상황에 따라 의식적으로 꺼내 쓰면 주강점을 더 건강하게 활용할 수 있습니다.`
+      : `${nm(cp)}${josa(cp.strength, "은", "는")} ${escapeHtml(t1.ko)}의 힘이 한쪽으로 과도하게 쓰일 때 균형을 잡아 주는 보완 컬러로, 의식적으로 꺼내 쓸수록 주강점을 더 건강하게 활용할 수 있습니다.`;
+
+    return `
+      <div class="quick-facts">
+        가장 뚜렷하게 드러난 강점 컬러는 ${nm(t1)}입니다. ${escapeHtml(t1.core)}${josa(t1.core, "이", "가")} 지금의 나를 이끄는 중심축으로 나타났습니다.
+        여기에 ${nm(t2)}, ${nm(t3)}${josa(t3.strength, "이", "가")} 함께 작동하면서 ${escapeHtml(t1.ko)}의 강점을 한층 입체적으로 받쳐 줍니다.
+        ${compLine}
+        ${tailText}
+      </div>
+    `;
+  }
+
+  function buildProfileQuickSummaryHTML(ranked, comp, scores) {
+    return `
+      <div class="quick-summary">
+        <div class="section-subtitle">한눈에 보는 요약</div>
+        <div class="quick-grid">${buildQuickCardsHTML(ranked, comp)}</div>
+        ${buildQuickFactsHTML(ranked, comp, '13개 컬러 전체 점수는 리포트 맨 뒤 "컬러별 상세 점수"에서 확인하실 수 있습니다.')}
+        ${tieNotesHTML(scores)}
+      </div>
+    `;
+  }
+
+  // One 13-color score bar. Single source of truth for the row markup: the PDF
+  // appendix maps it into an array (so it can chunk 5-per-block across pages),
+  // the on-screen panel just joins them all together.
+  function buildScoreBarRowHTML(c, i) {
+    const pct = Math.max(4, ((c.score - 1) / 4) * 100);
+    return `
+      <div class="bar-row ${i < 3 ? "is-top" : ""}">
+        <div class="label-line">
+          <div class="name"><span class="swatch" style="background:${c.hex}"></span>${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</div>
+          <div class="score">${c.score.toFixed(1)} / 5.0</div>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${c.hex}"></div></div>
+      </div>
+    `;
+  }
+
+  // Relationship-fit read for the TOP1+TOP2 combo: which colors tend to click
+  // easily vs. which tend to feel a little friction-prone, plus what synergy
+  // and what to watch for in each case. Grounded in data already established
+  // elsewhere in the report rather than inventing new relationships:
+  // "잘 맞는 컬러" = other colors sharing TOP1/TOP2's 6대 영역 (CCT_DOMAINS) —
+  // a similar value orientation reads as easy rapport. "불편할 수 있는 컬러" =
+  // TOP1's CCT_COMPLEMENT_MAP candidates — the same "psychologically
+  // contrasting orientation" pairing already used for the complement deep-dive,
+  // reframed here for how it can feel in a relationship rather than personal growth.
+  // Takes the full ranked list: the fit columns are driven by TOP1/TOP2, but
+  // the closing "내 강점이 상대에게 닿는 방식" cards cover all three.
+  function buildRelationshipFitHTML(ranked, opts) {
+    const top1 = ranked[0];
+    const top2 = ranked[1];
+    const domainOf = (key) => CCT_DOMAINS.find((d) => d.colors.includes(key));
+    const top1Domain = domainOf(top1.key);
+    const top2Domain = domainOf(top2.key);
+
+    const domainKeys = Array.from(
+      new Set([...(top1Domain ? top1Domain.colors : []), ...(top2Domain ? top2Domain.colors : [])])
+    ).filter((k) => k !== top1.key && k !== top2.key);
+    const complementKeys = CCT_COMPLEMENT_MAP[top1.key] || [];
+
+    // A color can legitimately qualify for BOTH lists: it shares a 강점영역
+    // with TOP1/TOP2 (so values line up) while ALSO being TOP1's theoretical
+    // contrast pair (so pace and priorities differ). That happens in 46 of the
+    // 156 possible TOP1+TOP2 pairings, and printing the same color under both
+    // headings reads as a contradiction — so the overlap is pulled out into its
+    // own honestly-labelled group instead of being silently assigned to one.
+    const bothKeys = domainKeys.filter((k) => complementKeys.includes(k));
+    const goodKeys = domainKeys.filter((k) => !bothKeys.includes(k));
+    const frictionKeys = complementKeys.filter((k) => !bothKeys.includes(k));
+
+    const goodColors = goodKeys.map((k) => cctColorByKey(k));
+    const frictionColors = frictionKeys.map((k) => cctColorByKey(k));
+    const bothColors = bothKeys.map((k) => cctColorByKey(k));
+
+    const domainNames = Array.from(
+      new Set([top1Domain && top1Domain.name, top2Domain && top2Domain.name].filter(Boolean))
+    ).join(", ");
+
+    const chipRow = (colors) =>
+      colors
+        .map((c) => `<span class="fit-chip" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)}</span>`)
+        .join("");
+
+    // Dedup can empty either column (8 pairings leave no "잘 맞을" color, 3 leave
+    // no "불편할" color), so both sides fall back to an explanation rather than
+    // rendering an empty chip row.
+    const goodBody = goodColors.length
+      ? `<div class="fit-chips">${chipRow(goodColors)}</div>
+         <p class="fit-text">${escapeHtml(top1.ko)}·${escapeHtml(top2.ko)}${josa(top2.ko, "과", "와")} 같은 '${escapeHtml(
+          domainNames
+        )}' 영역에 속한 컬러들입니다. 가치관과 접근 방식의 결이 비슷해 대화가 자연스럽게 통하고, 서로를 이해하는 데 큰 노력이 들지 않는 편입니다. 다만 비슷한 성향끼리는 놓치는 부분도 비슷할 수 있어, 가끔은 다른 관점을 가진 사람을 의도적으로 곁에 두는 것도 도움이 됩니다.</p>`
+      : `<p class="fit-text">내 TOP 컬러와 같은 영역에 속하면서 아래 '양면적' 조건에 걸리지 않는 컬러가 이번 결과에는 없습니다. 같은 영역의 컬러가 모두 ${escapeHtml(
+          top1.ko
+        )}의 대비 짝과 겹쳤기 때문이며, 관계가 나쁘다는 뜻이 아닙니다.</p>`;
+
+    const frictionBody = frictionColors.length
+      ? `<div class="fit-chips">${chipRow(frictionColors)}</div>
+         <p class="fit-text">${escapeHtml(top1.ko)}${josa(top1.ko, "과", "와")} 심리적으로 대비되는 지향을 가진 컬러들입니다. 일하는 속도나 우선순위를 정하는 기준이 달라 처음에는 다소 부딪히거나 답답하게 느껴질 수 있습니다. 다만 이 차이 덕분에 ${escapeHtml(
+          top1.ko
+        )} 혼자서는 놓치기 쉬운 지점을 채워줄 수 있으니, 불편함 자체보다 "무엇을 다르게 보고 있는지"를 먼저 확인하는 태도가 도움이 됩니다.</p>`
+      : `<p class="fit-text">${escapeHtml(
+          top1.ko
+        )}의 대비 짝이 모두 아래 '양면적' 그룹에 포함되어, 일방적으로 불편하기만 한 컬러는 이번 결과에 없습니다.</p>`;
+
+    const bothBlock = bothColors.length
+      ? `
+        <div class="fit-col fit-mixed">
+          <div class="fit-label">양면적으로 작용할 수 있는 사람 (해당 컬러가 강점인 사람)</div>
+          <div class="fit-chips">${chipRow(bothColors)}</div>
+          <p class="fit-text">위 두 조건에 동시에 해당하는 컬러입니다. 나와 같은 '${escapeHtml(
+            domainNames
+          )}' 영역에 속해 지향하는 가치와 대화의 결은 잘 맞지만, 동시에 ${escapeHtml(top1.ko)}${josa(
+          top1.ko,
+          "과",
+          "와"
+        )} 심리적으로 대비되는 짝이기도 합니다. 큰 방향에는 쉽게 합의가 되는데 그 방향을 어떤 속도와 순서로 갈지에서는 의견이 갈리기 쉬운 관계로, 목표에 먼저 합의한 뒤 방법을 조율하면 서로의 빈틈을 잘 메워주는 조합이 됩니다.</p>
+        </div>
+      `
+      : "";
+
+    // What each listed person actually brings, one line per color straight from
+    // that color's own healthy[] entry — so the chips above are more than a
+    // bare list of names.
+    const bringRow = (colors) =>
+      colors
+        .map(
+          (c) => `
+          <div class="fit-bring">
+            <span class="fit-bring-dot" style="background:${c.hex}"></span>
+            <span class="fit-bring-name">${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</span>
+            <span class="fit-bring-text">${escapeHtml((c.healthy || [])[0] || "")}</span>
+          </div>`
+        )
+        .join("");
+
+    const allListed = [...goodColors, ...bothColors, ...frictionColors];
+    const bringBlock = allListed.length
+      ? `
+        <div class="fit-extra">
+          <div class="section-subtitle">이 사람들이 관계에 가져오는 것</div>
+          <p class="section-desc">위에 나온 각 컬러가 강점인 사람이 관계에서 실제로 잘 해내는 일입니다. 잘 맞는 쪽이든 불편한 쪽이든, 상대가 무엇을 잘하는지 알고 있으면 대화의 출발점이 달라집니다.</p>
+          <div class="fit-brings">${bringRow(allListed)}</div>
+        </div>
+      `
+      : "";
+
+    // How the reader's own top strengths can land on the other side — all three
+    // TOP colors, each with its own card. The "이렇게 비칠 수 있어요" lines are
+    // that color's overuse entries (the guide already phrases them in
+    // interpersonal terms) and the closing line is one of its healthy entries,
+    // so each card shows the same strength's two faces rather than only the
+    // negative one.
+    const effectCards = ranked
+      .slice(0, 3)
+      .map((c, i) => {
+        const overs = (c.overuse || [])
+          .slice(0, 2)
+          .map((o) => `<li>${escapeHtml(o)}</li>`)
+          .join("");
+        const healthyLine = (c.healthy || [])[1] || (c.healthy || [])[0] || "";
+        return `
+          <div class="fx-card">
+            <div class="fx-head">
+              <span class="fx-tag" style="background:${c.hex};color:${getContrastText(c.hex)}">TOP${i + 1} · ${escapeHtml(
+          c.ko
+        )}</span>
+              <span class="fx-strength">${escapeHtml(c.strength)}</span>
+            </div>
+            <div class="fx-sub">과하게 나올 때 상대가 겪을 수 있는 일</div>
+            <ul class="fx-list">${overs}</ul>
+            <div class="fx-good">건강하게 작동할 때는 — ${escapeHtml(healthyLine)}</div>
+          </div>`;
+      })
+      .join("");
+    const myEffectBlock = `
+        <div class="fit-extra">
+          <div class="section-subtitle">내 강점이 상대에게 닿는 방식</div>
+          <p class="section-desc">관계의 어려움은 상대의 성향만이 아니라 내 강점이 과하게 나올 때도 생깁니다. 같은 강점이라도 조절되면 상대에게 도움이 되고, 지나치면 부담이 됩니다. TOP 3 강점 각각의 두 얼굴을 정리했습니다.</p>
+          <div class="fx-grid">${effectCards}</div>
+        </div>
+      `;
+
+    // Where the reader and each friction-side color are literally looking at
+    // different things — both halves are the two colors' own core definitions,
+    // put next to each other. Names the source of the friction instead of just
+    // labelling it "불편할 수 있음".
+    const diffColors = [...frictionColors, ...bothColors];
+    const diffRows = diffColors
+      .map(
+        (c) => `
+        <div class="fit-diff-row">
+          <div class="fit-diff-who"><span class="fit-bring-dot" style="background:${c.hex}"></span>${escapeHtml(c.ko)}</div>
+          <div class="fit-diff-cols">
+            <div class="fit-diff-cell"><span class="fit-diff-tag">나</span>${escapeHtml(top1.core)}</div>
+            <div class="fit-diff-cell"><span class="fit-diff-tag">상대</span>${escapeHtml(c.core)}</div>
+          </div>
+        </div>`
+      )
+      .join("");
+    const diffBlock = diffColors.length
+      ? `
+        <div class="fit-extra">
+          <div class="section-subtitle">서로 다르게 보고 있는 지점</div>
+          <p class="section-desc">부딪힘의 원인은 대개 성격이 아니라 무엇을 먼저 보느냐의 차이입니다. 내 TOP1 강점과 상대 강점이 각각 무엇에 초점을 두는지 나란히 놓았습니다.</p>
+          <div class="fit-diffs">${diffRows}</div>
+        </div>
+      `
+      : "";
+
+    // Optionally returned in two page-sized pieces: as one block this section
+    // measured 306mm against a 261mm usable page — the worst overflow in the
+    // report — and its closing cards were clipped off the sheet entirely.
+    const partOne = `
+      <div class="fit-block">
+        <div class="fit-col fit-good">
+          <div class="fit-label">잘 맞을 수 있는 사람 (해당 컬러가 강점인 사람)</div>
+          ${goodBody}
+        </div>
+        <div class="fit-col fit-friction">
+          <div class="fit-label">다소 불편하게 느껴질 수 있는 사람 (해당 컬러가 강점인 사람)</div>
+          ${frictionBody}
+        </div>
+      </div>
+      ${bothBlock}
+      ${bringBlock}
+    `;
+    // 2026-10-08: 「서로 다르게 보고 있는 지점」은 결과에서 뺌 (선생님 요청, v1~v3 공통)
+    // 2026-10-08: 「내 강점이 상대에게 닿는 방식」도 결과에서 뺌 (선생님 요청, v1~v3 공통)
+    const partTwo = "";
+
+    const part = opts && opts.part;
+    if (part === 1) return partOne;
+    if (part === 2) return partTwo;
+    return partOne + partTwo;
+  }
+
+  // Side-by-side "at a glance" comparison of the reader's single strongest
+  // color against their complement. Straight from the guide data — score, core
+  // definition, domain group, a healthy expression and an overuse warning —
+  // so the two profiles can be read against each other in one pass instead of
+  // being scattered across two separate sections.
+  function buildColorCompareTableHTML(top1, comp) {
+    const rows = [
+      ["점수", `${top1.score.toFixed(1)} / 5.0`, `${comp.score.toFixed(1)} / 5.0`],
+      ["핵심 정의", top1.core, comp.core],
+      ["속한 강점영역", top1.group, comp.group],
+      ["잘 드러나는 모습", (top1.healthy || [])[0] || "", (comp.healthy || [])[0] || ""],
+      ["지나칠 때", (top1.overuse || [])[0] || "", (comp.overuse || [])[0] || ""],
+      ["스스로 점검할 질문", top1.growthQuestion, comp.growthQuestion],
+    ];
+    const head = (c, role) => `
+      <div class="cmp-col-head">
+        <div class="cmp-role">${escapeHtml(role)}</div>
+        <div class="cmp-name"><span class="cmp-dot" style="background:${c.hex}"></span>${escapeHtml(c.ko)} · ${escapeHtml(
+      c.strength
+    )}</div>
+      </div>`;
+    const body = rows
+      .map(
+        ([label, a, b]) => `
+        <div class="cmp-row">
+          <div class="cmp-label">${escapeHtml(label)}</div>
+          <div class="cmp-val cmp-val-a">${escapeHtml(a)}</div>
+          <div class="cmp-val cmp-val-b">${escapeHtml(b)}</div>
+        </div>`
+      )
+      .join("");
+    return `
+      <div class="cmp-table">
+        <div class="cmp-row cmp-header">
+          <div class="cmp-label"></div>
+          <div class="cmp-val">${head(top1, "강점 컬러")}</div>
+          <div class="cmp-val">${head(comp, "보완 컬러")}</div>
+        </div>
+        ${body}
+      </div>
+    `;
+  }
+
+  // ---------- 강점 컬러 × 보완 컬러의 균형 ----------
+  // Pairs the reader's single strongest color with their complement and spells
+  // out what the two produce together. Every sentence is assembled from fields
+  // that already exist for those two colors in the guide data (core / healthy /
+  // overuse / actions / growthQuestion) — this section introduces no new
+  // psychological claim of its own, it just puts the existing two profiles
+  // side by side and names the trade they make.
+  function buildStrengthBalanceHTML(top1, comp) {
+    const chip = (c) =>
+      `<span class="syn-chip" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)} · ${escapeHtml(
+        c.strength
+      )}</span>`;
+
+    const pick = (arr, i) => (arr && arr[i] ? arr[i] : "");
+    const steps = [
+      pick(top1.actions, 0),
+      pick(comp.actions, 0),
+      `중요한 결정 앞에서는 "${escapeHtml(top1.growthQuestion)}"와 "${escapeHtml(comp.growthQuestion)}"를 나란히 놓고 점검해봅니다.`,
+    ].filter(Boolean);
+
+    return `
+      <div class="syn-wrap">
+        <div class="syn-pair">${chip(top1)}<span class="syn-plus">+</span>${chip(comp)}</div>
+
+        <div class="syn-row">
+          <div class="syn-label">두 컬러가 함께 만드는 힘</div>
+          <p class="syn-text">${escapeHtml(top1.ko)}${josa(top1.ko, "은", "는")} '${escapeHtml(top1.core)}'${josa(
+      top1.core,
+      "이",
+      "가"
+    )} 중심이고, ${escapeHtml(comp.ko)}${josa(comp.ko, "은", "는")} '${escapeHtml(comp.core)}'${josa(
+      comp.core,
+      "이",
+      "가"
+    )} 중심입니다. 방향이 서로 반대이기 때문에, 한쪽이 놓치는 지점을 다른 쪽이 정확히 메워줍니다. ${escapeHtml(
+      top1.ko
+    )}${euro(top1.ko)} 일을 움직이고 ${escapeHtml(comp.ko)}${euro(
+      comp.ko
+    )} 그 움직임을 다듬는 흐름이 만들어질 때, 속도와 완성도를 동시에 챙기는 조합이 됩니다.</p>
+        </div>
+
+        <div class="syn-row">
+          <div class="syn-label">균형이 무너질 때 생기는 일</div>
+          <p class="syn-text">${escapeHtml(top1.ko)}에만 기대면 ${escapeHtml(
+      (pick(top1.overuse, 0) || "").replace(/\.$/, "")
+    )}. 이때 ${escapeHtml(comp.ko)}의 '${escapeHtml(comp.core)}'${josa(
+      comp.core,
+      "이",
+      "가"
+    )} 제동 장치가 되어 줍니다. 반대로 ${escapeHtml(comp.ko)} 쪽으로만 기울면 ${escapeHtml(
+      (pick(comp.overuse, 0) || "").replace(/\.$/, "")
+    )}. 두 컬러 중 어느 쪽도 정답이 아니라, 상황에 따라 비중을 바꿔 쓰는 것이 핵심입니다.</p>
+        </div>
+
+        <div class="syn-row">
+          <div class="syn-label">이렇게 번갈아 써보세요</div>
+          <ul class="syn-list">${steps.map((s) => `<li>${escapeHtml(s).replace(/&quot;/g, '"')}</li>`).join("")}</ul>
+        </div>
+
+      </div>
+    `;
+  }
+
+  // Radar/spider chart of all 13 colors (SVG shapes only — labels are absolutely
+  // positioned HTML so html2canvas renders the Korean text reliably).
+  function buildRadarChartHTML(scores) {
+    const n = CCT_COLORS.length;
+    const maxR = 100;
+    const labelR = maxR + 22;
+    const textPad = 56;
+    const half = labelR + textPad;
+    const W = half * 2, H = half * 2;
+    const cx = half, cy = half;
+    const angleStep = (2 * Math.PI) / n;
+    const levels = 4;
+
+    function pt(i, frac) {
+      const angle = -Math.PI / 2 + i * angleStep;
+      const r = frac * maxR;
+      return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+    }
+
+    let gridPolys = "";
+    for (let l = 1; l <= levels; l++) {
+      const frac = l / levels;
+      const pts = CCT_COLORS.map((c, i) => pt(i, frac).join(",")).join(" ");
+      gridPolys += `<polygon points="${pts}" fill="none" stroke="#e7e5ec" stroke-width="1"/>`;
+    }
+    let axisLines = "";
+    CCT_COLORS.forEach((c, i) => {
+      const [x, y] = pt(i, 1);
+      axisLines += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e7e5ec" stroke-width="1"/>`;
+    });
+
+    const dataPts = CCT_COLORS.map((c, i) => {
+      const frac = Math.max(0.04, Math.min(1, (scores[c.key] - 1) / 4));
+      return pt(i, frac);
+    });
+    const dataPolygon = dataPts.map((p) => p.join(",")).join(" ");
+    const dots = CCT_COLORS.map((c, i) => {
+      const [x, y] = dataPts[i];
+      return `<circle cx="${x}" cy="${y}" r="3.4" fill="${c.hex}" stroke="#fff" stroke-width="1.2"/>`;
+    }).join("");
+
+    const labels = CCT_COLORS.map((c, i) => {
+      const [x, y] = pt(i, labelR / maxR);
+      const dx = x - cx;
+      let justify = "center", translateX = "-50%";
+      if (dx < -6) { justify = "flex-end"; translateX = "-100%"; }
+      else if (dx > 6) { justify = "flex-start"; translateX = "0%"; }
+      return `<div class="radar-label" style="left:${x}px;top:${y}px;transform:translate(${translateX},-50%);justify-content:${justify}">
+        <span class="radar-label-name">${escapeHtml(c.ko)}</span><span class="radar-label-score">${scores[c.key].toFixed(1)}</span>
+      </div>`;
+    }).join("");
+
+    return `
+      <div class="radar-wrap" style="width:${W}px;height:${H}px;">
+        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+          ${gridPolys}
+          ${axisLines}
+          <polygon points="${dataPolygon}" fill="rgba(77,90,158,0.16)" stroke="#4D5A9E" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          ${dots}
+        </svg>
+        ${labels}
+      </div>
+    `;
+  }
+
+  // Strength / complement summary card (mirrors the "강점지능·약점지능" style
+  // reference the user shared — but per the CCT guide's ipsative framing we
+  // always call the lower end "보완 컬러" (growth resource), never "약점"/weakness).
+  //
+  // IMPORTANT: "보완 컬러" here is the SAME color as the deep-dive section below
+  // (comp.chosen, from getComplement()/CCT_COMPLEMENT_MAP) — a pre-designed
+  // theoretical counterpart to the TOP1 strength (CCT 해석 가이드 5장 표), NOT
+  // simply whichever of the 13 colors scored lowest. Keeping this card and the
+  // deep-dive section pointing at the same color avoids the report naming two
+  // different colors "보완 컬러" in two places.
+  function buildProfileSummaryHTML(ranked, top1, comp) {
+    const top = ranked.slice(0, 2);
+    const topNames = top.map((c) => `${c.ko} · ${c.strength}`).join(", ");
+    const topText = `현재 13개 컬러 중 ${top.map((c) => c.ko).join("·")}${josa(top[top.length - 1].ko, "이", "가")} 상대적으로 높게 나타났습니다. ${top
+      .map((c) => c.core)
+      .join(", ")} 등을 일상에서 비교적 자연스럽게 활용하고 있는 것으로 보입니다.`;
+
+    const compColor = comp.chosen;
+    const compText = `${top1.ko}(${top1.strength})의 '${top1.core}'${josa(top1.core, "이", "가")} 한쪽으로 과도하게 쓰일 때 균형을 잡아 주는 강점 자원입니다. ${compColor.ko}의 '${compColor.core}'${josa(compColor.core, "을", "를")} 의도적으로 함께 써 보면 ${top1.ko}의 강점을 더욱 건강하게 활용할 수 있습니다.`;
+
+    return `
+      <div class="rp-summary-card">
+        <div class="rp-summary-row is-strength">
+          <div class="rp-summary-label">강점 컬러</div>
+          <div class="rp-summary-body">
+            <h4>${escapeHtml(topNames)}</h4>
+            <p>${escapeHtml(topText)}</p>
+          </div>
+        </div>
+        <div class="rp-summary-row is-growth">
+          <div class="rp-summary-label">보완 컬러</div>
+          <div class="rp-summary-body">
+            <h4>${escapeHtml(`${compColor.ko} · ${compColor.strength}`)}</h4>
+            <p>${escapeHtml(compText)}</p>
+            <p class="rp-summary-note">※ ${COMP_DEFINITION} 선택 근거는 아래 "보완 컬러 심층 분석"에서 설명합니다.</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Explains WHY this specific color was chosen as the complement — the
+  // psychological rationale behind the pre-designed pairing, not a "your
+  // lowest score" statement. Built from each color's own `core` description so
+  // every TOP1×complement combination gets its own coherent contrast, rather
+  // than one generic boilerplate sentence.
+  function buildComplementRationaleHTML(top1, compColor, comp) {
+    const reason = comp ? complementReasonText(top1, comp) : "";
+    return `
+      <div class="comp-rationale">
+        <div class="comp-rationale-label">왜 이 컬러가 보완 컬러인가요?</div>
+        <p>${COMP_DEFINITION}</p>
+        ${reason ? `<p class="comp-rationale-reason">${escapeHtml(reason)}</p>` : ""}
+      </div>
+    `;
+  }
+
+  // ---------- TOP3 comparison + growth-focused complement + action guide ----------
+  // Enneagram-style comparative structure: instead of narrating all 13 colors in
+  // full, we compare the top 3 strength colors side by side, give the single
+  // complement color its own deep-dive growth section, then close with concrete,
+  // actionable guidance. (Full 13-color scores still appear as compact charts —
+  // bar chart / domain grid / axis cards — further down, just not as 13 separate
+  // narrative cards.)
+  function buildComboTypeName(ranked) {
+    return ranked.slice(0, 3).map((c) => c.ko).join(" · ") + " 조합";
+  }
+
+  function buildTripleComboText(top1, top2, top3) {
+    return `이 조합을 가진 사람은 상황에 따라 세 가지 강점을 유연하게 오갑니다. ${top1.ko}의 '${top1.core}'로 상황을 마주하고, ${top2.ko}의 '${top2.core}'로 관점을 넓히며, ${top3.ko}의 '${top3.core}'로 마무리를 짓는 흐름이 자연스럽게 나타날 수 있습니다. 세 강점이 균형 있게 발휘되면 서로의 빈틈을 메워주는 시너지가 나지만, 세 강점 모두 과도하게 사용되는 상황이라면 아래 "과사용 경고 신호"를 함께 점검해보는 것이 좋습니다.`;
+  }
+
+  function buildTop3CompareHTML(ranked) {
+    const top3 = ranked.slice(0, 3);
+    const rows = top3
+      .map((c, i) => {
+        const healthyItems = (c.healthy || [])
+          .slice(0, 2)
+          .map((h) => `<li>${escapeHtml(h)}</li>`)
+          .join("");
+        const overuseItems = (c.overuse || [])
+          .slice(0, 2)
+          .map((h) => `<li>${escapeHtml(h)}</li>`)
+          .join("");
+        return `
+          <tr>
+            <td class="ct-color"><span class="ct-swatch" style="background:${c.hex}"></span>TOP${i + 1} · ${escapeHtml(c.ko)}</td>
+            <td class="ct-strength">${escapeHtml(c.strength)}</td>
+            <td><ul>${healthyItems}</ul></td>
+            <td><ul>${overuseItems}</ul></td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const adjacent = ranked.slice(3, 5);
+    const adjacentNote = adjacent.length
+      ? `<div class="ct-adjacent">4~5위는 ${adjacent.map((c) => escapeHtml(c.ko)).join(", ")}입니다. TOP3와 점수 차이가 크지 않아 상황에 따라 함께 나타날 수 있는 인접 강점이니 참고해보세요.</div>`
+      : "";
+
+    return `
+      <div class="ct-headline">${escapeHtml(buildComboTypeName(ranked))}</div>
+      <p class="ct-combo-text">${escapeHtml(buildTripleComboText(top3[0], top3[1], top3[2]))}</p>
+      <table class="compare-table">
+        <thead>
+          <tr><th>컬러</th><th>핵심 강점</th><th>건강할 때</th><th>과도할 때</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${adjacentNote}
+    `;
+  }
+
+  function buildActionGuideHTML(ranked, comp, scores) {
+    const top3 = ranked.slice(0, 3);
+
+    // 3 actions per color (was 2) — this section owns a full page now, and the
+    // guide data carries 5 per color, so there is no need to truncate so hard.
+    const topActionsHtml = top3
+      .map((c, i) => {
+        const items = (c.actions || [])
+          .slice(0, 3)
+          .map((a) => `<li>${escapeHtml(a)}</li>`)
+          .join("");
+        return `
+          <div class="ag-item">
+            <div class="ag-item-label" style="color:${c.hex}">TOP${i + 1} · ${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</div>
+            <ul>${items}</ul>
+          </div>
+        `;
+      })
+      .join("");
+
+    // Grouped per TOP color rather than one flat list — the flat version made
+    // it hard to see which warning belonged to which strength. Each card also
+    // closes with the balancing move, taken from that color's complement pair
+    // so the reader gets a correction, not just a warning.
+    const warnCards = top3
+      .map((c, i) => {
+        const items = (c.overuse || []).map((o) => `<li>${escapeHtml(o)}</li>`).join("");
+        // MUST use getComplement() — the same score-aware rule the report's own
+        // 보완 컬러 uses. Taking CCT_COMPLEMENT_MAP[key][0] blindly (as this
+        // once did) picked a different color than the 보완 컬러 section for the
+        // very same TOP1, so the report contradicted itself across two pages.
+        const balancePick = getComplement(c.key, scores);
+        const balanceColor = balancePick && balancePick.chosen ? balancePick.chosen : null;
+        const isReportComplement = balanceColor && balanceColor.key === comp.chosen.key;
+        const balance = balanceColor
+          ? `조절이 필요할 때는 ${isReportComplement ? "보완 컬러인 " : ""}<b style="color:${
+              balanceColor.hex
+            }">${escapeHtml(balanceColor.ko)}</b>의 '${escapeHtml(balanceColor.core)}'${josa(
+              balanceColor.core,
+              "을",
+              "를"
+            )} 잠시 빌려오면 균형이 잡힙니다.`
+          : "";
+        return `
+          <div class="ag-warn-card">
+            <div class="ag-warn-head">
+              <span class="ag-warn-tag" style="background:${c.hex};color:${getContrastText(c.hex)}">TOP${i + 1} · ${escapeHtml(
+          c.ko
+        )}</span>
+              <span class="ag-warn-strength">${escapeHtml(c.strength)}</span>
+            </div>
+            <ul class="ag-warn-list">${items}</ul>
+            ${balance ? `<div class="ag-warn-balance">${balance}</div>` : ""}
+          </div>`;
+      })
+      .join("");
+
+    // The guide already ships one self-check question per color; collecting the
+    // TOP3 + complement ones gives the reader a concrete way to tell whether a
+    // strength is being used well or overused, which the lists above only imply.
+    // 2026-10-08: 스스로 점검하는 질문에서 보완 컬러 질문은 뺌 (TOP 3만, 선생님 요청)
+    const checkColors = [...top3];
+    const checkItems = checkColors
+      .map(
+        (c, i) => `
+        <div class="ag-check">
+          <div class="ag-check-tag" style="background:${c.hex};color:${getContrastText(c.hex)}">${escapeHtml(c.ko)}</div>
+          <div class="ag-check-q">${escapeHtml(c.growthQuestion)}</div>
+        </div>`
+      )
+      .join("");
+
+    const missionCandidates = [
+      (top3[0].actions || [])[0],
+      (top3[1] && top3[1].actions ? top3[1].actions[1] : null),
+      (comp.chosen.actions || [])[0],
+      "오늘 하루, 보완 컬러의 관점으로 한 번 더 생각해보고 짧게 기록을 남겨보세요.",
+    ].filter(Boolean);
+    const missionItems = missionCandidates.map((m) => `<li>${escapeHtml(m)}</li>`).join("");
+
+    return buildActionGuideBlocks(topActionsHtml, warnCards, checkItems, missionItems).join("");
+  }
+
+  // Same content as buildActionGuideHTML, handed back as two page-sized pieces.
+  // One combined block measured 275mm against a 261mm usable page, so its tail
+  // (이번 주 실천 미션) was being clipped off the sheet.
+  function buildActionGuidePartsHTML(ranked, comp, scores) {
+    const html = buildActionGuideHTML(ranked, comp, scores);
+    const marker = '<div class="ag-block">';
+    const pieces = html.split(marker).filter((x) => x.trim()).map((x) => marker + x);
+    if (pieces.length < 4) return [html, ""];
+    return [pieces.slice(0, 2).join(""), pieces.slice(2).join("")];
+  }
+
+  function buildActionGuideBlocks(topActionsHtml, warnCards, checkItems, missionItems) {
+    return [`
+      <div class="ag-block">
+        <div class="section-subtitle">TOP 3 강점 활용법</div>
+        <p class="section-desc">각 강점이 실제로 힘을 발휘하는 구체적인 장면입니다.</p>
+        <div class="ag-grid">${topActionsHtml}</div>
+      </div>
+      <div class="ag-block">
+        <div class="section-subtitle">과사용 경고 신호 체크리스트</div>
+        <p class="section-desc">강점도 지나치게 쓰이면 부담으로 작동할 수 있습니다. 아래 신호가 반복된다면 잠시 속도를 조절해볼 시점입니다.</p>
+        <div class="ag-warn-grid">${warnCards}</div>
+      </div>
+      <div class="ag-block">
+        <div class="section-subtitle">스스로 점검하는 질문</div>
+        <p class="section-desc">판단이 어려운 순간에 아래 질문을 꺼내보면, 지금 강점을 잘 쓰고 있는지 스스로 가늠할 수 있습니다.</p>
+        <div class="ag-checks">${checkItems}</div>
+      </div>
+      <div class="ag-block">
+        <div class="section-subtitle">이번 주 실천 미션</div>
+        <div class="ag-mission"><ul>${missionItems}</ul></div>
+      </div>
+    `];
+  }
+
+  // Extra, personalized context for the TOP3 comparison page: where the trio
+  // collectively leans on the two reference axes (using the SAME CCT_AXES data
+  // as the retired "보조 성향축" cards did), plus a few concrete scenarios
+  // where the combination tends to shine. Purely descriptive/informational —
+  // never prescriptive or diagnostic.
+  function buildTop3SynergyHTML(ranked) {
+    const top3 = ranked.slice(0, 3);
+    const [t1, t2, t3] = top3;
+
+    // Name the colors rather than counting them — "2개 컬러가 협력 쪽" told the
+    // reader nothing about WHICH of their strengths pulls that way.
+    const swatchName = (c) =>
+      `<b style="color:${c.hex}">${escapeHtml(c.ko)}</b>`;
+    const axisNotes = [];
+    Object.values(CCT_AXES).forEach((axis) => {
+      const leftHits = top3.filter((c) => axis.left.colors.includes(c.key));
+      const rightHits = top3.filter((c) => axis.right.colors.includes(c.key));
+      const write = (hits, side) =>
+        `${hits.map(swatchName).join("과 ")}${josa(hits[hits.length - 1].ko, "이", "가")} '${escapeHtml(
+          side.name
+        )}' 쪽에 속해, ${escapeHtml(axis.label)} 축에서 ${escapeHtml(side.name)} 지향이 뚜렷한 조합입니다.`;
+      if (leftHits.length >= 2 && leftHits.length > rightHits.length) {
+        axisNotes.push(write(leftHits, axis.left));
+      } else if (rightHits.length >= 2 && rightHits.length > leftHits.length) {
+        axisNotes.push(write(rightHits, axis.right));
+      }
+    });
+
+    const momentsItems = [
+      `${t1.ko}의 '${t1.core}'으로 시작해 ${t2.ko}의 '${t2.core}'으로 관점을 넓히고, ${t3.ko}의 '${t3.core}'으로 마무리 짓는 일`,
+      `서로 다른 세 강점이 동시에 필요한, 복잡하고 시간이 촉박한 문제를 풀어야 할 때`,
+      `팀 안에서 이 세 가지 역할을 상황에 따라 번갈아 맡아야 하는 순간`,
+    ];
+
+    return `
+      ${
+        axisNotes.length
+          ? `
+        <div class="t3-synergy-block">
+          <div class="section-subtitle">이 조합의 종합 성향</div>
+          <div class="t3-axis-notes">${axisNotes.map((n) => `<p>${n}</p>`).join("")}</div>
+        </div>
+      `
+          : ""
+      }
+      <div class="t3-synergy-block">
+        <div class="section-subtitle">이 조합이 빛나는 순간</div>
+        <ul class="t3-moments">${momentsItems.map((m) => `<li>${escapeHtml(m)}</li>`).join("")}</ul>
+      </div>
+    `;
+  }
+
+  // Venn-style infographic pairing the TOP1 strength color with the complement
+  // color — a quick visual anchor for "these two work together" before the
+  // written rationale. Labels are absolutely-positioned HTML (not SVG <text>)
+  // for the same reason as the radar chart: html2canvas renders Korean text
+  // through real DOM/CSS far more reliably than through SVG <text> nodes.
+  function buildSynergyVennHTML(top1, compColor) {
+    const R = 88;
+    const D = 96; // distance between circle centers — controls overlap size
+    const W = 340,
+      H = 200;
+    const leftCx = W / 2 - D / 2,
+      rightCx = W / 2 + D / 2,
+      cy = H / 2;
+    const leftInk = getContrastText(top1.hex);
+    const rightInk = getContrastText(compColor.hex);
+
+    return `
+      <div class="synergy-venn-wrap" style="width:${W}px;height:${H}px;">
+        <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+          <circle cx="${leftCx}" cy="${cy}" r="${R}" fill="${top1.hex}" opacity="0.9" stroke="#ffffff" stroke-width="2" stroke-opacity="0.55"/>
+          <circle cx="${rightCx}" cy="${cy}" r="${R}" fill="${compColor.hex}" opacity="0.9" stroke="#ffffff" stroke-width="2" stroke-opacity="0.55"/>
+        </svg>
+        <div class="synergy-label synergy-label-left" style="left:${leftCx - R * 0.42}px;top:${cy}px;color:${leftInk}">
+          <div class="synergy-tag">강점 컬러</div>
+          <div class="synergy-name">${escapeHtml(top1.ko)}</div>
+          <div class="synergy-sub">${escapeHtml(top1.strength)}</div>
+        </div>
+        <div class="synergy-label synergy-label-right" style="left:${rightCx + R * 0.42}px;top:${cy}px;color:${rightInk}">
+          <div class="synergy-tag">보완 컬러</div>
+          <div class="synergy-name">${escapeHtml(compColor.ko)}</div>
+          <div class="synergy-sub">${escapeHtml(compColor.strength)}</div>
+        </div>
+        <div class="synergy-mid-wrap" style="left:${(leftCx + rightCx) / 2}px;top:${cy}px;">
+          <div class="synergy-mid-ring"></div>
+          <div class="synergy-mid-badge"><div class="synergy-mid-text">균형<br/>포인트</div></div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Fills the leftover whitespace under the TOP3 comparison + synergy content
+  // with a compact, more visual "who am I" breakdown — one line per TOP color
+  // framed as an identity statement (not just a strength label), plus a short
+  // closing line tying all three together. `core` fields in data.js are all
+  // phrased as "...하는 힘" (a noun phrase ending in "힘"), which reads
+  // naturally as "...하는 사람" once the trailing "힘" is swapped for "사람".
+  function buildTop3PersonaHTML(ranked) {
+    const top3 = ranked.slice(0, 3);
+    const toIdentity = (core) => (core.endsWith("힘") ? core.slice(0, -1) + "사람" : `${core}${josa(core, "을", "를")} 가진 사람`);
+
+    const items = top3
+      .map((c, i) => {
+        const identity = toIdentity(c.core);
+        const evidence = (c.healthy && c.healthy[0]) || "";
+        return `
+          <div class="persona-item">
+            <div class="persona-num" style="background:${c.hex};color:${getContrastText(c.hex)}">${i + 1}</div>
+            <div class="persona-body">
+              <div class="persona-head">
+                <span class="persona-name" style="color:${c.hex}">${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</span>
+              </div>
+              <p class="persona-text">당신은 <b>${escapeHtml(identity)}</b>입니다. ${escapeHtml(evidence)}</p>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    const identityLine = top3.map((c) => c.strength).join(" · ");
+    const nameLine = top3.map((c) => c.ko).join("·");
+
+    return `
+      <div class="t3-persona-block">
+        <div class="section-subtitle">컬러로 본 나의 장점</div>
+        <div class="persona-grid">${items}</div>
+        <p class="persona-summary">${escapeHtml(nameLine)}가 겹쳐질 때, 당신은 <b>${escapeHtml(identityLine)}</b>이 동시에 드러나는 사람으로 요약될 수 있습니다.</p>
+      </div>
+    `;
+  }
+
+  // Builds the report as an ARRAY of independent { html, flexible } blocks (not one
+  // giant string). Each block is rendered to its own canvas and placed on the PDF
+  // page as a whole, so a card/paragraph is never sliced across a page break.
+  //
+  // "flexible: true" marks supplementary blocks (score chart chunks, domain grid,
+  // axis cards) that generatePdf() is allowed to pull out of order into a leftover
+  // page gap so pages don't end with large blank space. "flexible: false" (rigid)
+  // blocks — the cover, the overview, each of the 13 color profile cards, the combo
+  // read, and the disclaimer — always stay in their original relative order.
+  // 컬러리딩 단독 PDF: 표지 + 컬러리딩 페이지
+  function buildReadingOnlyBlocks(name) {
+    const dateStr = new Date().toLocaleString("ko-KR", {
+      year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    const reading = window.CR.buildReading(window.CR.getSelection(), name);
+    const blocks = [{
+      html: `
+        <div class="rp-cover">
+          <div class="rp-kicker">LOVELIVE COLOR INSIGHT · COLOR PSYCHOLOGY READING</div>
+          <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}컬러 심리리딩 결과 리포트</div>
+          <div class="rp-swatchbar">${window.CR.colors.map((c) => `<span style="${window.CR.swatchBg(c.key)}"></span>`).join("")}</div>
+          <div class="rp-date">검사 일시 · ${dateStr}</div>
+        </div>`,
+      flexible: false, pageBreakBefore: false,
+    }];
+    window.CR.buildPdfBlocks(reading, { standalone: true }).forEach((b) => {
+      blocks.push({ html: b.html, flexible: false, pageBreakBefore: !!b.pageBreakBefore });
+    });
+    return blocks;
+  }
+
+  function buildReportBlocks(scores, ranked, name) {
+    if (LECTURE_EDITION && mode === "cr") return buildReadingOnlyBlocks(name);
+    const blocks = [];
+    const rigid = (html) => blocks.push({ html, flexible: false, pageBreakBefore: false });
+    // Like rigid(), but forces a fresh page before this block even if the
+    // current page has room left — used to keep "보완 컬러 심층 분석" from
+    // starting mid-page right under the TOP3 comparison section.
+    const rigidBreak = (html) => blocks.push({ html, flexible: false, pageBreakBefore: true });
+    const flexible = (html) => blocks.push({ html, flexible: true, pageBreakBefore: false });
+
+    const top1 = ranked[0];
+    const comp = getComplement(top1.key, scores, ranked);
+    const dateStr = new Date().toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    rigid(`
+      <div class="rp-cover">
+        <div class="rp-kicker">${hasReading() ? "LOVELIVE COLOR INSIGHT · 컬러 심리리딩 + CCT" : "CCT COLOR CHARACTER STRENGTHS TEST"}</div>
+        <div class="rp-title">${name ? escapeHtml(name) + "님의 " : ""}${hasReading() ? "나를 읽는 두 가지 컬러 리포트" : "컬러 성격강점 결과 리포트"}</div>
+        ${hasReading() ? `<div class="rp-parts">
+          <div><b>PART 1</b><strong>컬러 심리리딩</strong><span>직감으로 고른 다섯 컬러로 본 지금의 나</span></div>
+          <div><b>PART 2</b><strong>CCT 컬러 성격강점</strong><span>39문항(강의 단축형)으로 본 평소 나의 강점</span></div>
+        </div>` : ""}
+        <div class="rp-swatchbar">${CCT_COLORS.map((c) => `<span style="background:${c.hex}"></span>`).join("")}</div>
+        <div class="rp-date">검사 일시 · ${dateStr}</div>
+      </div>
+    `);
+
+    // 강의용: 표지 바로 아래에서 컬러리딩(PART 1)이 시작되고, CCT(PART 2)는
+    // 새 페이지에서 시작합니다.
+    let crBlocks = [];
+    if (hasReading()) {
+      const reading = window.CR.buildReading(window.CR.getSelection(), name);
+      crBlocks = window.CR.buildPdfBlocks(reading);
+      crBlocks.forEach((b) => (b.pageBreakBefore ? rigidBreak(b.html) : rigid(b.html)));
+    }
+
+    let overviewBlock = `${crBlocks.length ? `<div class="ra-part">PART 2 · CCT 컬러 성격강점</div>` : ""}<div class="section-title">13 컬러 전체 프로파일</div>`;
+    overviewBlock += `<div class="section-desc">13개 컬러 점수를 한눈에 보여주는 전체 프로파일입니다. 점수는 5점 만점 리커트 평균이며, 본인의 13개 컬러 내부에서 상대적으로 높은 컬러를 중심으로 해석합니다.</div>`;
+    overviewBlock += `<div class="rp-overview">`;
+    overviewBlock += `<div class="rp-radar-card">${buildRadarChartHTML(scores)}</div>`;
+    overviewBlock += buildProfileSummaryHTML(ranked, top1, comp);
+    overviewBlock += `</div>`;
+    // A skimmable "at a glance" recap (TOP3 + complement cards, top domain,
+    // axis leanings) fills the spot the raw 13-color bar list used to sit in —
+    // that list now lives in its own section at the very end of the report
+    // (see the "컬러별 상세 점수" rigid block below, near the disclaimer).
+    overviewBlock += buildProfileQuickSummaryHTML(ranked, comp, scores);
+    if (crBlocks.length) rigidBreak(overviewBlock);
+    else rigid(overviewBlock);
+
+    // TOP3 comparison (Enneagram-style comparative summary): compares the top 3
+    // strength colors side by side, plus additional context (collective axis
+    // tilt, scenarios where the combo shines) to make good use of the page.
+    // Split rather than one monolith: with longer per-color text this section
+    // grew past a single page (measured 285mm against a 261mm usable height) and
+    // its tail was clipped. Two rigid halves each fit comfortably.
+    rigid(`<div class="section-title">TOP 3 강점 컬러 비교</div>${buildTop3CompareHTML(ranked)}${buildTop3SynergyHTML(ranked)}`);
+    rigid(buildTop3PersonaHTML(ranked));
+
+    // The complement color gets its own growth-focused deep dive (healthy/overuse,
+    // example usage, growth question) — reusing the same intro/detail split as
+    // before so the page-fill pass can still place the two halves independently.
+    // rigidBreak() forces this to start on a fresh page rather than continuing
+    // wherever the TOP3 comparison page happened to leave off.
+    // ONE rigid block: title + rationale + the color card's intro AND detail
+    // halves together. Previously the detail half ("건강할 때 / 과도할 때 /
+    // 예시") was a separate block and reliably spilled onto the next page,
+    // leaving the card cut off right after its "이 강점이 드러나는 모습"
+    // heading. The Venn diagram that used to sit here moved to the synergy
+    // section below, which is what freed the vertical room for this to fit.
+    // Two halves again — as one block this measured 285mm on longer profiles.
+    const [compIntroPart, compDetailPart] = buildColorSectionPdfParts(comp.chosen, "보완 컬러 · 성장 자원", { comp: true });
+    rigidBreak(
+      `<div class="section-title">보완 컬러 심층 분석</div>${buildComplementRationaleHTML(
+        top1,
+        comp.chosen,
+        comp
+      )}${compIntroPart}`
+    );
+    rigid(compDetailPart);
+
+    // Concrete, actionable guidance: how to use the TOP3 strengths, warning signs
+    // of overuse, and a short weekly practice checklist.
+    // Each of these three owns a full page from here on, per the report layout:
+    // 실전 지침 → 시너지 → 관계 → 6대 강점영역 → 점수 부록.
+    const actionParts = buildActionGuidePartsHTML(ranked, comp, scores);
+    rigidBreak(`<div class="section-title">실전 지침</div>${actionParts[0]}`);
+    rigid(actionParts[1]);
+
+    // ---- Flexible supplementary section (domains / axes) ----
+    // Split into small chunks so generatePdf() can slot them into whatever
+    // leftover page space the rigid sections above leave behind. The raw
+    // 13-color score bars used to be flexible chunks defined alongside these,
+    // which meant they could get pulled into the gap between the complement
+    // intro and its own detail half (or after the action guide), interrupting
+    // an unrelated section mid-flow — see the dedicated rigid appendix near
+    // the end of this function for where that list lives now.
+    const domainScores = computeDomainScores(scores);
+    let domainBlock = `<div class="section-title">6대 강점영역</div>`;
+    domainBlock += `<div class="section-desc">CCT에서는 13개의 컬러강점을 해석의 편의를 위해 6개의 강점영역으로 분류합니다. 개별 컬러 점수와 함께 참고용으로 보시면 됩니다.</div>`;
+    domainBlock += `<div class="domain-grid">`;
+    domainScores.forEach((d) => {
+      const pct = Math.max(4, ((d.value - 1) / 4) * 100);
+      domainBlock += `
+        <div class="domain-row">
+          <div class="dname">${d.name}</div>
+          <div class="dtrack"><div class="dfill" style="width:${pct}%"></div></div>
+          <div class="dscore">${d.value.toFixed(1)}</div>
+        </div>
+      `;
+    });
+    domainBlock += `</div>`;
+    // Each domain's meaning (CCT_DOMAINS.desc) plus the individual colors that
+    // were averaged to produce its bar above, each with its own score. That
+    // second part matters: a domain average alone can look flat while hiding a
+    // big spread between its member colors, and this makes the composition
+    // visible without flipping to the appendix. Two-column card grid so this
+    // fills the page it sits on rather than trailing off half way down.
+    domainBlock += `<div class="domain-legend">`;
+    domainBlock += `<div class="dl-heading">각 영역의 의미와 구성 컬러</div>`;
+    domainBlock += `<div class="dl-grid">`;
+    domainScores.forEach((d) => {
+      const chips = d.colors
+        .map((k) => {
+          const c = cctColorByKey(k);
+          return `
+            <div class="dl-chip">
+              <span class="dl-dot" style="background:${c.hex}"></span>
+              <span class="dl-chip-name">${escapeHtml(c.ko)} · ${escapeHtml(c.strength)}</span>
+              <span class="dl-chip-score">${scores[k].toFixed(1)}</span>
+            </div>`;
+        })
+        .join("");
+      // A domain average can hide a wide spread between its member colors — e.g.
+      // 3.6 and 2.0 average to a flat-looking 2.8. Say so explicitly rather than
+      // letting the single bar above imply the whole area sits at one level.
+      const memberScores = d.colors.map((k) => scores[k]);
+      const hi = Math.max(...memberScores);
+      const lo = Math.min(...memberScores);
+      const spread = Math.round((hi - lo) * 10) / 10;
+      let readNote;
+      if (d.colors.length === 1) {
+        readNote = `이 영역은 ${escapeHtml(
+          cctColorByKey(d.colors[0]).ko
+        )} 한 컬러로만 구성되어, 영역 점수가 곧 해당 컬러의 점수입니다.`;
+      } else if (spread >= 1.0) {
+        readNote = `구성 컬러 간 점수 차이가 ${spread.toFixed(
+          1
+        )}점으로 큰 편입니다. 평균값보다 위의 개별 컬러 점수를 함께 보시는 것이 정확합니다.`;
+      } else {
+        readNote = `구성 컬러들이 비슷한 수준으로 나타나, 평균값이 이 영역 전체를 잘 대표합니다.`;
+      }
+
+      domainBlock += `
+        <div class="dl-card">
+          <div class="dl-card-head">
+            <div class="dl-name">${escapeHtml(d.name)}</div>
+            <div class="dl-score">${d.value.toFixed(1)}</div>
+          </div>
+          <div class="dl-desc">${escapeHtml(d.desc)}</div>
+          <div class="dl-chips">${chips}</div>
+          <div class="dl-note">${readNote}</div>
+        </div>
+      `;
+    });
+    domainBlock += `</div></div>`;
+    // NOT emitted here — this block now rides along on the score-appendix page
+    // (see rigidBreak below), directly above "컬러별 상세 점수", because the two
+    // are both reference tables and read better together at the back.
+
+    // Rigid so the Venn, the comparison table and the three explanation rows
+    // can never be split across a page. This is where the Venn diagram lives
+    // now — it belongs with the comparison rather than above the complement
+    // card, and moving it is what let the complement section fit one page.
+    rigidBreak(`
+      <div class="section-title">강점 컬러와 보완 컬러의 시너지</div>
+      <p class="section-desc">가장 뚜렷한 강점 컬러와, 그와 심리적으로 대비되는 보완 컬러를 나란히 비교하고 두 컬러가 함께 작동할 때 만들어지는 효과를 정리했습니다.</p>
+      ${buildSynergyVennHTML(top1, comp.chosen)}
+      ${buildColorCompareTableHTML(ranked[0], comp.chosen)}
+    `);
+    rigid(buildStrengthBalanceHTML(ranked[0], comp.chosen));
+
+    if (ranked.length >= 2) {
+      // These boxes are about OTHER PEOPLE — whoever has those colors as their
+      // strengths — not about more of the reader's own colors.
+      rigidBreak(`
+        <div class="section-title">관계에서 만나는 컬러</div>
+        <p class="section-desc">내 TOP 컬러를 기준으로, 그 컬러가 강점인 사람들과 어떤 관계를 맺기 쉬운지 정리했습니다. 사람 자체의 좋고 나쁨이 아니라 성향의 결이 얼마나 비슷한지를 뜻합니다.</p>
+        ${buildRelationshipFitHTML(ranked, { part: 1 })}
+      `);
+    }
+
+    // 6대 강점영역 + the meaning of each domain, as a page of its own directly
+    // before the raw score appendix.
+    rigidBreak(domainBlock);
+
+    // Full color-by-color score list, as its own dedicated appendix at the very
+    // end of the report (rigid, not flexible — so unlike before, it can never
+    // get pulled forward to patch a gap in an earlier section). The profile
+    // page up front now shows the condensed "한눈에 보는 요약" instead; this is
+    // for anyone who wants every raw number. rigidBreak() on the first chunk
+    // forces this appendix to always start on its own fresh page rather than
+    // tacking onto whatever room the preceding section happened to leave behind.
+    const barRowsHtml = ranked.map((c, i) => buildScoreBarRowHTML(c, i));
+    const CHUNK = 5;
+    for (let i = 0; i < barRowsHtml.length; i += CHUNK) {
+      const chunk = barRowsHtml.slice(i, i + CHUNK).join("");
+      let html = i === 0 ? `<div class="section-title">컬러별 상세 점수 (13개 전체)</div>` : "";
+      html += `<div class="bar-chart">${chunk}</div>`;
+      if (i === 0) {
+        // Fresh page: 6대 강점영역 + its legend own the page before this one.
+        rigidBreak(html);
+      } else {
+        rigid(html);
+      }
+    }
+
+    rigid(`
+      <div class="disclaimer">
+        <b>해석 고지</b><br/>
+        이 결과는 강의용 단축형(컬러당 3문항, 39문항)으로 얻은 것으로, 정식 65문항 검사와 순위가 다를 수 있습니다. 더 정확한 결과가 필요하면 정식 검사를 받아 보세요.<br/>
+        CCT 결과는 개인의 현재 자기보고를 기반으로 한 성격강점 프로파일입니다. 상황·환경·역할 및 시기에 따라 결과는 달라질 수 있습니다.
+        본 결과는 정신건강 문제나 성격장애를 진단하기 위한 자료가 아니며, 자기이해·교육·코칭을 위한 참고자료로 활용하는 것을 권장합니다.
+      </div>
+    `);
+
+    return blocks;
+  }
+
+  // Page geometry (mm) — margins are applied here, not inside the rendered blocks,
+  // so a block's own canvas is pure content and can be placed anywhere on the page.
+  const PDF_PAGE_W = 210;
+  const PDF_PAGE_H = 297;
+  const PDF_MARGIN_X = 16;
+  const PDF_MARGIN_TOP = 18;
+  const PDF_MARGIN_BOTTOM = 18;
+  const PDF_BLOCK_GAP = 5;
+  const PDF_CONTENT_W = PDF_PAGE_W - PDF_MARGIN_X * 2;
+
+  // Builds the jsPDF document in-memory (no download, no button/UI side effects)
+  // and returns { doc, fileName, pdfBase64 }. Used by both the v1 download
+  // button and the background admin-logging call, so the actual heavy
+  // html2canvas rendering only ever runs once per completed test (see
+  // getPdfDoc's caching below).
+  // ---------- 휴대폰 '글자 자동 확대' 감지 · 격리 렌더링 (2026-10-08) ----------
+  // ④ 감지: 보이지 않는 곳에 PDF와 같은 너비(760px)의 긴 문단과, 화면보다 좁은 짧은 문장을 두고
+  //    같은 글자의 실제 폭을 비교합니다. 넓은 문단 쪽만 커져 있으면 자동 확대가 일어난 것입니다.
+  // ⑤ 격리: 확대가 감지되면 PDF를 화면 속 별도 창(iframe, 화면 기준 너비 = PDF 너비)에서 그립니다.
+  // ⑥ 안내: 그래도 커져 있으면 크롬 등에서 열어 저장하도록 안내하고, 시트 "버전" 열에 기록합니다.
+  const BOOST_LIMIT = 1.08;
+  const BOOST_SAMPLE = "가나다라마바사아자차카타파하";
+  function measureTextBoost(doc) {
+    doc = doc || document;
+    let wrap = null, narrow = null;
+    try {
+      wrap = doc.createElement("div");
+      wrap.className = "pdf-report";
+      wrap.setAttribute("aria-hidden", "true");
+      wrap.style.webkitTextSizeAdjust = "none";
+      wrap.style.textSizeAdjust = "none";
+      wrap.style.maxHeight = "1000000px";
+      const longText = "자신의 판단과 능력을 믿고 선택하는 힘이 지금의 나를 이끄는 중심축으로 나타났습니다. ".repeat(12);
+      wrap.innerHTML = `<p style="font-size:13px;line-height:1.6;margin:0">${longText}<span class="bp-a" style="white-space:nowrap">${BOOST_SAMPLE}</span></p>`;
+      narrow = doc.createElement("div");
+      narrow.className = "pdf-report";
+      narrow.setAttribute("aria-hidden", "true");
+      narrow.style.cssText = "width:150px;max-height:200px;overflow:hidden";
+      narrow.innerHTML = `<p style="font-size:13px;line-height:1.6;margin:0"><span class="bp-b" style="white-space:nowrap">${BOOST_SAMPLE}</span></p>`;
+      doc.body.appendChild(wrap);
+      doc.body.appendChild(narrow);
+      const a = wrap.querySelector(".bp-a").getBoundingClientRect().width;
+      const b = narrow.querySelector(".bp-b").getBoundingClientRect().width;
+      const fs = parseFloat(doc.defaultView.getComputedStyle(wrap.querySelector("p")).fontSize) || 13;
+      const r = Math.max(b > 0 ? a / b : 1, fs / 13);
+      return Math.round(r * 100) / 100;
+    } catch (e) {
+      return 1;
+    } finally {
+      if (wrap) wrap.remove();
+      if (narrow) narrow.remove();
+    }
+  }
+
+  // PDF를 그릴 별도 창(같은 주소, 화면에는 보이지 않음). 이 창의 화면 기준 너비는 800px이라
+  // 760px 문단이 '화면보다 넓은 문단'이 되지 않습니다.
+  async function createIsolatedPdfHost() {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.tabIndex = -1;
+    iframe.style.cssText = "position:fixed;left:-12000px;top:0;width:800px;height:1200px;border:0;opacity:0;pointer-events:none";
+    const cssHref = new URL("css/style.css", document.baseURI).href;
+    // html2canvas도 이 창 안에서 따로 불러 씁니다 (바깥 창의 html2canvas로 안쪽을 그리면 작은 글씨의 띄어쓰기가 붙는 문제가 있었음)
+    const h2cSrc = new URL("js/vendor/html2canvas.min.js", document.baseURI).href;
+    iframe.srcdoc = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=800"><link rel="stylesheet" href="${cssHref}"><script src="${h2cSrc}"><\/script></head><body style="margin:0;background:#fff;-webkit-text-size-adjust:none;text-size-adjust:none"></body></html>`;
+    const loaded = new Promise((res) => {
+      iframe.addEventListener("load", res, { once: true });
+      setTimeout(res, 5000);
+    });
+    document.body.appendChild(iframe);
+    await loaded;
+    const doc = iframe.contentDocument;
+    // 글꼴(Pretendard 5가지 굵기)을 모두 미리 불러옵니다 — 쓰는 순간에 불러오면 첫 렌더에서 대체 글꼴로 그려져 띄어쓰기가 붙는 일이 있음
+    try {
+      if (doc.fonts) {
+        const faces = [];
+        doc.fonts.forEach((f) => faces.push(f.load().catch(() => {})));
+        await Promise.all(faces);
+        if (doc.fonts.ready) await doc.fonts.ready;
+      }
+    } catch (e) {}
+    await new Promise((r) => setTimeout(r, 60));
+    return { iframe, doc, html2canvas: iframe.contentWindow && iframe.contentWindow.html2canvas };
+  }
+
+  // 결과마다 한 번만 확인합니다: { before: 본 화면 확대 배율, after: 격리 창 확대 배율, isolate: 격리 필요 여부 }
+  let boostStatusPromise = null;
+  function getBoostStatus() {
+    // 점검용: 주소 끝에 ?pdfiso=1 을 붙이면 확대가 없어도 별도 창 방식으로 PDF를 만듭니다.
+    if (!boostStatusPromise && /[?&]pdfiso=1/.test(window.location.search)) {
+      boostStatusPromise = Promise.resolve({ before: 1, after: 1, isolate: true });
+    }
+    // 점검용: ?pdfiso=2 는 '보정해도 커지는 기기'를 흉내 내어 안내 창을 띄웁니다.
+    if (!boostStatusPromise && /[?&]pdfiso=2/.test(window.location.search)) {
+      boostStatusPromise = Promise.resolve({ before: 1.5, after: 1.5, isolate: true });
+    }
+    if (!boostStatusPromise) {
+      boostStatusPromise = (async () => {
+        const before = measureTextBoost(document);
+        if (before <= BOOST_LIMIT) return { before, after: before, isolate: false };
+        let after = before;
+        try {
+          const host = await createIsolatedPdfHost();
+          after = measureTextBoost(host.doc);
+          host.iframe.remove();
+        } catch (e) {}
+        return { before, after, isolate: true };
+      })();
+    }
+    return boostStatusPromise;
+  }
+  // 시트 "버전" 열에 덧붙이는 짧은 표시 (확대가 없으면 빈 문자열 — 앞부분 v1/v2/v3는 그대로라 폴더 분류에 영향 없음)
+  function boostTag(st) {
+    if (!st || st.before <= BOOST_LIMIT) return "";
+    return ` · 글자확대 ${st.before.toFixed(2)}배→${st.after <= BOOST_LIMIT ? "보정됨" : "보정 안 됨"}`;
+  }
+  function showBoostNotice() {
+    let el = document.getElementById("boostHint");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "boostHint";
+      el.className = "inapp-hint";
+      el.innerHTML = `
+        <div class="inapp-hint-card">
+          <div class="inapp-hint-title">PDF 글자가 크게 저장되었을 수 있어요</div>
+          <p class="inapp-hint-text">이 휴대폰의 글자 크기 설정 때문에 PDF 일부 문단이 커지고 빈칸이 생겼을 수 있습니다. <b>크롬(또는 삼성 인터넷)</b>에서 결과를 열어 다시 저장하면 정상으로 저장됩니다. 검사를 다시 하실 필요는 없습니다.</p>
+          <div class="inapp-hint-actions">
+            <button type="button" class="inapp-btn" id="bhOpen">다른 브라우저에서 결과 열기</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="bhClose">닫기</button>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+      el.querySelector("#bhClose").addEventListener("click", () => el.classList.remove("is-open"));
+      el.querySelector("#bhOpen").addEventListener("click", () => {
+        const url = el.dataset.resultUrl || window.location.href;
+        if (!openInExternalBrowser(url)) copyCurrentLink(url).then((ok) => {
+          el.querySelector("#bhOpen").textContent = ok ? "결과 링크를 복사했어요. 크롬에 붙여 넣어 주세요" : "주소창의 링크를 크롬에서 열어 주세요";
+        });
+      });
+    }
+    el.dataset.resultUrl = lastResultUrl || window.location.href;
+    el.classList.add("is-open");
+  }
+  let lastResultUrl = "";
+
+  async function buildPdfDoc(scores, ranked) {
+    const blocks = buildReportBlocks(scores, ranked, userName);
+
+    // ④⑤ 글자 자동 확대 확인 → 확대되는 휴대폰이면 별도 창(iframe)에서 그림
+    const boost = await getBoostStatus();
+    const isoHost = boost.isolate && boost.after <= BOOST_LIMIT ? await createIsolatedPdfHost() : null;
+    const hostDoc = isoHost ? isoHost.doc : document;
+    const h2c = (isoHost && isoHost.html2canvas) || html2canvas;
+    const container = hostDoc.createElement("div");
+    container.className = "pdf-report";
+    // 휴대폰의 글자 자동 확대(텍스트 자동 크기 조정)를 끕니다 — PDF 문단이 커져 쪽이 늘어나는 문제 방지
+    container.style.webkitTextSizeAdjust = "none";
+    container.style.textSizeAdjust = "none";
+    container.style.maxHeight = "1000000px"; // 글자 자동 확대가 이 영역을 건너뛰게 함
+    // 안드로이드: PDF를 그리는 동안만 화면 기준 너비를 PDF 너비(800px)로 넓혀, 화면보다 넓은 문단을
+    // 키우는 '글자 자동 확대'가 작동할 이유를 없앱니다. 끝나면 원래대로 되돌립니다.
+    const vpMeta = /Android/i.test(navigator.userAgent) ? document.querySelector('meta[name="viewport"]') : null;
+    const vpPrev = vpMeta ? vpMeta.getAttribute("content") : null;
+    if (vpMeta) {
+      vpMeta.setAttribute("content", "width=800");
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    hostDoc.body.appendChild(container);
+
+    try {
+      // ---- Pass 1: measure every block by rendering it to its own canvas ----
+      const rendered = [];
+      for (let i = 0; i < blocks.length; i++) {
+        // wrap in a small bottom-padding buffer so no block's last line of text/glyphs
+        // ever sits perfectly flush against the captured canvas edge (which can clip
+        // descenders/full-width Hangul glyphs even though CSS overflow is "visible").
+        container.innerHTML = `<div class="pdf-block-pad">${blocks[i].html}</div>`;
+        await new Promise((r) => setTimeout(r, 30)); // allow layout/paint
+
+        const canvas = await h2c(container, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          windowWidth: container.scrollWidth,
+        });
+
+        rendered.push({
+          imgData: canvas.toDataURL("image/jpeg", 0.82),
+          imgH: (canvas.height * PDF_CONTENT_W) / canvas.width,
+          flexible: blocks[i].flexible,
+          pageBreakBefore: !!blocks[i].pageBreakBefore,
+        });
+      }
+
+      // ---- Pass 2: place blocks, gap-filling with flexible blocks to avoid
+      // leaving large blank space at the bottom of a page. Rigid blocks (cover,
+      // overview, TOP3 compare, complement deep-dive, action guide, combo read,
+      // disclaimer) always stay in their original relative order; flexible
+      // blocks (chart/domain/axis chunks) can be pulled forward out of order to
+      // fill whatever gap a rigid block leaves behind. ----
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      let cursorY = PDF_MARGIN_TOP;
+      let isFirstOnPage = true;
+      const queue = rendered.slice();
+
+      const USABLE_H = PDF_PAGE_H - PDF_MARGIN_TOP - PDF_MARGIN_BOTTOM;
+
+      let onPage = 0; // 지금 페이지에 놓인 블록 수
+      const place = (block, fitH) => {
+        // Safety net. The branch below places a block unconditionally when it is
+        // first on a fresh page, which for a block TALLER than the page meant it
+        // was drawn past the bottom edge and silently clipped — text ran under
+        // the footer and off the sheet. Any block that cannot fit is scaled down
+        // to the usable height instead (and re-centred horizontally, since it
+        // then becomes narrower than the text column). Shrinking a section a few
+        // percent is always preferable to losing its last lines.
+        let w = PDF_CONTENT_W;
+        let h = block.imgH;
+        if (h > USABLE_H) {
+          w = PDF_CONTENT_W * (USABLE_H / h);
+          h = USABLE_H;
+        }
+        if (fitH && h > fitH) {
+          w = w * (fitH / h);
+          h = fitH;
+        }
+        const x = PDF_MARGIN_X + (PDF_CONTENT_W - w) / 2;
+        doc.addImage(block.imgData, "JPEG", x, cursorY, w, h);
+        cursorY += h + PDF_BLOCK_GAP;
+        isFirstOnPage = false;
+        onPage++;
+      };
+
+      while (queue.length) {
+        const head = queue[0];
+
+        // A block flagged pageBreakBefore (e.g. "보완 컬러 심층 분석") always
+        // starts a fresh page, even if the current page still has room left.
+        if (head.pageBreakBefore && !isFirstOnPage) {
+          doc.addPage();
+          cursorY = PDF_MARGIN_TOP;
+          isFirstOnPage = true;
+          onPage = 0;
+        }
+
+        const availableH = PDF_PAGE_H - PDF_MARGIN_BOTTOM - cursorY;
+
+        if (isFirstOnPage || head.imgH <= availableH) {
+          place(head);
+          queue.shift();
+          continue;
+        }
+
+        // 첫 페이지에 제목(표지 머리)만 남고 본문이 2쪽으로 넘어가지 않도록:
+        // 제목 바로 다음 블록이 조금(최대 15%) 넘치면 살짝 줄여서 첫 페이지에 함께 싣습니다.
+        if (doc.getNumberOfPages() === 1 && onPage === 1 && head.imgH * 0.85 <= availableH) {
+          place(head, availableH);
+          queue.shift();
+          continue;
+        }
+
+        // head doesn't fit the remaining space on this (non-fresh) page — look
+        // for a flexible block anywhere later in the queue that DOES fit, and
+        // place it here instead of leaving the gap blank.
+        let fillIdx = -1;
+        for (let k = 1; k < queue.length; k++) {
+          if (queue[k].flexible && queue[k].imgH <= availableH) { fillIdx = k; break; }
+        }
+
+        if (fillIdx !== -1) {
+          place(queue[fillIdx]);
+          queue.splice(fillIdx, 1);
+        } else {
+          doc.addPage();
+          cursorY = PDF_MARGIN_TOP;
+          isFirstOnPage = true;
+          onPage = 0;
+        }
+      }
+
+      // ---- Page footers ----
+      // Drawn as images, not doc.text(): jsPDF's built-in fonts have no Hangul
+      // glyphs, so "럽리뷔 코칭진튰" would come out as garbage. Rendering after
+      // pagination is what makes "n / total" possible at all — the total isn't
+      // known until every block has been placed.
+      const totalPages = doc.getNumberOfPages();
+      const footerW = PDF_CONTENT_W;
+      for (let pageNo = 1; pageNo <= totalPages; pageNo++) {
+        container.innerHTML = `
+          <div class="rp-pagefoot">
+            <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
+            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">v3s_2</em>${pageNo} / ${totalPages}</span>
+          </div>`;
+        await new Promise((r) => setTimeout(r, 10));
+        const fCanvas = await h2c(container, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          windowWidth: container.scrollWidth,
+        });
+        const footerH = (fCanvas.height * footerW) / fCanvas.width;
+        doc.setPage(pageNo);
+        doc.addImage(
+          fCanvas.toDataURL("image/jpeg", 0.82),
+          "JPEG",
+          PDF_MARGIN_X,
+          PDF_PAGE_H - PDF_MARGIN_BOTTOM + 4,
+          footerW,
+          footerH
+        );
+      }
+
+      const fileName = `${LECTURE_EDITION && mode === "cr" ? "컬러리딩_결과리포트" : LECTURE_EDITION && hasReading() ? "컬러심리리딩_CCT_결과리포트" : "CCT_결과리포트"}${userName ? "_" + userName : ""}.pdf`;
+      const pdfBase64 = doc.output("datauristring"); // "data:application/pdf;base64,...."
+      return { doc, fileName, pdfBase64 };
+    } finally {
+      container.remove();
+      if (isoHost) isoHost.iframe.remove();
+      if (vpMeta) vpMeta.setAttribute("content", vpPrev);
+    }
+  }
+
+  // Caches the in-flight/completed build so the same completed test never
+  // re-renders the whole PDF twice (once for background admin-logging, once
+  // for a v1 user's manual download click) — both callers await this same
+  // promise. Reset on retake (see startQuiz).
+  let pdfDocPromise = null;
+  function getPdfDoc(scores, ranked) {
+    if (!pdfDocPromise) pdfDocPromise = buildPdfDoc(scores, ranked);
+    return pdfDocPromise;
+  }
+
+  // v1-only: lets the user download their own PDF immediately.
+  // ---------- Carrying a finished result to another browser ----------
+  // In-app webviews can't save files (see below), and the fix is to continue in
+  // the real browser. Re-taking 65 questions there would be absurd, so the
+  // finished scores travel in the URL: the target browser restores the exact
+  // same result screen and downloads from there. Only the 13 averages and the
+  // display name are carried — no answers, nothing sent to any server.
+  const RESULT_PARAM = "r";
+
+  function encodeResultParam(scores, name) {
+    try {
+      const payload = { n: name || "" };
+      if (LECTURE_EDITION) payload.m = mode;
+      if (scores) { payload.d = 30; payload.s = CCT_COLORS.map((c) => Math.round((scores[c.key] || 0) * 30)); } // 단축형: 1/30 단위로 저장(1/3 점수를 정확히 복원)
+      if (LECTURE_EDITION && mode !== "cct") {
+        const sel = window.CR.getSelection();
+        if (sel) payload.c = sel.join(",");
+      }
+      if (scores && cctPicks.rank.length) payload.t = cctPicks.rank.join(",");
+      if (scores && cctPicks.comp) payload.p = cctPicks.comp;
+      const json = JSON.stringify(payload);
+      // btoa() is latin1-only, so UTF-8 the Korean name first.
+      const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(json)));
+      return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function decodeResultParam(raw) {
+    try {
+      const b64 = String(raw).replace(/-/g, "+").replace(/_/g, "/");
+      const bin = atob(b64 + "===".slice((b64.length + 3) % 4));
+      const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
+      const validKey = (k) => CCT_COLORS.some((c) => c.key === k);
+      decodedCctPicks = {
+        rank: typeof payload.t === "string" && payload.t ? payload.t.split(",").filter(validKey) : [],
+        comp: typeof payload.p === "string" && validKey(payload.p) ? payload.p : null,
+      };
+      if (!payload) return null;
+      const picks = typeof payload.c === "string" ? payload.c.split(",") : null;
+      const name = typeof payload.n === "string" ? payload.n.slice(0, 12) : "";
+      // 컬러리딩 단독 결과는 CCT 점수 없이 선택한 색만 담겨 옵니다.
+      if (payload.m === "cr") return picks ? { mode: "cr", scores: null, picks, name } : null;
+      if (!Array.isArray(payload.s) || payload.s.length !== CCT_COLORS.length) return null;
+
+      const scores = {};
+      for (let i = 0; i < CCT_COLORS.length; i++) {
+        const v = Number(payload.s[i]) / (payload.d === 30 ? 30 : 10);
+        if (!isFinite(v) || v < 1 || v > 5) return null;
+        scores[CCT_COLORS[i].key] = v;
+      }
+      return { mode: payload.m === "cct" ? "cct" : picks ? "both" : "cct", scores, picks, name };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function buildResultUrl(scores, name) {
+    const token = encodeResultParam(scores, name);
+    if (!token) return null;
+    const base = window.location.origin + window.location.pathname;
+    return `${base}?${RESULT_PARAM}=${token}`;
+  }
+
+  // Restores a result handed over from another browser. Returns true if the
+  // result screen was shown, so the caller can skip the normal intro flow.
+  function restoreResultFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get(RESULT_PARAM);
+    if (!raw) return false;
+    const restored = decodeResultParam(raw);
+    if (!restored) return false;
+    cctPicks = decodedCctPicks || emptyPicks();
+
+    userName = restored.name;
+    if (LECTURE_EDITION) {
+      mode = restored.mode;
+      window.CR.reset();
+      if (restored.picks && !window.CR.setSelection(restored.picks) && mode === "cr") return false;
+    }
+    // resultLogged guard: this result was already logged to the sheet when it
+    // was originally completed — restoring it must not create a duplicate row.
+    resultLogged = true;
+    if (LECTURE_EDITION && mode === "cr") renderReadingResult();
+    else renderResult(restored.scores);
+    showScreen(screenResult);
+    return true;
+  }
+
+  // ---------- In-app browser handling ----------
+  // KakaoTalk / Instagram / Facebook / Line in-app webviews block file
+  // downloads. jsPDF's doc.save() builds a blob and clicks a hidden
+  // <a download>, which those webviews swallow WITHOUT throwing — so the
+  // button appears to do nothing at all. Detect the webview up front and give
+  // the user a way out instead of letting the download fail silently.
+  function detectInAppBrowser() {
+    const ua = navigator.userAgent || "";
+    if (/KAKAOTALK/i.test(ua)) return "kakao";
+    if (/Instagram/i.test(ua)) return "instagram";
+    if (/FBAN|FBAV|FB_IAB/i.test(ua)) return "facebook";
+    if (/Line\//i.test(ua)) return "line";
+    if (/NAVER\(inapp/i.test(ua)) return "naver";
+    if (/DaumApps/i.test(ua)) return "daum";
+    return null;
+  }
+
+  const isAndroid = () => /Android/i.test(navigator.userAgent || "");
+
+  function openInExternalBrowser(targetUrl) {
+    const url = targetUrl || window.location.href;
+    const kind = detectInAppBrowser();
+    if (kind === "kakao") {
+      // KakaoTalk's documented escape hatch — works on both iOS and Android.
+      window.location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(url);
+      return true;
+    }
+    if (isAndroid()) {
+      // Android intent: hand the URL to Chrome directly.
+      const bare = url.replace(/^https?:\/\//, "");
+      window.location.href =
+        "intent://" + bare + "#Intent;scheme=https;package=com.android.chrome;end";
+      return true;
+    }
+    return false; // iOS outside KakaoTalk can't be forced — fall back to copy.
+  }
+
+  async function copyCurrentLink(targetUrl) {
+    const url = targetUrl || window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      return true;
+    } catch (e) {
+      // clipboard API is unavailable in several in-app webviews
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        return ok;
+      } catch (e2) {
+        return false;
+      }
+    }
+  }
+
+
+  async function downloadPdf(scores, ranked, btn) {
+    // Inside an in-app webview, saving a file is impossible no matter how the
+    // bytes are produced: the webview does not save the response itself, it
+    // hands the URL to the host app which re-requests it with a plain GET —
+    // so a POST-only endpoint (or a blob: URL) can never be fetched. Rather
+    // than fail silently, hand the finished result to the real browser and let
+    // the download happen there.
+    if (detectInAppBrowser()) {
+      handOffToBrowser(scores, ranked);
+      return;
+    }
+
+    const toast = document.getElementById("toast");
+    const originalLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "PDF 생성 중…";
+    toast.classList.add("show");
+    try {
+      const { doc, fileName } = await getPdfDoc(scores, ranked);
+      doc.save(fileName);
+      // ⑥ 격리해도 글자가 커지는 기기라면 다른 브라우저에서 다시 저장하도록 안내
+      const bst = await getBoostStatus().catch(() => null);
+      if (bst && bst.after > BOOST_LIMIT) {
+        try { lastResultUrl = scores ? buildResultUrl(scores, userName) || "" : ""; } catch (e) {}
+        showBoostNotice();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("PDF 생성 중 문제가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalLabel;
+      toast.classList.remove("show");
+    }
+  }
+
+  // Opens the same finished result in the device's real browser, where the
+  // normal download works. The scores ride in the URL so nobody has to retake
+  // the test — see encodeResultParam() above.
+  function handOffToBrowser(scores, ranked) {
+    const url = buildResultUrl(scores, userName);
+    if (!url) {
+      showBrowserHandoffDialog(url);
+      return;
+    }
+
+    // Try to open the real browser silently — when it works the user just sees
+    // Chrome/Safari come up with their result, and any dialog here would be
+    // pure noise. The fallback below exists because "we asked the OS to open a
+    // browser" is not proof that one opened (Chrome missing on Android, some
+    // iOS webviews): if the page is still in the foreground a moment later,
+    // nothing happened, and a dead button is exactly the silent failure this
+    // whole feature was meant to remove.
+    const opened = openInExternalBrowser(url);
+
+    let settled = false;
+    const cancel = () => { settled = true; };
+    // Leaving for another app fires these; if they fire, the browser opened.
+    document.addEventListener("visibilitychange", cancel, { once: true });
+    window.addEventListener("pagehide", cancel, { once: true });
+    window.addEventListener("blur", cancel, { once: true });
+
+    setTimeout(() => {
+      document.removeEventListener("visibilitychange", cancel);
+      window.removeEventListener("pagehide", cancel);
+      window.removeEventListener("blur", cancel);
+      if (settled || document.hidden) return; // browser took over — stay quiet
+      showBrowserHandoffDialog(url);
+    }, opened ? 2500 : 0);
+  }
+
+  function showBrowserHandoffDialog(url) {
+    let el = document.getElementById("inappHint");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "inappHint";
+      el.className = "inapp-hint";
+      el.innerHTML = `
+        <div class="inapp-hint-card">
+          <div class="inapp-hint-title">브라우저에서 저장해주세요</div>
+          <p class="inapp-hint-text">카카오톡 안에서는 파일을 저장할 수 없습니다. 크롬·사파리로 <b>지금 결과 그대로</b> 넘겨드릴게요. 검사를 다시 하실 필요는 없습니다.</p>
+          <div class="inapp-hint-actions">
+            <button type="button" class="inapp-btn" id="ihOpen">브라우저에서 결과 열기</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="ihCopy">결과 링크 복사</button>
+            <button type="button" class="inapp-btn inapp-btn-ghost" id="ihClose">닫기</button>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+      el.querySelector("#ihClose").addEventListener("click", () => el.classList.remove("is-open"));
+    }
+    // Carry the URL on the element so the dialog is self-describing (and the
+    // hand-off is inspectable) rather than living only in a closure.
+    el.dataset.resultUrl = url || "";
+    const openBtn = el.querySelector("#ihOpen");
+    const copyBtn = el.querySelector("#ihCopy");
+    // Rebind each time so the buttons always carry the current result URL.
+    openBtn.replaceWith(openBtn.cloneNode(true));
+    copyBtn.replaceWith(copyBtn.cloneNode(true));
+    el.querySelector("#ihOpen").addEventListener("click", () => {
+      if (!openInExternalBrowser(url)) {
+        el.querySelector("#ihOpen").textContent = "'결과 링크 복사'를 눌러주세요";
+      }
+    });
+    el.querySelector("#ihCopy").addEventListener("click", async (e) => {
+      const ok = await copyCurrentLink(url);
+      e.target.textContent = ok ? "복사됐어요! 브라우저에 붙여넣기" : "복사 실패 — 주소창에서 복사해주세요";
+      setTimeout(() => { e.target.textContent = "결과 링크 복사"; }, 5000);
+    });
+    el.classList.add("is-open");
+  }
+
+  function resetApp() {
+    if (LECTURE_EDITION) { window.CR.reset(); mode = "both"; setPendingMode(null); }
+    answers = [];
+    cctPicks = emptyPicks();
+    currentIndex = 0;
+    // Drop ?r= so a reload after retaking doesn't resurrect the handed-over
+    // result and drop the user straight back onto the old result screen.
+    if (window.location.search) {
+      history.replaceState(null, "", window.location.pathname);
+    }
+    showScreen(screenIntro);
+  }
+
+  // ---------- Access code + required-name gate (client-side only) ----------
+  // Starting the test requires BOTH a filled-in name and the correct access code.
+  let accessCodeOk = false;
+
+  function setAccessStatus(kind, msg) {
+    accessStatus.textContent = msg;
+    accessStatus.className = "access-status" + (kind ? " " + kind : "");
+  }
+
+  function updateStartState() {
+    const nameOk = (userNameInput.value || "").trim().length > 0;
+    verified = accessCodeOk && nameOk;
+    btnStart.disabled = !verified;
+  }
+
+  function checkAccessCode() {
+    const value = (accessCodeInput.value || "").trim().toLowerCase();
+    if (!value) {
+      accessCodeOk = false;
+      setAccessStatus("", "");
+    } else if (value === CCT_ACCESS_CODE.toLowerCase()) {
+      accessCodeOk = true;
+      setAccessStatus("ok", "확인됐어요.");
+    } else {
+      accessCodeOk = false;
+      setAccessStatus("warn", "코드를 다시 확인해주세요.");
+    }
+    updateStartState();
+  }
+
+  function bindAccessCode() {
+    accessCodeInput.addEventListener("input", checkAccessCode);
+    accessCodeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && verified) beginFlow();
+    });
+    userNameInput.addEventListener("input", updateStartState);
+  }
+
+  // ---------- Bind ----------
+  btnStart.addEventListener("click", beginFlow);
+  userNameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && verified) beginFlow();
+  });
+
+  buildColorRing();
+  bindAccessCode();
+  bindModeScreen();
+  restoreResultFromUrl();
+  // 지난번에 보내지 못한 결과가 있으면 조용히 다시 보낸다 (2026-10-31)
+  setTimeout(() => { flushOutbox().catch(() => {}); }, 4000);
+})();
