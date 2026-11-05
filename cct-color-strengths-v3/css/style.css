@@ -2082,3 +2082,103 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .save-notice-ok{flex:0 0 auto;font-weight:700}
 @keyframes saveSpin{to{transform:rotate(360deg)}}
 @media print{.save-notice{display:none!important}}
+
+/* ===== v3test_02 (2026-10-28) · 컬러리딩 해석 개선 ===== */
+.cr-card-ask { margin: 2px 0 12px; padding: 11px 14px; border-radius: 12px; background: #f5f4f1; font-size: 13.6px; font-weight: 700; line-height: 1.6; color: var(--ink-900); text-align: center; word-break: keep-all; }
+.cr-card-dirs { list-style: none; margin: 8px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.cr-card-dirs li { position: relative; padding-left: 14px; font-size: 12.8px; line-height: 1.55; color: var(--ink-700); word-break: keep-all; }
+.cr-card-dirs li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 5px; height: 5px; border-radius: 50%; background: var(--cr-accent, #8b7cc4); }
+.pdf-report .ra-mq--ask { font-style: normal; }
+.pdf-report .ra-dirs { margin-top: 12px; padding: 10px 14px 4px; border-radius: 12px; background: #f7f5fb; }
+.pdf-report .ra-dir { display: flex; gap: 10px; align-items: baseline; margin-bottom: 7px; }
+.pdf-report .ra-dir > b { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; background: #6a56a8; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.pdf-report .ra-dir span { display: block; font-size: 13.4px; font-weight: 700; color: var(--ink-900); line-height: 1.55; }
+.pdf-report .ra-dir em { display: block; font-style: normal; font-size: 12.4px; color: #6f6c7a; line-height: 1.5; }
+.pdf-report .ra-close-h { display: block; font-size: 12px; font-weight: 800; letter-spacing: .02em; color: #6a56a8; margin-bottom: 2px; }
+.pdf-report .ra-close-note { font-size: 12px; color: #8a8794; line-height: 1.7; margin: 6px 8px 0; word-break: keep-all; }
+
+/* ===== v3test_02 · CCT 해석 개선 ===== */
+.combo-analysis { margin: 8px 0 12px; font-size: 13.4px; line-height: 1.75; color: var(--ink-700); word-break: keep-all; }
+.combo-analysis p { margin: 0 0 6px; }
+.combo-items { margin: 2px 0 8px; padding-left: 18px; }
+.combo-items li { margin: 2px 0; }
+.combo-watch { margin-top: 8px; padding: 9px 12px; border-radius: 10px; background: #f7f5fb; font-size: 12.8px; line-height: 1.7; }
+.combo-watch b { color: #6a56a8; margin-right: 4px; }
+.comp-guide { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.cg-row { display: flex; gap: 10px; align-items: flex-start; }
+.cg-no { flex: 0 0 auto; font-size: 18px; font-weight: 800; color: #6a56a8; line-height: 1.3; }
+.cg-body { flex: 1 1 auto; }
+.cg-t { font-size: 14px; font-weight: 800; color: var(--ink-900); margin-bottom: 4px; }
+.cg-body p { margin: 0 0 5px; font-size: 13.4px; line-height: 1.75; color: var(--ink-700); word-break: keep-all; }
+.cg-list { margin: 2px 0 4px; padding-left: 18px; font-size: 13.4px; line-height: 1.7; color: var(--ink-700); }
+.cg-list li { margin: 2px 0; word-break: keep-all; }
+.cg-sub { font-size: 12.4px !important; color: #8a8794 !important; }
+.syn-scenes { display: flex; flex-direction: column; gap: 8px; }
+.syn-scene { padding: 10px 12px; border-radius: 10px; background: #f7f6f3; }
+.syn-when { font-size: 12.6px; font-weight: 800; color: #6a56a8; margin-bottom: 3px; }
+.syn-what { font-size: 13.4px; line-height: 1.7; color: var(--ink-800, #2b2933); word-break: keep-all; }
+.rel-wrap { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+.rel-h { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 800; color: var(--ink-900); margin-bottom: 6px; }
+.rel-h span { width: 22px; height: 22px; border-radius: 50%; background: #6a56a8; color: #fff; font-size: 12px; line-height: 22px; text-align: center; }
+.rel-list { margin: 0; padding-left: 18px; font-size: 13.4px; line-height: 1.75; color: var(--ink-700); }
+.rel-list li { margin: 3px 0; word-break: keep-all; }
+.rel-note { margin: 4px 0 6px; font-size: 12.6px; line-height: 1.7; color: #6f6c7a; word-break: keep-all; }
+.rel-q { margin: 0; padding-left: 18px; font-size: 13.4px; line-height: 1.75; color: var(--ink-900); font-weight: 600; }
+
+/* ===== v3test_04 (2026-10-30) · 컬러리딩 5번째 자리 ===== */
+.cr-card-view { margin: 4px 0 10px; font-size: 12.4px; line-height: 1.6; color: #6f6c7a; word-break: keep-all; }
+.cr-card-dirs li.is-rec { color: var(--ink-900); font-weight: 700; }
+.cr-card-dirs li.is-rec b { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 8px; background: var(--cr-accent, #8b7cc4); color: #fff; font-size: 10.5px; font-weight: 700; vertical-align: 1px; }
+.pdf-report .ra-view { margin: 8px 0 0; font-size: 12px; line-height: 1.65; color: #6f6c7a; word-break: keep-all; }
+.pdf-report .ra-dir.is-rec span { color: #4b3a8c; }
+.pdf-report .ra-rec { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 8px; background: #6a56a8; color: #fff; font-size: 10.5px; font-style: normal; font-weight: 700; line-height: 1.6; vertical-align: 1px; }
+
+/* ===== v3test_04 (2026-10-30) · CCT 10/30 보완 ===== */
+.persona-together { margin: 4px 0 10px; font-size: 13.4px; line-height: 1.75; color: var(--ink-700); word-break: keep-all; }
+.persona-role { margin-left: 8px; padding: 1px 8px; border-radius: 9px; background: #f1eef8; color: #6a56a8; font-size: 11px; font-weight: 700; vertical-align: 1px; }
+.rel-tag { display: inline-block; margin-right: 4px; padding: 0 6px; border-radius: 8px; background: #f1eef8; color: #6a56a8; font-size: 11px; font-weight: 700; }
+.rel-p { margin: 0 0 4px; font-size: 13.4px; line-height: 1.75; color: var(--ink-800, #2b2933); word-break: keep-all; }
+.ag-warn-balance b { color: #6a56a8; margin-right: 4px; }
+.domain-read { margin: 6px 0 14px; padding: 12px 14px; border-radius: 12px; background: #f7f5fb; }
+.domain-read p { margin: 4px 0 0; font-size: 13.2px; line-height: 1.75; color: var(--ink-800, #2b2933); word-break: keep-all; }
+
+/* 2026-10-31 저장 확인 실패 시 [다시 저장하기] */
+.save-notice.is-retry{pointer-events:auto;background:rgba(160,62,40,.95);border-radius:16px;flex-wrap:wrap;justify-content:center;text-align:center}
+.save-notice-btn{flex:0 0 auto;margin:0;padding:6px 12px;border:0;border-radius:999px;background:#fff;color:#a03e28;font-size:12.5px;font-weight:700;cursor:pointer}
+.save-notice-btn:disabled{opacity:.7;cursor:default}
+.pdf-report .ra-h6--sub { margin-top: 12px; }
+
+/* ===== v3test_08 (2026-11-05) · 번호 원 안의 숫자를 원 가운데로 (PDF·화면 공통) ===== */
+.pdf-report .ra-dir { align-items: flex-start; }
+.pdf-report .ra-dir > b { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-top: 1px; line-height: 1; font-size: 11px; font-weight: 800; padding: 0; }
+.rel-h span { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 22px; height: 22px; line-height: 1; padding: 0; }
+/* html2canvas는 글자를 약 3~4px 아래에 그린다 → PDF에서만 아래쪽 여백으로 보정 */
+.pdf-report .ra-dir > b, .pdf-report .rel-h span { box-sizing: border-box; padding-bottom: 9px; }
+/* (11/06) 앞으로 바라는 나 카드 제목: 요즘의 마음을 이어 가며 + 바람, 두 줄 */
+.cr-card-title.cr-card-title--two { white-space: normal; line-height: 1.45; }
+.cr-card-title.cr-card-title--two .cr-fit { font-size: 15px; }
+/* (11/06) 5번째 실천 방향: 번호 원 · 굵은 제목 · '먼저 해 볼 만한 것' 표시를 한 줄 가운데로 맞춤 */
+.pdf-report .ra-dir { display: block; margin-bottom: 8px; }
+.pdf-report .ra-dir-top { display: flex; align-items: center; gap: 10px; }
+.pdf-report .ra-dir-top > b { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 20px; height: 20px; margin: 0; padding: 0 0 9px; border-radius: 50%; background: #6a56a8; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; }
+.pdf-report .ra-dir-top > span { display: block; font-size: 13.4px; font-weight: 700; color: var(--ink-900); line-height: 1.55; }
+.pdf-report .ra-dir.is-rec .ra-dir-top > span { color: #4b3a8c; }
+.pdf-report .ra-dir-top > .ra-rec { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 20px; margin: 0; padding: 0 9px 9px; border-radius: 10px; line-height: 1; vertical-align: 0; }
+.pdf-report .ra-dir > em { display: block; padding-left: 30px; font-style: normal; font-size: 12.4px; color: #6f6c7a; line-height: 1.5; }
+/* (11/05) PDF 1쪽을 줄이지 않고 원래 크기로 싣기 — 1쪽 여백 정리(모든 쪽 같은 글자 크기·칸 너비) */
+.pdf-report .rp-cover { margin-bottom: 14px; }
+.pdf-report .cr-pdf-row { margin: 0 0 14px; }
+.pdf-report .ra-msg { padding: 12px 0 12px; }
+.pdf-report .rp-cover { padding-bottom: 12px; }
+.pdf-report .rp-kicker { margin-bottom: 6px; }
+.pdf-report .rp-title { margin-bottom: 10px; }
+.pdf-report .rp-parts { margin: 0 0 10px; }
+.pdf-report .cr-pdf-row { margin: 0 0 8px; }
+.pdf-report .ra-sec { margin-top: 2px; }
+.pdf-report .ra-msg .ra-mt { margin-top: 6px; margin-bottom: 8px; }
+.pdf-report .ra-mg { margin-top: 9px; }
+.pdf-report .ra-mq small { margin-top: 1px; }
+/* (11/05) 실천 방향: '먼저 해 볼 만한 것' 표시·보라색 강조 없음, 번호 원을 문장 높이 가운데로(PDF 글자가 아래로 그려지는 만큼 원도 내림) */
+.pdf-report .ra-dir-top > b { position: relative; top: 5px; }
+.pdf-report .ra-dir-top > span { color: var(--ink-900); }
+.pdf-report .rel-h span { position: relative; top: 5px; }
