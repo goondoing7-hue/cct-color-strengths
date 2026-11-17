@@ -1759,6 +1759,69 @@
   // 청소년 버전(kids) 결과 화면 · 결과지 — 어린이가 혼자 읽을 수 있는 말로
   //   점수·순위·동점·균형 컬러는 어른용과 같은 규칙. 문장은 js/kids-data.js(KIDS)에서.
   // =====================================================================
+  const kidCol = (k) => CCT_COLORS.find((c) => c.key === k) || { ko: k, hex: "#999", strength: "" };
+  function kidJobTags(j) { return j.c.map((k) => { const c = kidCol(k); return `<span class="kj-tag">${kidDot(c, 10)}<span>${escapeHtml(c.ko)}</span></span>`; }).join(""); }
+  function kidJobsWebHTML(ranked) {
+    if (typeof pickKidsJobs !== "function") return "";
+    const jobs = pickKidsJobs(ranked, 3);
+    return `
+      <section class="rs-block">
+        <h2 class="rs-title">나에게 어울리는 직업 TOP3</h2>
+        <div class="kj-list">${jobs.map((j, i) => `
+          <div class="kj-item">
+            <span class="kj-no" style="background:${kidCol(j.c[0]).hex}">${i + 1}</span>
+            <div class="kj-body">
+              <div class="kj-head"><b>${escapeHtml(j.job)}</b><span class="kj-tags">${kidJobTags(j)}</span></div>
+              <p>${escapeHtml(j.why)}</p>
+            </div>
+          </div>`).join("")}</div>
+      </section>`;
+  }
+  function kidJobsPdfHTML(ranked, sec) {
+    if (typeof pickKidsJobs !== "function") return "";
+    const jobs = pickKidsJobs(ranked, 3);
+    const top3 = ranked.slice(0, 3);
+    return `
+      ${sec("05", "나에게 어울리는 직업", "강점 TOP3가 빛날 수 있는 직업이에요. 정해진 길이 아니라, 나를 알아 가는 힌트로 읽어 주세요.")}
+      <div class="kj-sub-h">어울리는 직업 TOP3 <span>강점 1위 · 2위 · 3위 컬러에서 하나씩 골랐어요</span></div>
+      <div class="kj-top">${jobs.map((j, i) => `
+        <div class="kj-card">
+          <div class="kj-card-h"><span class="kd-rank kj-rank" style="background:${kidCol(j.c[0]).hex}">${i + 1}</span><b>${escapeHtml(j.job)}</b></div>
+          <div class="kj-tags">${kidJobTags(j)}</div>
+          <p>${escapeHtml(j.why)}</p>
+        </div>`).join("")}</div>
+      <div class="kj-sub-h">컬러별로 더 살펴보기</div>
+      <div class="kj-rows">${top3.map((c) => { const F = (typeof KIDS_FIELD !== "undefined" && KIDS_FIELD[c.key]) || { field: "", act: [] }; return `
+        <div class="kj-row">
+          <div class="kj-row-h">${kidDot(c, 14)}<b>${escapeHtml(c.ko)}</b><span class="kd-nm">${escapeHtml(c.strength)}</span><em>${escapeHtml(F.field)}</em></div>
+          <div class="kj-chips">${kidsJobsForColor(c.key, 5).map((j) => `<span class="kj-chip">${escapeHtml(j.job)}</span>`).join("")}</div>
+          <p class="kj-act"><b>지금 해 볼 수 있는 것</b> ${F.act.map(escapeHtml).join(" · ")}</p>
+        </div>`; }).join("")}</div>
+      <div class="kj-sub-h">나의 꿈 메모</div>
+      <div class="kd-ask kj-memo"><div class="kd-ask-q">관심 있는 직업 한 가지와, 그 일에 나의 어떤 컬러 강점이 쓰일지 적어 봐요.</div><div class="kd-line"></div><div class="kd-line"></div><div class="kd-line"></div></div>
+      <p class="kd-small">어떤 직업이든 여러 강점이 함께 필요해요. 지금 점수가 낮은 강점도 자라면서 얼마든지 커질 수 있어요.</p>`;
+  }
+  // kids_25: 결과지 마지막 「종합 평가」 — 앞의 내용을 줄글로 묶음
+  function kidFinalParas(ranked, comp, who) {
+    const E = escapeHtml;
+    const [t1, t2, t3] = ranked;
+    const K1 = kidK(t1), K2 = kidK(t2), K3 = kidK(t3);
+    const cp = comp.chosen, KC = kidK(cp);
+    const q = (t) => `‘${E(t)}’`;
+    const low = ranked[ranked.length - 1];
+    const jobs = typeof pickKidsJobs === "function" ? pickKidsJobs(ranked, 3) : [];
+    const F1 = (typeof KIDS_FIELD !== "undefined" && KIDS_FIELD[t1.key]) || { act: [] };
+    const subj = kidSubj(who);
+    const p = [];
+    p.push(`${subj} 직접 답한 39개의 질문을 모아 보면, 가장 자주 쓰는 컬러 강점은 <b style="color:${t1.hex}">${E(t1.ko)}</b>의 ${q(t1.strength)}이에요. 그다음으로 ${E(t2.ko)}의 ${q(t2.strength)}, ${E(t3.ko)}의 ${q(t3.strength)}도 잘 쓰고 있어요. 이 세 가지가 지금의 ${E(who)}${josa(who, "을", "를")} 가장 잘 보여 주는 강점이에요.`);
+    p.push(`${E(t1.ko)}${josa(t1.ko, "은", "는")} ${E(K1.one || "")} ${q((K1.shine || [])[0] || "")} 같은 모습에서 이 강점이 잘 드러나요. 여기에 ${E(t2.ko)}${josa(t2.ko, "은", "는")} ${E(K2.one || "")} 그리고 ${E(t3.ko)}${josa(t3.ko, "은", "는")} ${E(K3.one || "")}`);
+    p.push(balanceIsHigh(ranked, comp)
+      ? `가장 큰 강점과 함께 쓰면 좋은 짝꿍 강점은 ${E(cp.ko)}의 ${q(cp.strength)}이에요. ${E(KC.one || "")} 이미 잘 쓰고 있는 강점이라, ${E(t1.ko)}의 강점과 함께 쓰면 두 강점이 서로를 더 크게 만들어 줘요.`
+      : `다만 ${E(t1.ko)}의 강점을 너무 많이 쓰면 ${q((K1.careful || [])[0] || "")} 이럴 때는 짝꿍 강점인 ${E(cp.ko)}의 ${q(cp.strength)}을 함께 꺼내 써 보세요. ${E(KC.one || "")}`);
+    if (jobs.length) p.push(`이런 강점은 ${jobs.map((j) => E(j.job)).join(", ")} 같은 일에서 특히 빛날 수 있어요. 직업은 정해진 길이 아니라 내 강점이 빛날 수 있는 곳을 찾아보는 힌트예요. 지금은 ${q(F1.act[0] || "")}처럼 작은 것부터 해 보면 좋아요.`);
+    p.push(`점수가 가장 낮게 나온 ${E(low.ko)}의 ${q(low.strength)}은 부족한 것이 아니라 아직 덜 꺼내 쓴 강점이에요. 자라면서 얼마든지 커질 수 있어요. 오늘 알게 된 나의 컬러 강점을 기억하고, 하나씩 더 키워 가 보세요.`);
+    return p;
+  }
   function kidsName(name) { return name ? `${escapeHtml(name)}님` : "나"; }
   function kidSubj(who) { return who === "나" ? "내가" : who + josa(who.replace(/<[^>]+>/g, ""), "이", "가"); }
   function kidK(c) { return (typeof KIDS !== "undefined" && KIDS[c.key]) || {}; }
@@ -1813,6 +1876,7 @@
           </div>`).join("")}</div>
         <p class="rs-note kd-note kc-web-lead">${kidTopLine(ranked, who)}</p>
       </section>
+      ${kidJobsWebHTML(ranked)}
       <section class="rs-block">
         <h2 class="rs-title">${escapeHtml(top1.ko)} · ${escapeHtml(top1.strength)}</h2>
         <p class="kd-p">${escapeHtml(K1.one || "")}</p>
@@ -1915,33 +1979,22 @@
       i === 0 ? rigidBreak(html) : rigid(html);
     });
 
-    // 3 · 함께 쓰면 좋은 강점 + 친구·가족과 함께할 때
+    // 3 · 함께 쓰면 좋은 강점 + 13가지 점수 (kids_25: 친구·가족 / 이번 주 도전 / 나에게 물어보기 삭제)
     rigidBreak(`
       ${sec("03", "함께 쓰면 좋은 강점", KIDS_BAL_DEF)}
       ${kidBalanceHTML(ranked, comp)}`);
     rigid(`
-      ${sec("04", "친구·가족과 함께할 때", "나의 강점 TOP3가 친구나 가족과 함께 있을 때 어떻게 나타나는지 알아봐요.")}
-      <div class="kd-friends">${top3.map((c) => { const K = kidK(c); return `
-        <div class="kd-friend">
-          <div class="kd-friend-h">${kidDot(c, 14)}<b>${escapeHtml(c.ko)}</b><span class="kd-nm">${escapeHtml(c.strength)}</span></div>
-          <p class="kd-p">${escapeHtml(K.friend || "")}</p>
-          <p class="kd-tip"><b>이렇게 해 봐요</b> ${escapeHtml(K.friendTip || "")}</p>
-        </div>`; }).join("")}</div>
-      <p class="kd-small">사람마다 먼저 쓰는 강점이 달라요. 나와 다르게 행동하는 친구는 다른 컬러 강점을 먼저 쓰고 있는 거예요.</p>`);
+      <div class="kd-gap"></div>
+      ${sec("04", "13가지 컬러 강점 점수", "점수는 1점부터 5점까지예요. 다른 친구와 견주는 점수가 아니라, 내 안에서 어떤 강점을 더 자주 쓰는지 보여 줘요.")}
+      <div class="bar-chart kd-bars"><div class="kd-bars-h">나의 강점 TOP3</div>${ranked.slice(0, 3).map((c, i) => buildScoreBarRowHTML(c, i)).join("")}<div class="kd-bars-h kd-bars-h--rest">그 밖의 컬러 강점</div>${ranked.slice(3).map((c, i) => buildScoreBarRowHTML(c, i + 3)).join("")}</div>`);
 
-    // 4 · 이번 주 도전 + 나에게 물어보기
-    rigidBreak(`
-      ${sec("05", "이번 주 도전", "강점 TOP3를 하나씩 써 보는 작은 도전이에요. 해냈다면 네모 칸에 표시해요.")}
-      <div class="kd-missions">${top3.map((c) => { const K = kidK(c); return `
-        <div class="kd-mission"><span class="kd-box"></span>${kidDot(c, 12)}<p>${escapeHtml((K.try || [])[2] || (K.try || [])[0] || "")}</p></div>`; }).join("")}</div>
-      ${sec("06", "나에게 물어보기", "정답은 없어요. 떠오르는 대로 적어 봐요.")}
-      <div class="kd-asks">${top3.map((c) => `
-        <div class="kd-ask"><div class="kd-ask-q">${kidDot(c, 12)}${escapeHtml(kidK(c).ask || "")}</div><div class="kd-line"></div><div class="kd-line"></div><div class="kd-line"></div></div>`).join("")}</div>`);
+    // 4 · 나에게 어울리는 직업
+    rigidBreak(kidJobsPdfHTML(ranked, sec));
 
-    // 5 · 13가지 점수 + 알아 두세요
+    // 5 · 종합 평가 (줄글, 큰 글씨) + 알아 두세요
     rigidBreak(`
-      ${sec("07", "13가지 컬러 강점 점수", "점수는 1점부터 5점까지예요. 다른 친구와 견주는 점수가 아니라, 내 안에서 어떤 강점을 더 자주 쓰는지 보여 줘요.")}
-      <div class="bar-chart kd-bars"><div class="kd-bars-h">나의 강점 TOP3</div>${ranked.slice(0, 3).map((c, i) => buildScoreBarRowHTML(c, i)).join("")}<div class="kd-bars-h kd-bars-h--rest">그 밖의 컬러 강점</div>${ranked.slice(3).map((c, i) => buildScoreBarRowHTML(c, i + 3)).join("")}</div>
+      ${sec("06", "종합 평가", "")}
+      <div class="kf-text">${kidFinalParas(ranked, comp, who).map((t) => `<p>${t}</p>`).join("")}</div>
       <div class="rp-disclaimer kd-note-box">
         <b>알아 두세요</b><br/>
         이 결과는 ${kidSubj(who)} 지금 스스로 답한 내용으로 만든 거예요. 자라면서, 그리고 상황에 따라 달라질 수 있어요.
@@ -2462,7 +2515,7 @@
         container.innerHTML = `
           <div class="rp-pagefoot">
             <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
-            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">kids_19</em>${pageNo} / ${totalPages}</span>
+            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">kids_25</em>${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
         const fCanvas = await h2c(container, {

@@ -1638,3 +1638,93 @@ body { background: #f7f6fb; }
 .meta-chip { display: flex; align-items: baseline; justify-content: center; gap: 4px; }
 .meta-chip .meta-num { display: inline; }
 .meta-chip .meta-label { display: inline; margin-top: 0; font-size: 13px; font-weight: 700; white-space: nowrap; }
+/* kids_20: 첫 화면을 스크롤 없이 한 화면에 */
+.screen--intro { padding: 22px 20px 14px; min-height: 100vh; min-height: 100dvh; box-sizing: border-box; }
+.brand-kicker.bk-teen { margin-bottom: 18px; }
+.color-ring { width: 92px; height: 92px; margin-bottom: 16px; }
+.color-ring svg { width: 92px; height: 92px; }
+.intro-title { font-size: 26px; line-height: 1.3; margin-bottom: 10px; }
+.intro-sub { font-size: 14px; line-height: 1.6; margin-bottom: 18px; }
+.intro-meta { margin-bottom: 18px; }
+.meta-chip { padding: 11px 6px; }
+.meta-num { font-size: 20px; }
+.intro-name-field, .access-field { margin-bottom: 12px; }
+.intro-name-field label, .access-field label { margin-bottom: 6px; }
+.intro-name-field input, .access-field input { padding: 12px 16px; }
+.access-status { margin-top: 4px; }
+.btn-start { margin-top: 4px; margin-bottom: 10px; padding-top: 15px; padding-bottom: 15px; }
+.app-ver { margin: 0; }
+@media (max-height: 700px) {
+  .color-ring { width: 72px; height: 72px; margin-bottom: 12px; }
+  .color-ring svg { width: 72px; height: 72px; }
+  .intro-title { font-size: 23px; }
+  .brand-kicker.bk-teen { margin-bottom: 12px; }
+}
+.access-field { position: relative; } .access-status { position: absolute; top: 0; right: 2px; margin: 0; line-height: 1.5; }
+.intro-sub { white-space: nowrap; }
+
+/* kids_22: 어울리는 직업 */
+.kj-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: #5d5970; }
+.kj-tags { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+.kj-list { display: flex; flex-direction: column; gap: 10px; }
+.kj-item { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; padding: 16px 18px; border-radius: 20px; background: #fff; border: 1px solid var(--teen-line, #e7e3f1); box-shadow: 0 6px 20px rgba(47,42,94,0.06); }
+.kj-no { width: 34px; height: 34px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.kj-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.kj-head b { font-size: 18px; font-weight: 800; color: #1d1b2c; }
+.kj-body p { margin: 6px 0 0; font-size: 14px; line-height: 1.65; color: #4a4660; word-break: keep-all; }
+
+/* 결과지 */
+.pdf-report .kj-sub-h { margin: 6px 0 10px; font-size: 15px; font-weight: 800; color: #2f2a5e; }
+.pdf-report .kj-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }
+.pdf-report .kj-card { border: 1px solid #ece9f3; border-radius: 16px; padding: 14px 14px 12px; background: #fff; }
+.pdf-report .kj-card-h { display: flex; align-items: center; gap: 8px; }
+.pdf-report .kj-rank { box-sizing: border-box; width: 26px; height: 26px; padding-bottom: 8px; font-size: 13px; flex: 0 0 auto; }
+.pdf-report .kj-card-h b { font-size: 17px; font-weight: 800; color: #1d1b2c; position: relative; top: -4px; word-break: keep-all; }
+.pdf-report .kj-card .kj-tags { margin-top: 6px; }
+.pdf-report .kj-tag { font-size: 12px; }
+.pdf-report .kj-tag span { position: relative; top: -4px; }
+.pdf-report .kj-tag .kd-dot { position: relative; top: 0; }
+.pdf-report .kj-card p { margin: 6px 0 0; font-size: 13px; line-height: 1.7; color: #4a4660; word-break: keep-all; }
+.pdf-report .kj-rows { display: grid; gap: 10px; }
+.pdf-report .kj-row { border: 1px solid #ece9f3; border-radius: 16px; padding: 12px 16px; background: #fff; }
+.pdf-report .kj-row-h { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.pdf-report .kj-row-h b, .pdf-report .kj-row-h .kd-nm, .pdf-report .kj-row-h em { position: relative; top: -4px; }
+.pdf-report .kj-row-h .kd-dot { position: relative; top: 2px; }
+.pdf-report .kj-row-h .kd-nm { font-size: 13px; color: #6f6c7a; }
+.pdf-report .kj-row-h em { margin-left: auto; font-style: normal; font-size: 12.5px; font-weight: 700; color: #6a56a8; }
+.pdf-report .kj-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pdf-report .kj-chip { box-sizing: border-box; padding: 3px 12px 9px; border-radius: 999px; background: #f4f2fa; font-size: 13px; font-weight: 700; color: #3a3650; }
+.pdf-report .kj-act { margin: 8px 0 0; font-size: 13px; line-height: 1.7; color: #4a4660; word-break: keep-all; }
+.pdf-report .kj-act b { color: #2f7d5b; margin-right: 6px; }
+.pdf-report .kj-sub-h span { margin-left: 8px; font-size: 12px; font-weight: 600; color: #8a8794; }
+.pdf-report .kj-sub-h { margin: 10px 0 12px; font-size: 16px; }
+.pdf-report .kj-card { padding: 16px 16px 14px; }
+.pdf-report .kj-card-h b { font-size: 18px; }
+.pdf-report .kj-card p { font-size: 13.5px; line-height: 1.75; }
+.pdf-report .kj-top { margin-bottom: 26px; }
+.pdf-report .kj-row { padding: 14px 18px; }
+.pdf-report .kj-rows { margin-bottom: 24px; gap: 12px; }
+.pdf-report .kj-memo .kd-ask-q { font-weight: 700; }
+.pdf-report .kj-rank { position: relative; top: 2px; } .pdf-report .kj-tag .kd-dot { top: 1px; } .pdf-report .kj-chip { padding: 4px 12px 8px; }
+/* kids_22: 2쪽 TOP3 카드 세 장이 어떤 조합이어도 한 쪽에 들어가도록 조금 촘촘하게 */
+.pdf-report .kd-card { padding: 14px 18px 10px; margin-bottom: 12px; }
+.pdf-report .kd-card .kd-list { font-size: 14px; line-height: 1.6; }
+.pdf-report .kd-card .kd-list li { margin: 1px 0; }
+.pdf-report .kd-card .kd-sub { margin: 8px 0 3px; }
+.pdf-report .kd-card .kd-one { margin: 6px 0 2px; padding-bottom: 8px; }
+.pdf-report .kj-chip { padding: 1px 12px 11px; }
+/* kids_24: 섹션 번호 상자를 제목 글자 높이에 맞춤 */
+.pdf-report .kd-sec { gap: 10px; }
+.pdf-report .kd-sec b { width: 32px; height: 19px; padding-bottom: 6px; border-radius: 6px; font-size: 11.5px; letter-spacing: 0.02em; position: relative; top: 0; }
+.pdf-report .kd-sec b { height: 21px; padding-bottom: 7px; top: 2.7px; }
+/* kids_25: 섹션 번호 정사각형(제목 글자 높이), 종합 평가 큰 글씨 */
+.pdf-report .kd-sec b { width: 21px; height: 21px; border-radius: 6px; font-size: 11px; letter-spacing: 0; }
+.pdf-report .kd-gap { height: 24px; }
+.pdf-report .kf-text { margin-top: 18px; }
+.pdf-report .kf-text p { margin: 0 0 18px; font-size: 17.5px; line-height: 1.95; color: #2c2940; word-break: keep-all; }
+.pdf-report .kf-text p b { font-weight: 800; }
+.pdf-report .kd-gap { height: 14px; }
+.pdf-report .kd-bars { gap: 8px; }
+.pdf-report .kd-bars .bar-row { gap: 4px; }
+.pdf-report .kd-bars-h--rest { margin-top: 4px; padding-top: 10px; }
+.pdf-report .kf-text { margin-top: 22px; } .pdf-report .kf-text p { font-size: 20px; line-height: 2; margin-bottom: 24px; } .pdf-report .kf-text + .kd-note-box { margin-top: 26px; }
