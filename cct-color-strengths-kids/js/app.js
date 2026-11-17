@@ -1802,21 +1802,16 @@
       </div>
       <section class="rs-block">
         <h2 class="rs-title">나의 강점 TOP3</h2>
-        <div class="kd-top3">${ranked.slice(0, 3).map((c, i) => `
-          <div class="kd-chip" style="border-color:${c.hex}">
-            <span class="kd-rank" style="background:${c.hex}">${i + 1}</span>
-            <b>${escapeHtml(c.ko)}</b><span class="kd-nm">${escapeHtml(c.strength)}</span><em>${f1(c.score)}점</em>
+        <div class="kc-top3 kc-top3--web">${ranked.slice(0, 3).map((c, i) => `
+          <div class="kc-rk">
+            <span class="kd-rank kc-rk-no" style="background:${c.hex}">${i + 1}</span>
+            <div class="kc-rk-body">
+              <div class="kc-rk-line"><b>${escapeHtml(c.ko)}</b><em>${f1(c.score)}<small> / 5</small></em></div>
+              <span class="kc-rk-nm">${escapeHtml(c.strength)}</span>
+              <div class="kc-rk-bar"><i style="width:${Math.max(4, Math.min(100, (c.score - 1) / 4 * 100)).toFixed(1)}%;background:${c.hex}"></i></div>
+            </div>
           </div>`).join("")}</div>
-        <p class="rs-note kd-note">${kidTopLine(ranked, who)}</p>
-      </section>
-      <section class="rs-block">
-        <h2 class="rs-title">13가지 컬러 강점</h2>
-        <div class="rs-radar-card">${buildRadarChartHTML(scores)}</div>
-        <button type="button" class="rs-toggle js-toggle" aria-expanded="false" aria-controls="rsScores" data-target="rsScores">
-          <span class="cs-toggle-label">컬러마다 점수 보기</span>
-          <span class="cs-toggle-icon" aria-hidden="true">▾</span>
-        </button>
-        <div class="rs-panel" id="rsScores"><div class="bar-chart">${ranked.map((c, i) => buildScoreBarRowHTML(c, i)).join("")}</div></div>
+        <p class="rs-note kd-note kc-web-lead">${kidTopLine(ranked, who)}</p>
       </section>
       <section class="rs-block">
         <h2 class="rs-title">${escapeHtml(top1.ko)} · ${escapeHtml(top1.strength)}</h2>
@@ -1870,7 +1865,7 @@
     rigid(`
       <div class="kc-hero">
         <div class="kc-hero-txt">
-          <div class="kc-kicker">CCT · 청소년 컬러 강점 검사</div>
+          <div class="kc-kicker"><span class="kc-tag">CCT</span><span class="kc-ktxt">청소년 컬러 강점 검사</span></div>
           <div class="kc-title"><span class="kc-name">${who}</span>의<br />컬러 강점 보고서</div>
           <div class="kc-meta">
             <div><i>검사한 날</i><b>${dateOnly}</b></div>
@@ -2467,7 +2462,7 @@
         container.innerHTML = `
           <div class="rp-pagefoot">
             <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
-            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">kids_10</em>${pageNo} / ${totalPages}</span>
+            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">kids_16</em>${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
         const fCanvas = await h2c(container, {
