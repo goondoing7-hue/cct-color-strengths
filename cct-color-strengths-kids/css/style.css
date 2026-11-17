@@ -1634,3 +1634,7 @@ body { background: #f7f6fb; }
 .rs-cta-bar { background: #ffffff; border-top: 1px solid #eeebf4; box-shadow: 0 -6px 18px rgba(47, 42, 94, 0.05); padding-top: 14px; }
 .screen--result { padding-bottom: 130px; }
 .result-wrap .kc-web-lead { margin-bottom: 8px; }
+/* kids_17: 첫 화면 숫자 옆(오른쪽)에 단위 */
+.meta-chip { display: flex; align-items: baseline; justify-content: center; gap: 4px; }
+.meta-chip .meta-num { display: inline; }
+.meta-chip .meta-label { display: inline; margin-top: 0; font-size: 13px; font-weight: 700; white-space: nowrap; }
