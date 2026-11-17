@@ -210,9 +210,7 @@ const KIDS = {
     });
   });
   window.CCT_QUESTIONS_SHORT = picked;
-  // 답 고르기 말
-  const L = { 5: "정말 그래요", 4: "그런 편이에요", 3: "보통이에요", 2: "아닌 편이에요", 1: "전혀 아니에요" };
-  CCT_SCALE.forEach((s) => { if (L[s.value]) s.label = L[s.value]; });
+  // 답 고르기 말: 성인용과 같은 5지선다(매우 그렇다 ~ 전혀 아니다) 그대로 사용 (kids_28)
   // 6대 강점영역은 청소년 결과지에 쓰지 않지만, 이름이 나올 때를 위해 쉬운 말로
   const DN = { wisdom: "알아보고 생각하는 강점", courage: "용기 있게 해내는 강점", humanity: "마음을 나누는 강점", justice: "함께 지내는 강점", temperance: "나를 다스리는 강점", transcendence: "뜻을 찾는 강점" };
   CCT_DOMAINS.forEach((d) => { if (DN[d.key]) d.name = DN[d.key]; });
