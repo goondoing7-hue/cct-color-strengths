@@ -1728,3 +1728,53 @@ body { background: #f7f6fb; }
 .pdf-report .kd-bars .bar-row { gap: 4px; }
 .pdf-report .kd-bars-h--rest { margin-top: 4px; padding-top: 10px; }
 .pdf-report .kf-text { margin-top: 22px; } .pdf-report .kf-text p { font-size: 20px; line-height: 2; margin-bottom: 24px; } .pdf-report .kf-text + .kd-note-box { margin-top: 26px; }
+
+/* =====================================================================
+   kids_26 · 첫 화면 다시 디자인 — 한 화면 고정(스크롤 없음), 위: 소개 / 아래: 입력 카드
+   ===================================================================== */
+html, body { margin: 0; }
+.screen--intro.is-active {
+  display: flex; align-items: stretch; justify-content: center;
+  height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; box-sizing: border-box;
+  padding: max(14px, env(safe-area-inset-top)) 18px max(12px, env(safe-area-inset-bottom));
+}
+.screen--intro .intro-content { height: 100%; max-width: 440px; display: flex; flex-direction: column; align-items: stretch; justify-content: space-between; gap: 12px; }
+.intro-hero { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.intro-hero .brand-kicker.bk-teen { margin-bottom: clamp(14px, 3.2vh, 28px); padding: 5px 16px 5px 5px; }
+.intro-hero .bk-teen .bk-tag { font-size: 11px; padding: 5px 10px; }
+.intro-hero .bk-teen .bk-txt { font-size: 15px; }
+.intro-hero .color-ring { width: clamp(64px, 11vh, 104px); height: clamp(64px, 11vh, 104px); margin-bottom: clamp(12px, 2.6vh, 24px); }
+.intro-hero .color-ring svg { width: 100%; height: 100%; }
+.intro-hero .intro-title { font-size: clamp(22px, 3.4vh, 28px); line-height: 1.32; letter-spacing: -0.035em; margin: 0 0 clamp(8px, 1.4vh, 12px); }
+.intro-hero .intro-sub { font-size: clamp(13px, 1.8vh, 14.5px); line-height: 1.65; margin: 0; color: #6a6680; }
+
+.intro-card {
+  flex: 0 0 auto; background: rgba(255,255,255,0.94); border: 1px solid #ece8f6; border-radius: 26px;
+  box-shadow: 0 16px 40px rgba(47, 42, 94, 0.10); padding: 16px 16px 16px;
+}
+.intro-card .intro-meta { margin: 0 0 14px; border: 0; border-radius: 16px; background: #f6f4fc; box-shadow: none; }
+.intro-card .meta-chip { padding: 10px 4px; border-right: 1px solid #e6e1f3; }
+.intro-card .meta-chip:last-child { border-right: 0; }
+.intro-card .meta-num { font-size: 19px; }
+.intro-card .meta-label { font-size: 12.5px; }
+.intro-card .intro-name-field, .intro-card .access-field { margin-bottom: 10px; }
+.intro-card label { font-size: 12.5px; margin-bottom: 6px; }
+.intro-card input { padding: 12px 15px; font-size: 15px; border-radius: 14px; background: #fff; }
+.intro-card .btn-start { width: 100%; margin: 6px 0 0; padding: 15px 18px; border-radius: 16px; font-size: 15.5px; }
+.screen--intro .app-ver { flex: 0 0 auto; text-align: center; font-size: 11px; margin: 0; }
+.intro-hero .color-ring { width: clamp(64px, 13vh, 116px); height: clamp(64px, 13vh, 116px); }
+.intro-hero .intro-title { font-size: clamp(22px, 3.6vh, 30px); }
+.intro-hero { overflow: hidden; }
+/* 키보드가 올라와 화면이 낮아지면 소개 부분을 줄여 입력 카드가 가려지지 않게 */
+@media (max-height: 560px) {
+  .intro-hero .color-ring, .intro-hero .intro-sub { display: none; }
+  .intro-hero .brand-kicker.bk-teen { margin-bottom: 8px; }
+  .intro-hero .intro-title { font-size: 19px; }
+}
+@media (max-height: 430px) { .intro-hero { display: none; } }
+/* kids_27: 2쪽 「나의 강점 메모」가 카드 세 장과 같은 쪽에 들어가도록 */
+.pdf-report .kd-memo-h { margin: 2px 0 8px; }
+.pdf-report .kd-card { padding: 12px 18px 8px; margin-bottom: 10px; }
+.pdf-report .kd-card .kd-list { font-size: 13.5px; line-height: 1.55; }
+.pdf-report .kd-card .kd-sub { margin: 6px 0 2px; }
+.pdf-report .kd-card .kd-one { margin: 4px 0 2px; padding-bottom: 6px; }

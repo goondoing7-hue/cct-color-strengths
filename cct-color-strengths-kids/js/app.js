@@ -376,7 +376,7 @@
         ? "이 가운데 평소의 나와 가장 비슷한 것을 골라 주세요."
         : "둘 중에서 평소의 나와 더 비슷한 것을 골라 주세요.";
     const sub = isComp
-      ? "가장 큰 강점과 함께 쓰면 좋은 강점을 정하려고 물어보는 거예요."
+      ? "가장 큰 강점과 함께 쓰면 좋은 컬러를 정하려고 물어보는 거예요."
       : "점수가 똑같은 강점이 있어서 순서를 정하려고 물어보는 거예요. 점수는 바뀌지 않아요.";
     const letters = "ABCDEFGHIJKLM";
     const opts = keys
@@ -1798,7 +1798,7 @@
           <p class="kj-act"><b>지금 해 볼 수 있는 것</b> ${F.act.map(escapeHtml).join(" · ")}</p>
         </div>`; }).join("")}</div>
       <div class="kj-sub-h">나의 꿈 메모</div>
-      <div class="kd-ask kj-memo"><div class="kd-ask-q">관심 있는 직업 한 가지와, 그 일에 나의 어떤 컬러 강점이 쓰일지 적어 봐요.</div><div class="kd-line"></div><div class="kd-line"></div><div class="kd-line"></div></div>
+      <div class="kd-ask kj-memo"><div class="kd-ask-q">나의 직업 TOP3 중 가장 마음에 드는 직업은 무엇인가요? 그 이유를 적어 보세요.</div><div class="kd-line"></div><div class="kd-line"></div><div class="kd-line"></div></div>
       <p class="kd-small">어떤 직업이든 여러 강점이 함께 필요해요. 지금 점수가 낮은 강점도 자라면서 얼마든지 커질 수 있어요.</p>`;
   }
   // kids_25: 결과지 마지막 「종합 평가」 — 앞의 내용을 줄글로 묶음
@@ -1884,7 +1884,7 @@
         <ul class="kd-list">${(K1.shine || []).map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul>
       </section>
       <section class="rs-block">
-        <h2 class="rs-title">함께 쓰면 좋은 강점</h2>
+        <h2 class="rs-title">함께 쓰면 좋은 컬러</h2>
         <p class="rs-note">${KIDS_BAL_DEF}</p>
         ${kidBalanceHTML(ranked, comp)}
       </section>
@@ -1966,7 +1966,7 @@
     top3.forEach((c, i) => {
       const K = kidK(c);
       const html = `
-        ${i === 0 ? sec("02", "나의 강점 TOP3 자세히 보기", "TOP3 강점이 언제 빛나는지, 어떻게 더 키울 수 있는지, 너무 많이 쓰면 어떤지 살펴봐요.") : ""}
+        ${i === 0 ? sec("02", "나의 강점 TOP3", "TOP3 강점이 언제 빛나는지, 어떻게 더 키울 수 있는지, 너무 많이 쓰면 어떤지 살펴봐요.") : ""}
         <div class="kd-card" style="--kd:${c.hex}">
           <div class="kd-card-head"><span class="kd-rank" style="background:${c.hex}">${i + 1}</span><b>${escapeHtml(c.ko)}</b><span class="kd-nm">${escapeHtml(c.strength)}</span><em class="kd-sc">${f1(c.score)}<small> / 5</small></em></div>
           <p class="kd-p kd-one">${escapeHtml(K.one || "")}</p>
@@ -1978,10 +1978,13 @@
         </div>`;
       i === 0 ? rigidBreak(html) : rigid(html);
     });
+    rigid(`
+      <div class="kj-sub-h kd-memo-h">나의 강점 메모</div>
+      <div class="kd-ask kj-memo"><div class="kd-ask-q">나의 강점 TOP3 중 가장 마음에 드는 강점은 무엇인가요? 그 이유를 적어 보세요.</div><div class="kd-line"></div><div class="kd-line"></div></div>`);
 
     // 3 · 함께 쓰면 좋은 강점 + 13가지 점수 (kids_25: 친구·가족 / 이번 주 도전 / 나에게 물어보기 삭제)
     rigidBreak(`
-      ${sec("03", "함께 쓰면 좋은 강점", KIDS_BAL_DEF)}
+      ${sec("03", "함께 쓰면 좋은 컬러", KIDS_BAL_DEF)}
       ${kidBalanceHTML(ranked, comp)}`);
     rigid(`
       <div class="kd-gap"></div>
@@ -2515,7 +2518,7 @@
         container.innerHTML = `
           <div class="rp-pagefoot">
             <span class="rp-pagefoot-name">럽리브 컬러코칭센터</span>
-            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">kids_25</em>${pageNo} / ${totalPages}</span>
+            <span class="rp-pagefoot-num"><em class="rp-pagefoot-ver">kids_27</em>${pageNo} / ${totalPages}</span>
           </div>`;
         await new Promise((r) => setTimeout(r, 10));
         const fCanvas = await h2c(container, {
